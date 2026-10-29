@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   BACKUP_APP_ID,
   buildBackupSyncOps,
+  buildFirstSyncMigrationOps,
   parseStudyBackup,
   prepareBackupForAccount,
 } from '../src/lib/backup';
@@ -186,6 +187,33 @@ test('same-account restores retain record ids for idempotent upserts', () => {
   assert.equal(restored.sessions[0].id, 'session-1');
   assert.equal(restored.personalNotes[0].id, 'note-1');
   assert.equal(restored.profile.email, 'new-email@example.com');
+});
+
+test('first sign-in migrates quizzes and notes only into empty cloud tables', () => {
+  const operations = buildFirstSyncMigrationOps(
+    validData(),
+    'new-account',
+    NOW,
+    {
+      hsc28_chapter_progress: [],
+      hsc28_quiz_attempts: [],
+      hsc28_personal_notes: null,
+      hsc28_study_tasks: [{ id: 'existing-cloud-task' }],
+      hsc28_study_sessions: [{ id: 'existing-cloud-session' }],
+    }
+  );
+
+  assert.deepEqual(
+    operations.map((operation) => operation.table),
+    [
+      'hsc28_chapter_progress',
+      'hsc28_quiz_attempts',
+      'hsc28_personal_notes',
+    ]
+  );
+  assert.ok(
+    operations.every((operation) => operation.payload.user_id === 'new-account')
+  );
 });
 
 test('restore writes cover every record and always use the active user id', () => {

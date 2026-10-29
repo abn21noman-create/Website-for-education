@@ -319,11 +319,11 @@ export function prepareBackupForAccount(
  * record can accidentally be written under another student's account.
  */
 export function buildBackupSyncOps(
-  data: StudyBackupData,
+  data: Omit<StudyBackupData, 'profile'>,
   userId: string,
   syncedAt: string
-): SyncOp[] {
-  const ops: SyncOp[] = [];
+): Extract<SyncOp, { op: 'upsert' }>[] {
+  const ops: Extract<SyncOp, { op: 'upsert' }>[] = [];
 
   for (const [chapterId, progress] of Object.entries(data.progressMap)) {
     ops.push({
@@ -416,4 +416,21 @@ export function buildBackupSyncOps(
   }
 
   return ops;
+}
+
+/**
+ * Selects guest records for first sign-in. A non-empty cloud table remains
+ * authoritative; an empty (or temporarily unreadable) table receives the
+ * local records through the durable queue.
+ */
+export function buildFirstSyncMigrationOps(
+  data: Omit<StudyBackupData, 'profile'>,
+  userId: string,
+  syncedAt: string,
+  cloudRows: Record<string, { length: number } | null | undefined>
+): Extract<SyncOp, { op: 'upsert' }>[] {
+  return buildBackupSyncOps(data, userId, syncedAt).filter((operation) => {
+    const existingRows = cloudRows[operation.table];
+    return !existingRows || existingRows.length === 0;
+  });
 }

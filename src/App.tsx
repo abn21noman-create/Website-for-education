@@ -22,6 +22,7 @@ import {
 import {
   BACKUP_APP_ID,
   buildBackupSyncOps,
+  buildFirstSyncMigrationOps,
   parseStudyBackup,
   prepareBackupForAccount,
 } from './lib/backup';
@@ -184,6 +185,8 @@ export function App() {
   const tasksRef = useRef(tasks);
   const sessionsRef = useRef(sessions);
   const progressRef = useRef(progressMap);
+  const quizHistoryRef = useRef(quizHistory);
+  const personalNotesRef = useRef(personalNotes);
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -193,6 +196,12 @@ export function App() {
   useEffect(() => {
     progressRef.current = progressMap;
   }, [progressMap]);
+  useEffect(() => {
+    quizHistoryRef.current = quizHistory;
+  }, [quizHistory]);
+  useEffect(() => {
+    personalNotesRef.current = personalNotes;
+  }, [personalNotes]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -493,28 +502,6 @@ export function App() {
               createdAt: t.created_at,
             }))
           );
-        } else {
-          // First sync for this account: upload the local planner instead of
-          // letting the cloud stay empty and the guest's work be stranded.
-          for (const t of tasksRef.current) {
-            void syncWrite(
-              {
-                op: 'upsert',
-                table: 'hsc28_study_tasks',
-                onConflict: 'id',
-                payload: {
-                  id: t.id,
-                  user_id: userId,
-                  title: t.title,
-                  subject_key: t.subjectKey,
-                  priority: t.priority,
-                  completed: t.completed,
-                  due_date: t.dueDate,
-                },
-              },
-              userId
-            );
-          }
         }
 
         const { data: sessionRows } = await supabase
@@ -533,63 +520,56 @@ export function App() {
               createdAt: r.created_at,
             }))
           );
-        } else {
-          for (const r of sessionsRef.current) {
-            void syncWrite(
-              {
-                op: 'upsert',
-                table: 'hsc28_study_sessions',
-                onConflict: 'id',
-                payload: {
-                  id: r.id,
-                  user_id: userId,
-                  subject_key: r.subjectKey,
-                  duration_minutes: r.durationMinutes,
-                  note: r.note,
-                },
-              },
-              userId
-            );
-          }
         }
 
-        // Same one-time upload for progress + notes made while browsing as guest.
-        if (!chRows || chRows.length === 0) {
-          for (const [chapterId, st] of Object.entries(progressRef.current)) {
-            void syncWrite(
-              {
-                op: 'upsert',
-                table: 'hsc28_chapter_progress',
-                onConflict: 'user_id,chapter_id',
-                payload: {
-                  user_id: userId,
-                  chapter_id: chapterId,
-                  theory_done: st.theoryDone,
-                  notes_done: st.notesDone,
-                  mcq_done: st.mcqDone,
-                  cq_done: st.cqDone,
-                  updated_at: new Date().toISOString(),
-                },
-              },
-              userId
-            );
-          }
+        // First sign-in migrates every kind of local study record, but only
+        // into a cloud table that is actually empty. This preserves existing
+        // cloud data while preventing guest quiz history and notes (previously
+        // omitted here) from being stranded on one device.
+        const cloudRows: Record<string, unknown[] | null> = {
+          hsc28_chapter_progress: chRows,
+          hsc28_quiz_attempts: qRows,
+          hsc28_personal_notes: noteRows,
+          hsc28_study_tasks: taskRows,
+          hsc28_study_sessions: sessionRows,
+        };
+        const migrationOps = buildFirstSyncMigrationOps(
+          {
+            progressMap: progressRef.current,
+            quizHistory: quizHistoryRef.current,
+            tasks: tasksRef.current,
+            sessions: sessionsRef.current,
+            personalNotes: personalNotesRef.current,
+          },
+          userId,
+          new Date().toISOString(),
+          cloudRows
+        );
+        for (const operation of migrationOps) {
+          void syncWrite(operation, userId);
         }
       } catch {
         // Offline safe
       }
     },
-    // `tasks`, `sessions` and `progressMap` are read for the one-time first-sync
-    // upload; they are intentionally not dependencies to avoid re-hydrating on
-    // every keystroke elsewhere in the app.
+    // Local records are read through refs for the one-time first-sync upload;
+    // they are intentionally not dependencies to avoid re-hydrating on every
+    // keystroke elsewhere in the app.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [syncProfileToCloud]
   );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        hydrateFromCloud(data.session.user.id, data.session.user.email);
+      const user = data.session?.user;
+      if (user) {
+        hydrateFromCloud(user.id, user.email, {
+          fullName: user.user_metadata?.full_name,
+          collegeName: user.user_metadata?.college_name,
+          board: user.user_metadata?.board,
+          targetGoal: user.user_metadata?.target_goal,
+          avatarColor: user.user_metadata?.avatar_color,
+        });
       }
     });
   }, [hydrateFromCloud]);
