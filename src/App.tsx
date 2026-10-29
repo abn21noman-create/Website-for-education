@@ -286,6 +286,10 @@ export function App() {
                 existingProfile.srs_mastered_ids?.length > 0
                   ? existingProfile.srs_mastered_ids
                   : prev.srsMasteredIds || [],
+              // `completed_practicals` has no cloud column, so it is local-only.
+              // Carry it across the merge or signing in would wipe the local
+              // practical log (and the XP-earned state shown in Analytics).
+              completedPracticals: prev.completedPracticals || [],
             };
             syncProfileToCloud(userId, merged);
             return merged;

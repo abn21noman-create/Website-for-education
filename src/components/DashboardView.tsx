@@ -510,11 +510,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h3>
           <p className="text-xs opacity-65 mt-1 leading-relaxed">
             {lang === 'bn'
-              ? 'MCQ গতি, স্বয়ংক্রিয় মিস্টেক ব্যাংক (${formatNum(profile.mistakeIds?.length ?? 0, lang)}) ও ১১ পত্রের দুর্বলতা শনাক্তকরণ।'
-                .replace(
-                  '${formatNum(profile.mistakeIds?.length ?? 0, lang)}',
-                  formatNum(profile.mistakeIds?.length ?? 0, lang)
-                )
+              ? `MCQ গতি, স্বয়ংক্রিয় মিস্টেক ব্যাংক (${formatNum(profile.mistakeIds?.length ?? 0, lang)}) ও ১১ পত্রের দুর্বলতা শনাক্তকরণ।`
               : `MCQ speed telemetry, Mistake Bank (${profile.mistakeIds?.length ?? 0}), and 11-paper weakness diagnosis.`}
           </p>
         </button>

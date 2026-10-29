@@ -225,16 +225,22 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     onUpdateMistakeIds,
   ]);
 
+  // Countdown tick. Kept free of `secondsLeft`/`finishExam` deps on purpose:
+  // listing them tore the interval down and restarted it on every tick and on
+  // every answer click, silently handing the student back up to a second per
+  // interaction in a timed board-style exam.
   useEffect(() => {
     if (stage !== 'running' || examMode !== 'timed') return;
-    if (secondsLeft <= 0) {
-      finishExam();
-      return;
-    }
     const timer = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1);
+      setSecondsLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
+  }, [stage, examMode]);
+
+  // Auto-submit when the clock runs out.
+  useEffect(() => {
+    if (stage !== 'running' || examMode !== 'timed') return;
+    if (secondsLeft <= 0) finishExam();
   }, [stage, examMode, secondsLeft, finishExam]);
 
   const formatTimer = (sec: number) => {
