@@ -1,0 +1,10 @@
+{
+  "name": "নক্ষত্র HSC ’28 — বিজ্ঞান স্টুডেন্ট ইকোসিস্টেম",
+  "short_name": "Nokkhotro HSC ’28",
+  "description": "Complete A-to-Z Student-Only HSC 2028 Science Ecosystem: Syllabus, Virtual Lab, Formulas, CQ/MCQ Mistake Bank, Analytics & Peer Q&A Hub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#4f46e5",
+  "lang": "bn"
+}
