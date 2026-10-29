@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import {
   ActiveTab,
@@ -170,6 +170,23 @@ export function App() {
   useEffect(() => {
     setSyncUser(authUserId);
   }, [authUserId]);
+
+  // `hydrateFromCloud` is a stable callback (deps never change), so it would
+  // otherwise close over the state as it was on the very first render. The
+  // first-sign-in upload needs the *current* local data — a student may study
+  // for an hour as a guest before creating an account.
+  const tasksRef = useRef(tasks);
+  const sessionsRef = useRef(sessions);
+  const progressRef = useRef(progressMap);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+  useEffect(() => {
+    progressRef.current = progressMap;
+  }, [progressMap]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -457,7 +474,7 @@ export function App() {
         } else {
           // First sync for this account: upload the local planner instead of
           // letting the cloud stay empty and the guest's work be stranded.
-          for (const t of tasks) {
+          for (const t of tasksRef.current) {
             void syncWrite(
               {
                 op: 'upsert',
@@ -495,7 +512,7 @@ export function App() {
             }))
           );
         } else {
-          for (const r of sessions) {
+          for (const r of sessionsRef.current) {
             void syncWrite(
               {
                 op: 'upsert',
@@ -516,7 +533,7 @@ export function App() {
 
         // Same one-time upload for progress + notes made while browsing as guest.
         if (!chRows || chRows.length === 0) {
-          for (const [chapterId, st] of Object.entries(progressMap)) {
+          for (const [chapterId, st] of Object.entries(progressRef.current)) {
             void syncWrite(
               {
                 op: 'upsert',
