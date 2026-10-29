@@ -17,6 +17,7 @@ import {
   SubjectKey,
   Theme,
 } from '../types';
+import { syncWrite } from '../lib/sync';
 import {
   CONCEPT_QA_CARDS,
   HSC28_NOTICES,
@@ -194,12 +195,32 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             });
             return [...localOnly, ...merged];
           });
+
+          // Restore which doubts this student already upvoted, so the vote
+          // ledger in hsc28_doubt_votes survives reloads and other devices.
+          if (authUserId) {
+            const { data: voteRows } = await supabase
+              .from('hsc28_doubt_votes')
+              .select('doubt_id')
+              .eq('user_id', authUserId);
+            if (voteRows && voteRows.length > 0) {
+              setUpvotedMap((prev) => {
+                const next = { ...prev };
+                voteRows.forEach((v: any) => {
+                  next[v.doubt_id] = true;
+                });
+                return next;
+              });
+            }
+          }
         }
       } catch {
         // Offline safe
       }
     })();
-  }, []);
+    // Re-runs when the session resolves: the vote ledger needs authUserId,
+    // which is null on first paint because session restore is async.
+  }, [authUserId]);
 
   const handlePostDoubt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -606,6 +627,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                       onClick={() => {
                         if (upvoted) return;
                         setUpvotedMap((p) => ({ ...p, [d.id]: true }));
+                        // Optimistic bump so the tap feels instant.
                         setDoubts((prev) =>
                           prev.map((item) =>
                             item.id === d.id
@@ -613,6 +635,45 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                               : item
                           )
                         );
+                        if (!isAuthenticated || !authUserId) return;
+                        // Persist through the atomic RPC (one vote per user,
+                        // enforced by hsc28_doubt_votes). Falls back to the
+                        // retry queue when the network is down.
+                        void (async () => {
+                          try {
+                            const { data, error } = await supabase.rpc(
+                              'hsc28_upvote_doubt',
+                              { p_doubt_id: d.id }
+                            );
+                            if (!error && typeof data === 'number') {
+                              setDoubts((prev) =>
+                                prev.map((item) =>
+                                  item.id === d.id
+                                    ? { ...item, upvotes: data }
+                                    : item
+                                )
+                              );
+                            } else if (error) {
+                              void syncWrite(
+                                {
+                                  op: 'rpc',
+                                  fn: 'hsc28_upvote_doubt',
+                                  args: { p_doubt_id: d.id },
+                                },
+                                authUserId
+                              );
+                            }
+                          } catch {
+                            void syncWrite(
+                              {
+                                op: 'rpc',
+                                fn: 'hsc28_upvote_doubt',
+                                args: { p_doubt_id: d.id },
+                              },
+                              authUserId
+                            );
+                          }
+                        })();
                       }}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-bold cursor-pointer ${
                         upvoted

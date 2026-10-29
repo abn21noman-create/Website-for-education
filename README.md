@@ -41,3 +41,16 @@
 - **Frontend:** React 19 + TypeScript + Vite 6 + Tailwind CSS v4 + Lucide Icons
 - **Backend & Cloud Sync:** Supabase Auth + PostgreSQL (`public.hsc28_*` tables with Row Level Security) + Offline `localStorage` fallback
 - **Design System:** Smooth Eye-Comfort Soft Pastel Light (`#f4f7fb`) & Midnight Slate Dark (`#0f172a`), Bilingual (`বাংলা` / `English`), `Ctrl+K` Global Search, Print-ready CSS & PWA Manifest
+
+## ডেটা সংরক্ষণ (Data Persistence) — Supabase + Vercel
+
+সব অগ্রগতি **Supabase**-এ স্থায়ীভাবে জমা হয় এবং **Vercel** থেকে সাইট চলে।
+
+- **লগইন ছাড়া:** ডেটা শুধু ব্রাউজারে (`localStorage`) — নেভবারে `শুধু এই ডিভাইসে` দেখায়।
+- **লগইন করলে:** নেভবারে `সংরক্ষণ হচ্ছে…` → `ক্লাউডে সংরক্ষিত`। অন্য ডিভাইসে লগইন করলেও সব ফিরে আসে।
+- **অফলাইনে:** লেখা হারায় না — লোকাল কিউতে জমা থাকে, ইন্টারনেট ফিরলেই নিজে থেকেই পাঠানো হয় (`Nটি বাকি`)।
+- **সার্ভার আটকালে:** আর চুপচাপ হারায় না — `সিঙ্ক ব্যর্থ` + কারণ দেখায়।
+
+কোন স্ক্রিন কোন টেবিলে যায়, মাইগ্রেশন কীভাবে চালাতে হয় এবং যাচাইয়ের কুয়েরি —
+সব [`supabase/README.md`](supabase/README.md)-এ আছে। মাইগ্রেশন ফাইল:
+[`supabase/migrations/2026-10-29-persist-all-data.sql`](supabase/migrations/2026-10-29-persist-all-data.sql)।

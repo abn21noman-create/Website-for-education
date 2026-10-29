@@ -13,6 +13,13 @@ import {
   Theme,
 } from './types';
 import { supabase } from './lib/supabase';
+import {
+  clearSyncQueueForCurrentUser,
+  initSyncNetworkWatcher,
+  setSyncUser,
+  syncWrite,
+  useSyncStatus,
+} from './lib/sync';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -152,6 +159,18 @@ export function App() {
     }, 2400);
   }, []);
 
+  // Binds the durable write queue to whoever is signed in, and retries anything
+  // left over from a previous offline session.
+  const syncStatus = useSyncStatus();
+
+  useEffect(() => {
+    initSyncNetworkWatcher();
+  }, []);
+
+  useEffect(() => {
+    setSyncUser(authUserId);
+  }, [authUserId]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -226,9 +245,15 @@ export function App() {
 
   const syncProfileToCloud = useCallback(
     async (uid: string, nextProfile: StudentProfile) => {
-      try {
-        await supabase.from('hsc28_profiles').upsert(
-          {
+      // Goes through the durable queue: a dropped connection no longer loses the
+      // write, and a permanent failure (e.g. RLS) is surfaced in the UI instead
+      // of being swallowed.
+      await syncWrite(
+        {
+          op: 'upsert',
+          table: 'hsc28_profiles',
+          onConflict: 'id',
+          payload: {
             id: uid,
             full_name: nextProfile.fullName,
             college_name: nextProfile.collegeName,
@@ -245,14 +270,13 @@ export function App() {
             solved_cqs: nextProfile.solvedCqs || [],
             mistake_ids: nextProfile.mistakeIds || [],
             srs_mastered_ids: nextProfile.srsMasteredIds || [],
+            completed_practicals: nextProfile.completedPracticals || [],
             is_demo: false,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'id' }
-        );
-      } catch {
-        // Offline safe
-      }
+        },
+        uid
+      );
     },
     []
   );
@@ -318,10 +342,12 @@ export function App() {
                 existingProfile.srs_mastered_ids?.length > 0
                   ? existingProfile.srs_mastered_ids
                   : prev.srsMasteredIds || [],
-              // `completed_practicals` has no cloud column, so it is local-only.
-              // Carry it across the merge or signing in would wipe the local
-              // practical log (and the XP-earned state shown in Analytics).
-              completedPracticals: prev.completedPracticals || [],
+              // Now a real column. Prefer the cloud list, fall back to whatever
+              // was logged locally before the student signed in.
+              completedPracticals:
+                existingProfile.completed_practicals?.length > 0
+                  ? existingProfile.completed_practicals
+                  : prev.completedPracticals || [],
             };
             syncProfileToCloud(userId, merged);
             return merged;
@@ -407,10 +433,117 @@ export function App() {
             }))
           );
         }
+
+        // Tasks and study sessions were written to Supabase but never read back,
+        // so the planner appeared empty on any second device.
+        const { data: taskRows } = await supabase
+          .from('hsc28_study_tasks')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (taskRows && taskRows.length > 0) {
+          setTasks(
+            taskRows.map((t: any) => ({
+              id: t.id,
+              title: t.title,
+              subjectKey: (t.subject_key as SubjectKey) || 'physics1',
+              priority: (t.priority as StudyTask['priority']) || 'medium',
+              completed: !!t.completed,
+              dueDate: t.due_date || new Date().toISOString().slice(0, 10),
+              createdAt: t.created_at,
+            }))
+          );
+        } else {
+          // First sync for this account: upload the local planner instead of
+          // letting the cloud stay empty and the guest's work be stranded.
+          for (const t of tasks) {
+            void syncWrite(
+              {
+                op: 'upsert',
+                table: 'hsc28_study_tasks',
+                onConflict: 'id',
+                payload: {
+                  id: t.id,
+                  user_id: userId,
+                  title: t.title,
+                  subject_key: t.subjectKey,
+                  priority: t.priority,
+                  completed: t.completed,
+                  due_date: t.dueDate,
+                },
+              },
+              userId
+            );
+          }
+        }
+
+        const { data: sessionRows } = await supabase
+          .from('hsc28_study_sessions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (sessionRows && sessionRows.length > 0) {
+          setSessions(
+            sessionRows.map((r: any) => ({
+              id: r.id,
+              subjectKey: (r.subject_key as SubjectKey) || 'physics1',
+              durationMinutes: Number(r.duration_minutes || 0),
+              note: r.note || '',
+              createdAt: r.created_at,
+            }))
+          );
+        } else {
+          for (const r of sessions) {
+            void syncWrite(
+              {
+                op: 'upsert',
+                table: 'hsc28_study_sessions',
+                onConflict: 'id',
+                payload: {
+                  id: r.id,
+                  user_id: userId,
+                  subject_key: r.subjectKey,
+                  duration_minutes: r.durationMinutes,
+                  note: r.note,
+                },
+              },
+              userId
+            );
+          }
+        }
+
+        // Same one-time upload for progress + notes made while browsing as guest.
+        if (!chRows || chRows.length === 0) {
+          for (const [chapterId, st] of Object.entries(progressMap)) {
+            void syncWrite(
+              {
+                op: 'upsert',
+                table: 'hsc28_chapter_progress',
+                onConflict: 'user_id,chapter_id',
+                payload: {
+                  user_id: userId,
+                  chapter_id: chapterId,
+                  theory_done: st.theoryDone,
+                  notes_done: st.notesDone,
+                  mcq_done: st.mcqDone,
+                  cq_done: st.cqDone,
+                  updated_at: new Date().toISOString(),
+                },
+              },
+              userId
+            );
+          }
+        }
       } catch {
         // Offline safe
       }
     },
+    // `tasks`, `sessions` and `progressMap` are read for the one-time first-sync
+    // upload; they are intentionally not dependencies to avoid re-hydrating on
+    // every keystroke elsewhere in the app.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [syncProfileToCloud]
   );
 
@@ -463,10 +596,12 @@ export function App() {
         }
 
         if (authUserId) {
-          supabase
-            .from('hsc28_chapter_progress')
-            .upsert(
-              {
+          void syncWrite(
+            {
+              op: 'upsert',
+              table: 'hsc28_chapter_progress',
+              onConflict: 'user_id,chapter_id',
+              payload: {
                 user_id: authUserId,
                 chapter_id: chapterId,
                 theory_done: updatedStage.theoryDone,
@@ -475,9 +610,9 @@ export function App() {
                 cq_done: updatedStage.cqDone,
                 updated_at: new Date().toISOString(),
               },
-              { onConflict: 'user_id,chapter_id' }
-            )
-            .then(() => {});
+            },
+            authUserId
+          );
         }
 
         return nextMap;
@@ -706,18 +841,23 @@ export function App() {
       );
 
       if (authUserId) {
-        supabase
-          .from('hsc28_personal_notes')
-          .insert({
-            id: tempId,
-            user_id: authUserId,
-            subject_key: note.subjectKey,
-            chapter_title: note.chapterTitle,
-            title: note.title,
-            content: note.content,
-            formula: note.formula,
-          })
-          .then(() => {});
+        void syncWrite(
+          {
+            op: 'upsert',
+            table: 'hsc28_personal_notes',
+            onConflict: 'id',
+            payload: {
+              id: tempId,
+              user_id: authUserId,
+              subject_key: note.subjectKey,
+              chapter_title: note.chapterTitle,
+              title: note.title,
+              content: note.content,
+              formula: note.formula,
+            },
+          },
+          authUserId
+        );
       }
     },
     [authUserId, lang, showToast, syncProfileToCloud]
@@ -727,12 +867,10 @@ export function App() {
     (id: string) => {
       setPersonalNotes((prev) => prev.filter((n) => n.id !== id));
       if (authUserId) {
-        supabase
-          .from('hsc28_personal_notes')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', authUserId)
-          .then(() => {});
+        void syncWrite(
+          { op: 'delete', table: 'hsc28_personal_notes', eq: { id, user_id: authUserId } },
+          authUserId
+        );
       }
     },
     [authUserId]
@@ -761,21 +899,26 @@ export function App() {
       });
 
       if (authUserId) {
-        supabase
-          .from('hsc28_quiz_attempts')
-          .insert({
-            id,
-            user_id: authUserId,
-            subject_key: attempt.subjectKey,
-            exam_title: attempt.examTitle,
-            total_questions: attempt.totalQuestions,
-            correct_answers: attempt.correctAnswers,
-            wrong_answers: attempt.wrongAnswers,
-            score: attempt.score,
-            accuracy: attempt.accuracy,
-            duration_seconds: attempt.durationSeconds,
-          })
-          .then(() => {});
+        void syncWrite(
+          {
+            op: 'upsert',
+            table: 'hsc28_quiz_attempts',
+            onConflict: 'id',
+            payload: {
+              id,
+              user_id: authUserId,
+              subject_key: attempt.subjectKey,
+              exam_title: attempt.examTitle,
+              total_questions: attempt.totalQuestions,
+              correct_answers: attempt.correctAnswers,
+              wrong_answers: attempt.wrongAnswers,
+              score: attempt.score,
+              accuracy: attempt.accuracy,
+              duration_seconds: attempt.durationSeconds,
+            },
+          },
+          authUserId
+        );
       }
     },
     [authUserId, syncProfileToCloud]
@@ -796,17 +939,23 @@ export function App() {
       setTasks((prev) => [newTask, ...prev]);
 
       if (authUserId) {
-        supabase
-          .from('hsc28_study_tasks')
-          .insert({
-            id,
-            user_id: authUserId,
-            title,
-            subject_key: subjectKey,
-            priority,
-            completed: false,
-          })
-          .then(() => {});
+        void syncWrite(
+          {
+            op: 'upsert',
+            table: 'hsc28_study_tasks',
+            onConflict: 'id',
+            payload: {
+              id,
+              user_id: authUserId,
+              title,
+              subject_key: subjectKey,
+              priority,
+              completed: false,
+              due_date: newTask.dueDate,
+            },
+          },
+          authUserId
+        );
       }
     },
     [authUserId]
@@ -831,12 +980,15 @@ export function App() {
             );
           }
           if (authUserId) {
-            supabase
-              .from('hsc28_study_tasks')
-              .update({ completed: nextCompleted })
-              .eq('id', id)
-              .eq('user_id', authUserId)
-              .then(() => {});
+            void syncWrite(
+              {
+                op: 'update',
+                table: 'hsc28_study_tasks',
+                payload: { completed: nextCompleted },
+                eq: { id, user_id: authUserId },
+              },
+              authUserId
+            );
           }
           return { ...t, completed: nextCompleted };
         })
@@ -849,12 +1001,10 @@ export function App() {
     (id: string) => {
       setTasks((prev) => prev.filter((t) => t.id !== id));
       if (authUserId) {
-        supabase
-          .from('hsc28_study_tasks')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', authUserId)
-          .then(() => {});
+        void syncWrite(
+          { op: 'delete', table: 'hsc28_study_tasks', eq: { id, user_id: authUserId } },
+          authUserId
+        );
       }
     },
     [authUserId]
@@ -889,16 +1039,21 @@ export function App() {
       );
 
       if (authUserId) {
-        supabase
-          .from('hsc28_study_sessions')
-          .insert({
-            id,
-            user_id: authUserId,
-            subject_key: subjectKey,
-            duration_minutes: durationMinutes,
-            note,
-          })
-          .then(() => {});
+        void syncWrite(
+          {
+            op: 'upsert',
+            table: 'hsc28_study_sessions',
+            onConflict: 'id',
+            payload: {
+              id,
+              user_id: authUserId,
+              subject_key: subjectKey,
+              duration_minutes: durationMinutes,
+              note,
+            },
+          },
+          authUserId
+        );
       }
     },
     [authUserId, lang, showToast, syncProfileToCloud]
@@ -938,6 +1093,8 @@ export function App() {
   };
 
   const handleSignOut = async () => {
+    // Anything still queued belongs to the account that is leaving.
+    clearSyncQueueForCurrentUser();
     await supabase.auth.signOut();
     setAuthUserId(null);
     setProfile(DEFAULT_GUEST_PROFILE);
@@ -973,6 +1130,7 @@ export function App() {
           isAuthenticated={!!authUserId}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onOpenSearch={() => setIsSearchOpen(true)}
+          syncStatus={syncStatus}
         />
 
         {/* Soft Eye-Friendly Toast Notification */}
