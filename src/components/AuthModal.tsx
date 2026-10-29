@@ -105,19 +105,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         if (error) throw error;
         if (data.user) {
-          await onAuthSuccess(data.user.id, cleanEmail, {
+          const metadata = {
             fullName: fullName.trim(),
             collegeName: collegeName.trim(),
             board,
             targetGoal,
             avatarColor: '#4f46e5',
-          });
-          setSuccessMsg(
-            lang === 'bn'
-              ? 'অ্যাকাউন্ট সম্পন্ন হয়েছে এবং সকল তথ্য ক্লাউডে সংরক্ষিত হয়েছে।'
-              : 'Account created and study progress synced to cloud.'
-          );
-          setTimeout(() => onClose(), 800);
+          };
+
+          if (data.session) {
+            await onAuthSuccess(data.user.id, cleanEmail, metadata);
+            setSuccessMsg(
+              lang === 'bn'
+                ? 'অ্যাকাউন্ট সম্পন্ন হয়েছে এবং ক্লাউড সিঙ্ক শুরু হয়েছে।'
+                : 'Account created and cloud sync has started.'
+            );
+            setTimeout(() => onClose(), 800);
+          } else {
+            // With email confirmation enabled there is no authenticated
+            // session yet. Writing now would fail RLS, so keep the metadata
+            // locally and ask the student to confirm before signing in.
+            await onUpdateProfileMeta(metadata);
+            setPassword('');
+            setSuccessMsg(
+              lang === 'bn'
+                ? 'অ্যাকাউন্ট তৈরি হয়েছে। ইমেইলের কনফার্মেশন লিংকে ক্লিক করে তারপর লগইন করুন। এই ডিভাইসের পড়াশোনার অগ্রগতি সংরক্ষিত আছে।'
+                : 'Account created. Open the confirmation link in your email, then sign in. Your study progress remains saved on this device.'
+            );
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -126,7 +141,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
         if (error) throw error;
         if (data.user) {
-          await onAuthSuccess(data.user.id, cleanEmail);
+          await onAuthSuccess(data.user.id, cleanEmail, {
+            fullName: data.user.user_metadata?.full_name,
+            collegeName: data.user.user_metadata?.college_name,
+            board: data.user.user_metadata?.board,
+            targetGoal: data.user.user_metadata?.target_goal,
+            avatarColor: data.user.user_metadata?.avatar_color,
+          });
           setSuccessMsg(
             lang === 'bn' ? 'সফলভাবে লগইন সম্পন্ন হয়েছে।' : 'Signed in successfully.'
           );
