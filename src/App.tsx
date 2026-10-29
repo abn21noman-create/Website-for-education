@@ -13,7 +13,8 @@ import {
   Theme,
 } from './types';
 import { supabase } from './lib/supabase';
-import { CHAPTERS } from './data/syllabusData';
+import { buildHash, parseRoute } from './lib/router';
+import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { SyllabusTrackerView } from './components/SyllabusTrackerView';
@@ -108,8 +109,16 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(() =>
     readLocal<Theme>(STORAGE_KEYS.theme, 'light')
   );
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-  const [syllabusSubject, setSyllabusSubject] = useState<SubjectKey | 'all'>('all');
+  // Restore the view from the URL so refresh, bookmarks and shared links land
+  // on the intended module instead of always resetting to the dashboard.
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    () => parseRoute(window.location.hash).tab
+  );
+  const [syllabusSubject, setSyllabusSubject] = useState<SubjectKey | 'all'>(() => {
+    const slug = parseRoute(window.location.hash).subjectSlug;
+    const match = SUBJECTS.find((s) => s.key.toLowerCase() === slug);
+    return match ? match.key : 'all';
+  });
 
   const [profile, setProfile] = useState<StudentProfile>(() =>
     readLocal<StudentProfile>(STORAGE_KEYS.profile, DEFAULT_GUEST_PROFILE)
@@ -152,6 +161,29 @@ export function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Keep the view in sync with the URL for back/forward and hand-edited links.
+  useEffect(() => {
+    const applyRoute = () => {
+      const route = parseRoute(window.location.hash);
+      setActiveTab(route.tab);
+      if (route.subjectSlug) {
+        const match = SUBJECTS.find(
+          (s) => s.key.toLowerCase() === route.subjectSlug
+        );
+        setSyllabusSubject(match ? match.key : 'all');
+      } else if (route.tab === 'syllabus') {
+        setSyllabusSubject('all');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('popstate', applyRoute);
+    window.addEventListener('hashchange', applyRoute);
+    return () => {
+      window.removeEventListener('popstate', applyRoute);
+      window.removeEventListener('hashchange', applyRoute);
+    };
   }, []);
 
   useEffect(() => {
@@ -872,13 +904,36 @@ export function App() {
     [authUserId, lang, showToast, syncProfileToCloud]
   );
 
+  // Filtering the syllabus by paper is a refinement, not a new destination, so
+  // it rewrites the current history entry instead of pushing a new one.
+  const handleSyllabusSubjectChange = useCallback(
+    (subject: SubjectKey | 'all') => {
+      setSyllabusSubject(subject);
+      const nextHash = buildHash('syllabus', subject);
+      if (window.location.hash !== nextHash) {
+        window.history.replaceState(null, '', nextHash);
+      }
+    },
+    []
+  );
+
   const handleNavigate = (tab: ActiveTab, subj?: SubjectKey) => {
+    const nextSubject = subj ?? (tab === 'syllabus' ? 'all' : syllabusSubject);
     if (subj) {
       setSyllabusSubject(subj);
     } else if (tab === 'syllabus') {
       setSyllabusSubject('all');
     }
     setActiveTab(tab);
+
+    // Reflect the destination in the URL. `pushState` (rather than assigning
+    // location.hash) keeps the back button working without firing a second
+    // `hashchange` for a navigation we are already handling.
+    const nextHash = buildHash(tab, nextSubject);
+    if (window.location.hash !== nextHash) {
+      window.history.pushState(null, '', nextHash);
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -962,6 +1017,7 @@ export function App() {
               initialSubject={syllabusSubject}
               progressMap={progressMap}
               onToggleStage={handleToggleStage}
+              onSubjectChange={handleSyllabusSubjectChange}
             />
           )}
 

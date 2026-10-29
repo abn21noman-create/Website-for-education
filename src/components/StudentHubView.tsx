@@ -119,11 +119,23 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   const [askTitle, setAskTitle] = useState('');
   const [askDetails, setAskDetails] = useState('');
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
-  const [upvotedMap, setUpvotedMap] = useState<Record<string, boolean>>({});
+  // Persisted so a reload cannot be used to vote the same doubt repeatedly.
+  const [upvotedMap, setUpvotedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem('hsc28_upvoted');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem('hsc28_peer_doubts', JSON.stringify(doubts));
   }, [doubts]);
+
+  useEffect(() => {
+    localStorage.setItem('hsc28_upvoted', JSON.stringify(upvotedMap));
+  }, [upvotedMap]);
 
   // Hydrate peer doubts from Supabase
   useEffect(() => {
@@ -163,7 +175,25 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                 createdAt: r.created_at,
               })),
           }));
-          setDoubts(mapped);
+          // Merge instead of replacing. `setDoubts(mapped)` used to throw away
+          // two things: questions the student posted while offline (the local
+          // insert only happens when authenticated and reachable), and any
+          // upvote they had cast, since upvote counts are never written back to
+          // the cloud. Seed/demo posts are dropped once real cloud data exists.
+          const seedIds = new Set(FALLBACK_DOUBTS.map((d) => d.id));
+          setDoubts((prevLocal) => {
+            const cloudIds = new Set(mapped.map((d) => d.id));
+            const localOnly = prevLocal.filter(
+              (d) => !cloudIds.has(d.id) && !seedIds.has(d.id)
+            );
+            const merged = mapped.map((cloud) => {
+              const local = prevLocal.find((d) => d.id === cloud.id);
+              return local && local.upvotes > cloud.upvotes
+                ? { ...cloud, upvotes: local.upvotes }
+                : cloud;
+            });
+            return [...localOnly, ...merged];
+          });
         }
       } catch {
         // Offline safe
