@@ -14,12 +14,18 @@ import {
 } from './types';
 import { supabase } from './lib/supabase';
 import {
-  clearSyncQueueForCurrentUser,
   initSyncNetworkWatcher,
   setSyncUser,
   syncWrite,
   useSyncStatus,
 } from './lib/sync';
+import {
+  BACKUP_APP_ID,
+  buildBackupSyncOps,
+  parseStudyBackup,
+  prepareBackupForAccount,
+} from './lib/backup';
+import type { StudyBackupData } from './lib/backup';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -296,6 +302,22 @@ export function App() {
       );
     },
     []
+  );
+
+  const syncRestoredBackup = useCallback(
+    async (data: StudyBackupData, userId: string) => {
+      // Create/update the profile first, then restore each record through the
+      // durable queue. Restoring while offline therefore behaves exactly like
+      // editing while offline instead of silently becoming a local-only import.
+      await syncProfileToCloud(userId, data.profile);
+      const operations = buildBackupSyncOps(
+        data,
+        userId,
+        new Date().toISOString()
+      );
+      await Promise.all(operations.map((operation) => syncWrite(operation, userId)));
+    },
+    [syncProfileToCloud]
   );
 
   const hydrateFromCloud = useCallback(
@@ -749,7 +771,7 @@ export function App() {
 
   const handleExportBackup = useCallback(() => {
     const payload = {
-      app: 'nokkhotro-hsc-2028',
+      app: BACKUP_APP_ID,
       exportedAt: new Date().toISOString(),
       profile,
       progressMap,
@@ -781,30 +803,55 @@ export function App() {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const parsed = JSON.parse(String(reader.result || '{}'));
-          if (parsed.profile) setProfile(parsed.profile);
-          if (parsed.progressMap) setProgressMap(parsed.progressMap);
-          if (Array.isArray(parsed.quizHistory)) setQuizHistory(parsed.quizHistory);
-          if (Array.isArray(parsed.tasks)) setTasks(parsed.tasks);
-          if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
-          if (Array.isArray(parsed.personalNotes))
-            setPersonalNotes(parsed.personalNotes);
+          // Validate the complete file before replacing anything. Also keep the
+          // currently signed-in identity: a backup must never import another
+          // student's profile id or email address into this account.
+          const restored = parseStudyBackup(
+            JSON.parse(String(reader.result || '{}'))
+          );
+          const restoredWithCurrentIdentity = prepareBackupForAccount(
+            restored,
+            authUserId || DEFAULT_GUEST_PROFILE.id,
+            authUserId ? profile.email : undefined,
+            () => crypto.randomUUID()
+          );
+
+          setProfile(restoredWithCurrentIdentity.profile);
+          setProgressMap(restoredWithCurrentIdentity.progressMap);
+          setQuizHistory(restoredWithCurrentIdentity.quizHistory);
+          setTasks(restoredWithCurrentIdentity.tasks);
+          setSessions(restoredWithCurrentIdentity.sessions);
+          setPersonalNotes(restoredWithCurrentIdentity.personalNotes);
+
+          if (authUserId) {
+            void syncRestoredBackup(restoredWithCurrentIdentity, authUserId);
+          }
+
           showToast(
             lang === 'bn'
-              ? 'সকল নোটস ও অগ্রগতি সফলভাবে রিস্টোর হয়েছে!'
-              : 'All study data restored successfully!'
+              ? authUserId
+                ? 'ব্যাকআপ রিস্টোর হয়েছে এবং ক্লাউড সিঙ্ক শুরু হয়েছে!'
+                : 'ব্যাকআপ এই ডিভাইসে সফলভাবে রিস্টোর হয়েছে!'
+              : authUserId
+              ? 'Backup restored; cloud sync has started.'
+              : 'Backup restored on this device.'
           );
         } catch {
           showToast(
             lang === 'bn'
-              ? 'সঠিক ব্যাকআপ JSON ফাইল নির্বাচন করুন'
-              : 'Invalid backup JSON file'
+              ? 'সঠিক নক্ষত্র HSC 2028 ব্যাকআপ JSON ফাইল নির্বাচন করুন'
+              : 'Choose a valid Nokkhotro HSC 2028 backup JSON file.'
           );
         }
       };
+      reader.onerror = () => {
+        showToast(
+          lang === 'bn' ? 'ফাইলটি পড়া যায়নি' : 'The backup file could not be read.'
+        );
+      };
       reader.readAsText(file);
     },
-    [lang, showToast]
+    [authUserId, lang, profile.email, showToast, syncRestoredBackup]
   );
 
   const handleToggleSolvedCq = useCallback(
@@ -1110,11 +1157,20 @@ export function App() {
   };
 
   const handleSignOut = async () => {
-    // Anything still queued belongs to the account that is leaving.
-    clearSyncQueueForCurrentUser();
     await supabase.auth.signOut();
     setAuthUserId(null);
+
+    // Do not expose one student's private study data to a guest or to the next
+    // account using a shared device. Queued writes are intentionally retained:
+    // they are tagged with this user's id and can safely resume the next time
+    // that same student signs in, even if they signed out while offline.
     setProfile(DEFAULT_GUEST_PROFILE);
+    setProgressMap({});
+    setQuizHistory([]);
+    setTasks(DEFAULT_STARTER_TASKS);
+    setSessions([]);
+    setPersonalNotes([]);
+    setAutoStartMistakeExam(false);
   };
 
   const handleUpdateProfileMeta = async (updates: Partial<StudentProfile>) => {
