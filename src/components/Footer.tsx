@@ -67,6 +67,18 @@ export const Footer: React.FC<FooterProps> = ({
             {lang === 'bn' ? 'স্টুডেন্ট Q&A হাব' : 'Student Hub'}
           </button>
           <button
+            onClick={() => onNavigate('practical')}
+            className="hover:text-indigo-500 transition-colors cursor-pointer"
+          >
+            {lang === 'bn' ? 'ব্যবহারিক ২৫ নম্বর ও রাইটিং' : 'Practicals & Writing'}
+          </button>
+          <button
+            onClick={() => onNavigate('admission')}
+            className="hover:text-indigo-500 transition-colors cursor-pointer"
+          >
+            {lang === 'bn' ? 'অ্যাডমিশন হাব' : 'Admission Hub'}
+          </button>
+          <button
             onClick={() => onNavigate('cq')}
             className="hover:text-indigo-500 transition-colors cursor-pointer"
           >

@@ -7,6 +7,8 @@ import {
   Target,
   ArrowRight,
   RotateCcw,
+  Download,
+  Upload,
 } from 'lucide-react';
 import {
   ActiveTab,
@@ -31,6 +33,8 @@ interface AnalyticsViewProps {
   sessions: StudySessionRecord[];
   onNavigate: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
   onStartMistakeExam?: () => void;
+  onExportBackup?: () => void;
+  onImportBackup?: (file: File) => void;
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
@@ -42,6 +46,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   sessions,
   onNavigate,
   onStartMistakeExam,
+  onExportBackup,
+  onImportBackup,
 }) => {
   const isDark = theme === 'dark';
 
@@ -373,6 +379,66 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </span>
             <span>HSC 2028 Science</span>
           </div>
+        </div>
+      </div>
+
+      {/* Offline PWA & Portable Study Backup Card */}
+      <div
+        className={`${cardClass} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
+      >
+        <div>
+          <h3 className="font-bold text-sm sm:text-base">
+            {lang === 'bn'
+              ? 'অফলাইন ব্যাকআপ ও ডেটা এক্সপোর্ট / রিস্টোর (PWA Ready)'
+              : 'Portable Study Backup & Restore (Offline PWA Ready)'}
+          </h3>
+          <p className="text-xs opacity-70 mt-1">
+            {lang === 'bn'
+              ? 'তোমার সিলেবাস অগ্রগতি, ব্যক্তিগত নোটস, মিস্টেক ব্যাংক ও রুটিন JSON ফাইলে ব্যাকআপ রাখো বা অন্য ডিভাইস/Dropbox থেকে রিস্টোর করো।'
+              : 'Export your syllabus progress, personal notes, Mistake Bank, and routine as a JSON backup file for local or Dropbox storage.'}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onExportBackup && (
+            <button
+              type="button"
+              onClick={onExportBackup}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>
+                {lang === 'bn' ? 'ব্যাকআপ ডাউনলোড (.json)' : 'Export Backup'}
+              </span>
+            </button>
+          )}
+
+          {onImportBackup && (
+            <label
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-teal-300 hover:border-teal-400'
+                  : 'bg-white border-slate-200 text-teal-700 hover:border-teal-300 shadow-2xs'
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>
+                {lang === 'bn' ? 'ব্যাকআপ রিস্টোর' : 'Restore Backup'}
+              </span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    onImportBackup(file);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </label>
+          )}
         </div>
       </div>
     </div>

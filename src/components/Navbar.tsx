@@ -19,6 +19,7 @@ import {
   BarChart3,
   MessageSquareText,
   Compass,
+  Microscope,
 } from 'lucide-react';
 import { ActiveTab, Lang, StudentProfile, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
@@ -113,6 +114,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       labelBn: 'অ্যাডমিশন হাব',
       labelEn: 'Admission',
       icon: <Compass className="w-3.5 h-3.5" />,
+    },
+    {
+      id: 'practical',
+      labelBn: 'ব্যবহারিক ও রাইটিং',
+      labelEn: 'Practicals',
+      icon: <Microscope className="w-3.5 h-3.5" />,
     },
     {
       id: 'gpa',

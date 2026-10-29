@@ -27,6 +27,7 @@ import { VirtualLabView } from './components/VirtualLabView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { StudentHubView } from './components/StudentHubView';
 import { AdmissionView } from './components/AdmissionView';
+import { PracticalWritingView } from './components/PracticalWritingView';
 import { AuthModal } from './components/AuthModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { Footer } from './components/Footer';
@@ -89,6 +90,7 @@ const DEFAULT_GUEST_PROFILE: StudentProfile = {
   solvedCqs: [],
   mistakeIds: [],
   srsMasteredIds: [],
+  completedPracticals: [],
 };
 
 function readLocal<T>(key: string, fallback: T): T {
@@ -529,6 +531,94 @@ export function App() {
     [authUserId, lang, showToast, syncProfileToCloud]
   );
 
+  const handleTogglePractical = useCallback(
+    (pracId: string) => {
+      setProfile((p) => {
+        const cur = p.completedPracticals || [];
+        const exists = cur.includes(pracId);
+        const completedPracticals = exists
+          ? cur.filter((id) => id !== pracId)
+          : [...cur, pracId];
+        const xpDelta = exists ? -15 : 15;
+        const next: StudentProfile = {
+          ...p,
+          xp: Math.max(0, p.xp + xpDelta),
+          completedPracticals,
+        };
+        if (!exists) {
+          showToast(
+            lang === 'bn'
+              ? 'ব্যবহারিক খাতা সম্পন্ন (+১৫ XP)'
+              : 'Practical logged (+15 XP)'
+          );
+        }
+        if (authUserId) syncProfileToCloud(authUserId, next);
+        return next;
+      });
+    },
+    [authUserId, lang, showToast, syncProfileToCloud]
+  );
+
+  const handleExportBackup = useCallback(() => {
+    const payload = {
+      app: 'nokkhotro-hsc-2028',
+      exportedAt: new Date().toISOString(),
+      profile,
+      progressMap,
+      quizHistory,
+      tasks,
+      sessions,
+      personalNotes,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nokkhotro-hsc28-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(
+      lang === 'bn'
+        ? 'ব্যাকআপ ফাইল ডাউনলোড হয়েছে!'
+        : 'Backup file downloaded!'
+    );
+  }, [lang, personalNotes, profile, progressMap, quizHistory, sessions, showToast, tasks]);
+
+  const handleImportBackup = useCallback(
+    (file: File) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || '{}'));
+          if (parsed.profile) setProfile(parsed.profile);
+          if (parsed.progressMap) setProgressMap(parsed.progressMap);
+          if (Array.isArray(parsed.quizHistory)) setQuizHistory(parsed.quizHistory);
+          if (Array.isArray(parsed.tasks)) setTasks(parsed.tasks);
+          if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
+          if (Array.isArray(parsed.personalNotes))
+            setPersonalNotes(parsed.personalNotes);
+          showToast(
+            lang === 'bn'
+              ? 'সকল নোটস ও অগ্রগতি সফলভাবে রিস্টোর হয়েছে!'
+              : 'All study data restored successfully!'
+          );
+        } catch {
+          showToast(
+            lang === 'bn'
+              ? 'সঠিক ব্যাকআপ JSON ফাইল নির্বাচন করুন'
+              : 'Invalid backup JSON file'
+          );
+        }
+      };
+      reader.readAsText(file);
+    },
+    [lang, showToast]
+  );
+
   const handleToggleSolvedCq = useCallback(
     (cqId: string) => {
       setProfile((p) => {
@@ -936,6 +1026,8 @@ export function App() {
                 setAutoStartMistakeExam(true);
                 handleNavigate('mcq');
               }}
+              onExportBackup={handleExportBackup}
+              onImportBackup={handleImportBackup}
             />
           )}
 
@@ -958,6 +1050,15 @@ export function App() {
               progressMap={progressMap}
               onNavigate={handleNavigate}
               onAwardXp={handleAwardStudentXp}
+            />
+          )}
+
+          {activeTab === 'practical' && (
+            <PracticalWritingView
+              lang={lang}
+              theme={theme}
+              completedPracticals={profile.completedPracticals || []}
+              onTogglePractical={handleTogglePractical}
             />
           )}
 

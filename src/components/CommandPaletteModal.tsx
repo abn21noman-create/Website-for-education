@@ -133,9 +133,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                     en: 'Admission Hub',
                   },
                   {
+                    tab: 'practical' as ActiveTab,
+                    bn: 'ব্যবহারিক ও রাইটিং',
+                    en: 'Practicals & Writing',
+                  },
+                  {
                     tab: 'analytics' as ActiveTab,
-                    bn: 'দুর্বলতা রাডার',
-                    en: 'Weakness Radar',
+                    bn: 'দুর্বলতা ও ব্যাকআপ',
+                    en: 'Analytics & Backup',
                   },
                   {
                     tab: 'hub' as ActiveTab,

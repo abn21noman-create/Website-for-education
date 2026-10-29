@@ -11,6 +11,7 @@ export type ActiveTab =
   | 'analytics'
   | 'hub'
   | 'admission'
+  | 'practical'
   | 'gpa'
   | 'leaderboard';
 
@@ -183,5 +184,6 @@ export interface StudentProfile {
   solvedCqs?: string[];
   mistakeIds?: string[];
   srsMasteredIds?: string[];
+  completedPracticals?: string[];
   isDemo?: boolean;
 }
