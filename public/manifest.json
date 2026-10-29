@@ -3,8 +3,43 @@
   "short_name": "Nokkhotro HSC ’28",
   "description": "Complete A-to-Z Student-Only HSC 2028 Science Ecosystem: Syllabus, Virtual Lab, Formulas, CQ/MCQ Mistake Bank, Analytics & Peer Q&A Hub",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#4f46e5",
-  "lang": "bn"
+  "lang": "bn",
+  "dir": "ltr",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

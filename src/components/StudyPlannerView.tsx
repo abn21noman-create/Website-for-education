@@ -79,23 +79,29 @@ export const StudyPlannerView: React.FC<StudyPlannerViewProps> = ({
   const [taskSubject, setTaskSubject] = useState<SubjectKey>('physics1');
   const [taskPriority, setTaskPriority] = useState<'high' | 'medium'>('high');
 
+  // Ticking effect. Deliberately depends on `isRunning` only: the previous
+  // version listed `secondsLeft` and `sessionNote` here, so the interval was
+  // destroyed and recreated on every tick and on every keystroke in the
+  // session-note box — typing faster than 1 char/sec froze the Pomodoro.
   useEffect(() => {
     if (!isRunning) return;
-    if (secondsLeft <= 0) {
-      setIsRunning(false);
-      playCompletionChime();
-      onLogSession(
-        focusSubject,
-        presetMinutes,
-        sessionNote ||
-          (lang === 'bn' ? 'পমোডোরো ফোকাস সেশন সম্পন্ন' : 'Completed Pomodoro Session')
-      );
-      setSecondsLeft(presetMinutes * 60);
-      setSessionNote('');
-      return;
-    }
-    const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
+  }, [isRunning]);
+
+  // Completion effect: runs once the clock reaches zero.
+  useEffect(() => {
+    if (!isRunning || secondsLeft > 0) return;
+    setIsRunning(false);
+    playCompletionChime();
+    onLogSession(
+      focusSubject,
+      presetMinutes,
+      sessionNote ||
+        (lang === 'bn' ? 'পমোডোরো ফোকাস সেশন সম্পন্ন' : 'Completed Pomodoro Session')
+    );
+    setSecondsLeft(presetMinutes * 60);
+    setSessionNote('');
   }, [isRunning, secondsLeft, focusSubject, presetMinutes, sessionNote, lang, onLogSession]);
 
   const selectPreset = (mins: number) => {

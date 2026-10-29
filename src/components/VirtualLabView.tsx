@@ -114,7 +114,11 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
 
   // 8-bit 2's complement calculation (-128 to +127)
   const clampedComp = Math.max(-128, Math.min(127, Math.trunc(compInput || 0)));
-  const absVal = Math.min(127, Math.abs(clampedComp));
+  // NOTE: cap is 128, not 127. |-128| = 128 = 10000000 fits in 8 bits, and the
+  // old `Math.min(127, ...)` clamp silently rewrote it to 01111111 — so the
+  // solver taught -128 as 10000001 (which is -127) while showing the right
+  // final byte.
+  const absVal = Math.min(128, Math.abs(clampedComp));
   const pos8Bit = absVal.toString(2).padStart(8, '0');
   const onesComp = pos8Bit
     .split('')

@@ -27,6 +27,8 @@ interface SyllabusTrackerViewProps {
     chapterId: string,
     stage: keyof ChapterProgressState
   ) => void;
+  /** Lets the shell mirror the in-view paper filter into the URL. */
+  onSubjectChange?: (subject: SubjectKey | 'all') => void;
 }
 
 export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
@@ -35,6 +37,7 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
   initialSubject,
   progressMap,
   onToggleStage,
+  onSubjectChange,
 }) => {
   const isDark = theme === 'dark';
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>(
@@ -252,7 +255,10 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
       {/* Subject Filter Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         <button
-          onClick={() => setSelectedSubject('all')}
+          onClick={() => {
+            setSelectedSubject('all');
+            onSubjectChange?.('all');
+          }}
           className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 cursor-pointer ${
             selectedSubject === 'all'
               ? isDark
@@ -273,7 +279,10 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
           return (
             <button
               key={subj.key}
-              onClick={() => setSelectedSubject(subj.key)}
+              onClick={() => {
+                setSelectedSubject(subj.key);
+                onSubjectChange?.(subj.key);
+              }}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 border transition-all duration-200 cursor-pointer ${
                 active
                   ? isDark

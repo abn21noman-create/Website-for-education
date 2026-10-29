@@ -20,9 +20,15 @@ import {
   MessageSquareText,
   Compass,
   Microscope,
+  CloudUpload,
+  CloudOff,
+  Loader2,
+  HardDrive,
+  AlertTriangle,
 } from 'lucide-react';
 import { ActiveTab, Lang, StudentProfile, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
+import type { SyncSnapshot } from '../lib/sync';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -35,6 +41,7 @@ interface NavbarProps {
   isAuthenticated: boolean;
   onOpenAuth: () => void;
   onOpenSearch: () => void;
+  syncStatus: SyncSnapshot;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isAuthenticated,
   onOpenAuth,
   onOpenSearch,
+  syncStatus,
 }) => {
   const navItems: {
     id: ActiveTab;
@@ -236,6 +244,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </button>
 
+          {/* Live data-persistence indicator: tells the student whether their
+              work is actually stored in the cloud, queued for retry, or local. */}
+          <SyncIndicator lang={lang} isDark={isDark} status={syncStatus} />
+
           {/* Soft Warm Amber XP Pill */}
           <div
             className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold tabular-nums border ${
@@ -347,5 +359,87 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
     </header>
+  );
+};
+
+interface SyncIndicatorProps {
+  lang: Lang;
+  isDark: boolean;
+  status: SyncSnapshot;
+}
+
+const SyncIndicator: React.FC<SyncIndicatorProps> = ({ lang, isDark, status }) => {
+  const bn = lang === 'bn';
+
+  const view = (() => {
+    switch (status.phase) {
+      case 'saving':
+        return {
+          icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />,
+          label: bn ? 'সংরক্ষণ হচ্ছে…' : 'Saving…',
+          title: bn
+            ? 'আপনার ডেটা Supabase-এ পাঠানো হচ্ছে'
+            : 'Sending your data to Supabase',
+          tone: isDark
+            ? 'bg-indigo-500/12 text-indigo-300 border-indigo-400/25'
+            : 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        };
+      case 'idle':
+        return {
+          icon: <CloudUpload className="w-3.5 h-3.5" />,
+          label: bn ? 'ক্লাউডে সংরক্ষিত' : 'Synced',
+          title: status.lastSavedAt
+            ? bn
+              ? `সর্বশেষ সংরক্ষণ: ${new Date(status.lastSavedAt).toLocaleTimeString()}`
+              : `Last saved: ${new Date(status.lastSavedAt).toLocaleTimeString()}`
+            : bn
+            ? 'সব ডেটা Supabase-এ সংরক্ষিত আছে'
+            : 'All data is saved in Supabase',
+          tone: isDark
+            ? 'bg-emerald-500/12 text-emerald-300 border-emerald-400/25'
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        };
+      case 'offline':
+        return {
+          icon: <CloudOff className="w-3.5 h-3.5" />,
+          label: bn ? `${formatNum(status.queued, lang)}টি বাকি` : `${status.queued} queued`,
+          title: bn
+            ? 'ইন্টারনেট নেই — ডেটা ডিভাইসে জমা আছে এবং অনলাইন হলে স্বয়ংক্রিয়ভাবে পাঠানো হবে'
+            : 'Offline — saved on this device and will sync automatically when back online',
+          tone: isDark
+            ? 'bg-amber-500/12 text-amber-300 border-amber-400/25'
+            : 'bg-amber-50 text-amber-700 border-amber-200',
+        };
+      case 'error':
+        return {
+          icon: <AlertTriangle className="w-3.5 h-3.5" />,
+          label: bn ? 'সিঙ্ক ব্যর্থ' : 'Sync failed',
+          title: status.lastError || (bn ? 'সার্ভারে সংরক্ষণ ব্যর্থ হয়েছে' : 'Could not save to the server'),
+          tone: isDark
+            ? 'bg-rose-500/12 text-rose-300 border-rose-400/25'
+            : 'bg-rose-50 text-rose-700 border-rose-200',
+        };
+      default:
+        return {
+          icon: <HardDrive className="w-3.5 h-3.5" />,
+          label: bn ? 'শুধু এই ডিভাইসে' : 'Device only',
+          title: bn
+            ? 'লগইন করুন — তাহলে অগ্রগতি Supabase-এ স্থায়ীভাবে সংরক্ষিত হবে'
+            : 'Sign in to store your progress permanently in Supabase',
+          tone: isDark
+            ? 'bg-slate-700/50 text-slate-300 border-slate-600/60'
+            : 'bg-slate-100 text-slate-600 border-slate-200',
+        };
+    }
+  })();
+
+  return (
+    <div
+      className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${view.tone}`}
+      title={view.title}
+    >
+      {view.icon}
+      <span className="whitespace-nowrap">{view.label}</span>
+    </div>
   );
 };
