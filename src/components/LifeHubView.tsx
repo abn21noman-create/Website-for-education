@@ -69,6 +69,7 @@ import {
   type LifeData,
   type RoutineSlot,
 } from '../lib/lifeStore';
+import { ReminderCard } from './ReminderCard';
 
 interface LifeHubViewProps {
   lang: Lang;
@@ -989,6 +990,8 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               })}
             </div>
           </section>
+
+          <ReminderCard data={data} lang={lang} theme={theme} />
 
           {/* College attendance */}
           <section className={`${card} p-4 sm:p-5`}>
