@@ -36,6 +36,7 @@ import {
   MapPin,
   Clock,
   School,
+  AlertTriangle,
 } from 'lucide-react';
 import type {
   ActiveTab,
@@ -45,18 +46,21 @@ import type {
   Theme,
 } from '../types';
 import { formatNum } from '../lib/i18n';
+import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { getSupabase } from '../lib/supabase';
 import { syncWrite } from '../lib/sync';
 import {
   HABIT_TARGET,
   LIFE_DATA_EVENT,
   attendanceForMonth,
+  habitStreak,
   daysUntil,
   lastNDays,
   loadLifeData,
   localDateKey,
   normalizeLifeData,
   saveLifeData,
+  subjectResultAverages,
   type AttendanceStatus,
   type DeadlineCategory,
   type DeadlineItem,
@@ -414,7 +418,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
 
   // Result form
   const [resTitle, setResTitle] = useState('');
-  const [resSubject, setResSubject] = useState('');
+  const [resSubject, setResSubject] = useState<SubjectKey | 'all'>('all');
   const [resObtained, setResObtained] = useState('');
   const [resTotal, setResTotal] = useState('');
   const [resDate, setResDate] = useState('');
@@ -595,6 +599,24 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     };
   }, [data.attendance, bn]);
 
+  const weakestSubject = useMemo(() => {
+    const ranked = subjectResultAverages(data.results);
+    return ranked.length > 0 && ranked[0].avg < 75 ? ranked[0] : null;
+  }, [data.results]);
+
+  /**
+   * 75% eligibility maths: with `a` attended out of `t` marked classes,
+   * attending `x` more brings the ratio to (a+x)/(t+x). Solving for 0.75
+   * gives the number of classes needed — or how many can still be missed.
+   */
+  const attendanceProjection = useMemo(() => {
+    const { attended, marked } = attendanceMonth;
+    if (marked === 0) return { above: false, needed: 0, affordable: 0 };
+    const needed = Math.ceil(Math.max(0, (0.75 * marked - attended) / 0.25));
+    const affordable = Math.floor(Math.max(0, (attended - 0.75 * marked) / 0.75));
+    return { above: attended >= 0.75 * marked, needed, affordable };
+  }, [attendanceMonth]);
+
   const resultStats = useMemo(() => {
     const list = [...data.results].sort((a, b) => b.date.localeCompare(a.date));
     const pcts = list.filter((r) => r.total > 0).map((r) => (r.obtained / r.total) * 100);
@@ -686,14 +708,18 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     const item: ExamResult = {
       id: crypto.randomUUID(),
       title: resTitle.trim(),
-      subject: resSubject.trim(),
+      subject:
+        resSubject === 'all'
+          ? ''
+          : getSubjectByKey(resSubject)?.shortName[bn ? 'bn' : 'en'] ?? '',
+      subjectKey: resSubject,
       obtained: Math.max(0, Math.min(obtained, total)),
       total,
       date: resDate || localDateKey(),
     };
     patch((prev) => ({ ...prev, results: [item, ...prev.results] }));
     setResTitle('');
-    setResSubject('');
+    setResSubject('all');
     setResObtained('');
     setResTotal('');
     setResDate('');
@@ -1088,6 +1114,26 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                 {formatNum(attendanceMonth.marked, lang)}
               </span>
             </div>
+
+            {attendanceMonth.marked > 0 && (
+              <p
+                className={`mt-2 text-[11px] font-semibold ${
+                  attendanceMonth.pct >= 75 ? (isDark ? 'text-emerald-300' : 'text-emerald-700') : sub
+                }`}
+              >
+                {attendanceProjection.above
+                  ? attendanceProjection.affordable > 0
+                    ? bn
+                      ? `৭৫% ধরে রাখতে আর ${formatNum(attendanceProjection.affordable, lang)} দিন অনুপস্থিত থাকা যাবে।`
+                      : `You can still miss ${attendanceProjection.affordable} more class(es) and stay above 75%.`
+                    : bn
+                    ? 'আর একটি ক্লাসও মিস করা যাবে না — ৭৫% একদম সীমারেখায়।'
+                    : 'You cannot miss another class — you are exactly at the 75% line.'
+                  : bn
+                  ? `৭৫%-এ পৌঁছাতে টানা ${formatNum(attendanceProjection.needed, lang)} দিন ক্লাসে উপস্থিত থাকতে হবে।`
+                  : `Attend ${attendanceProjection.needed} more class(es) in a row to reach 75%.`}
+              </p>
+            )}
 
             {attendanceMonth.marked >= 5 && attendanceMonth.pct < 75 && (
               <p className={`mt-2 text-[11px] font-semibold ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>
@@ -1561,12 +1607,19 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                 onChange={(e) => setResTitle(e.target.value)}
                 placeholder={bn ? 'পরীক্ষার নাম' : 'Exam name'}
               />
-              <input
+              <select
                 className={field}
                 value={resSubject}
-                onChange={(e) => setResSubject(e.target.value)}
-                placeholder={bn ? 'বিষয়' : 'Subject'}
-              />
+                onChange={(e) => setResSubject(e.target.value as SubjectKey | 'all')}
+                aria-label={bn ? 'বিষয়' : 'Subject'}
+              >
+                <option value="all">{bn ? 'সাধারণ / অন্যান্য' : 'General / other'}</option>
+                {SUBJECTS.map((subj) => (
+                  <option key={subj.key} value={subj.key}>
+                    {bn ? subj.name.bn : subj.name.en}
+                  </option>
+                ))}
+              </select>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -1668,6 +1721,40 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {weakestSubject && (
+              <div
+                className={`mt-3 rounded-xl border p-3 flex items-center gap-2.5 ${
+                  isDark
+                    ? 'border-rose-400/25 bg-rose-500/8'
+                    : 'border-rose-200 bg-rose-50/70'
+                }`}
+              >
+                <AlertTriangle
+                  className={`w-4 h-4 shrink-0 ${isDark ? 'text-rose-300' : 'text-rose-600'}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[11px] font-bold ${head}`}>
+                    {bn ? 'সবচেয়ে দুর্বল পত্র' : 'Weakest paper'}:{' '}
+                    {getSubjectByKey(weakestSubject.subjectKey)?.shortName[bn ? 'bn' : 'en']} —{' '}
+                    {formatNum(weakestSubject.avg, lang)}%
+                  </p>
+                  <p className={`text-[10px] ${sub}`}>
+                    {bn
+                      ? 'এই পত্রে নিয়মিত MCQ দিলে দ্রুত উন্নতি হবে।'
+                      : 'Regular MCQs on this paper will lift it fastest.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onNavigate('mcq')}
+                  className={`shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg ${
+                    isDark ? 'bg-rose-500/20 text-rose-200' : 'bg-rose-600 text-white'
+                  }`}
+                >
+                  {bn ? 'MCQ' : 'Practise'}
+                </button>
               </div>
             )}
           </section>

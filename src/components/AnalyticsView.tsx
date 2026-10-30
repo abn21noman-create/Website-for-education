@@ -24,6 +24,7 @@ import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 import { WeeklyReviewCard } from './WeeklyReviewCard';
+import { ParentReportCard } from './ParentReportCard';
 
 interface AnalyticsViewProps {
   lang: Lang;
@@ -160,6 +161,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         quizHistory={quizHistory}
         sessions={sessions}
         onNavigate={onNavigate}
+      />
+
+      <ParentReportCard
+        lang={lang}
+        theme={theme}
+        profile={profile}
+        progressMap={progressMap}
+        quizHistory={quizHistory}
+        sessions={sessions}
       />
 
       {/* Top 4 Telemetry Cards */}

@@ -44,7 +44,10 @@ export interface RoutineSlot {
 export interface ExamResult {
   id: string;
   title: string;
+  /** Free-text label kept for display and older records. */
   subject: string;
+  /** Set when the student picked one of the 11 papers from the dropdown. */
+  subjectKey?: SubjectKey | 'all';
   obtained: number;
   total: number;
   date: string;
@@ -156,6 +159,55 @@ export interface AttendanceSummary {
   marked: number;
   attended: number;
   pct: number;
+}
+
+/**
+ * Consecutive days that met the habit target. Today only counts once it is
+ * complete; until then the streak is measured up to yesterday so opening the
+ * app in the morning never shows "0 days".
+ */
+export function habitStreak(
+  habits: Record<string, string[]>,
+  target = HABIT_TARGET
+): number {
+  const start = (habits[localDateKey()] ?? []).length >= target ? 0 : 1;
+  let count = 0;
+  for (let i = start; i < 400; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    if ((habits[localDateKey(d)] ?? []).length >= target) count += 1;
+    else break;
+  }
+  return count;
+}
+
+export interface SubjectResultAverage {
+  subjectKey: SubjectKey;
+  avg: number;
+  count: number;
+}
+
+/**
+ * Average mark per paper, weakest first. Only results with a real subject key
+ * are counted, so a free-text "অন্যান্য" entry never skews the ranking.
+ */
+export function subjectResultAverages(results: ExamResult[]): SubjectResultAverage[] {
+  const buckets = new Map<SubjectKey, number[]>();
+  results.forEach((r) => {
+    if (!r.subjectKey || r.subjectKey === 'all' || !(r.total > 0)) return;
+    const pct = (r.obtained / r.total) * 100;
+    const list = buckets.get(r.subjectKey) ?? [];
+    list.push(pct);
+    buckets.set(r.subjectKey, list);
+  });
+
+  return Array.from(buckets.entries())
+    .map(([subjectKey, list]) => ({
+      subjectKey,
+      avg: Math.round(list.reduce((sum, p) => sum + p, 0) / list.length),
+      count: list.length,
+    }))
+    .sort((a, b) => a.avg - b.avg);
 }
 
 /**

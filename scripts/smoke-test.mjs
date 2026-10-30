@@ -153,6 +153,15 @@ const clickByText = (needle) => {
   return Boolean(el);
 };
 
+const setSelect = (el, value) => {
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLSelectElement.prototype,
+    'value'
+  ).set;
+  setter.call(el, value);
+  el.dispatchEvent(new window.Event('change', { bubbles: true }));
+};
+
 const setInput = (el, value) => {
   const setter = Object.getOwnPropertyDescriptor(
     window.HTMLInputElement.prototype,
@@ -216,8 +225,10 @@ const resultTitle = window.document.querySelector('input[placeholder="পরী�
 const resultBits = Array.from(window.document.querySelectorAll('input[placeholder="প্রাপ্ত"], input[placeholder="মোট"]'));
 if (resultTitle && resultBits.length >= 2) {
   setInput(resultTitle, 'মডেল টেস্ট');
-  setInput(resultBits[0], '78');
+  setInput(resultBits[0], '60');
   setInput(resultBits[1], '100');
+  const subjectSelect = window.document.querySelector('select[aria-label="বিষয়"]');
+  if (subjectSelect) setSelect(subjectSelect, 'physics1');
   await new Promise((resolve) => setTimeout(resolve, 150));
   const addBtn = Array.from(window.document.querySelectorAll('button')).find(
     (b) => (b.textContent || '').trim() === 'যোগ'
@@ -229,6 +240,10 @@ if (resultTitle && resultBits.length >= 2) {
   const logged = (container.textContent || '').includes('মডেল টেস্ট');
   console.log(logged ? '✓ life hub exam results work' : '✗ exam result not logged');
   failures += logged ? 0 : 1;
+
+  const weakShown = (container.textContent || '').includes('সবচেয়ে দুর্বল পত্র');
+  console.log(weakShown ? '✓ weakest-subject suggestion works' : '✗ weakest-subject suggestion missing');
+  failures += weakShown ? 0 : 1;
 } else {
   console.log('✗ result form inputs not found');
   failures++;
@@ -246,6 +261,10 @@ await new Promise((resolve) => setTimeout(resolve, 900));
 const reviewRendered = (container.textContent || '').includes('এই সপ্তাহের রিভিউ');
 console.log(reviewRendered ? '✓ weekly review renders' : '✗ weekly review missing');
 failures += reviewRendered ? 0 : 1;
+
+const reportRendered = (container.textContent || '').includes('অভিভাবক রিপোর্ট');
+console.log(reportRendered ? '✓ parent report renders' : '✗ parent report missing');
+failures += reportRendered ? 0 : 1;
 
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')

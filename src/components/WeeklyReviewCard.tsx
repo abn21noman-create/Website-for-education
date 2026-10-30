@@ -23,8 +23,10 @@ import {
   lastNDays,
   loadLifeData,
   localDateKey,
+  subjectResultAverages,
   type LifeData,
 } from '../lib/lifeStore';
+import { getSubjectByKey } from '../data/syllabusData';
 
 interface WeeklyReviewCardProps {
   lang: Lang;
@@ -118,6 +120,8 @@ export const WeeklyReviewCard: React.FC<WeeklyReviewCardProps> = ({
       })
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    const weakest = subjectResultAverages(life.results)[0] ?? null;
+
     const nextClassToday = [...life.routine]
       .filter((slot) => slot.day === new Date().getDay())
       .sort((a, b) => a.start.localeCompare(b.start))[0];
@@ -135,6 +139,7 @@ export const WeeklyReviewCard: React.FC<WeeklyReviewCardProps> = ({
       attendance,
       upcoming,
       nextClassToday,
+      weakest,
     };
   }, [sessions, quizHistory, life]);
 
@@ -387,6 +392,31 @@ export const WeeklyReviewCard: React.FC<WeeklyReviewCardProps> = ({
             </li>
           ))}
         </ul>
+
+        {stats.weakest && (
+          <div
+            className={`no-print mt-3 flex items-center gap-2.5 rounded-xl border p-2.5 ${
+              isDark ? 'border-rose-400/25 bg-rose-500/8' : 'border-rose-200 bg-rose-50/70'
+            }`}
+          >
+            <AlertTriangle
+              className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-rose-300' : 'text-rose-600'}`}
+            />
+            <p className={`text-[11px] font-semibold min-w-0 ${head}`}>
+              {bn ? 'ফলাফলে দুর্বল' : 'Weakest by results'}:{' '}
+              {getSubjectByKey(stats.weakest.subjectKey)?.shortName[bn ? 'bn' : 'en']} —{' '}
+              {formatNum(stats.weakest.avg, lang)}%
+            </p>
+            <button
+              onClick={() => onNavigate('mcq')}
+              className={`ml-auto shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg ${
+                isDark ? 'bg-rose-500/20 text-rose-200' : 'bg-rose-600 text-white'
+              }`}
+            >
+              {bn ? 'MCQ' : 'Practise'}
+            </button>
+          </div>
+        )}
 
         <button
           onClick={() => onNavigate('life')}

@@ -93,6 +93,42 @@
   }
 }
 
+/* ---------------------------------------------------------------
+   "Print only this card" mode.
+   The app is a single scrolling page, so printing from Analytics used
+   to spit out every module section. Adding `printing-report` to <body>
+   keeps only the parent report (and its ancestors) on the page.
+   `:has()` is supported by every browser that can install this PWA.
+   --------------------------------------------------------------- */
+@media print {
+  body.printing-report #root > div > *:not(main) {
+    display: none !important;
+  }
+  body.printing-report main :not(:has(.print-report)):not(.print-report) {
+    display: none !important;
+  }
+  body.printing-report main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  body.printing-report .print-report {
+    display: block !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.printing-report .print-report * {
+    color: #0f172a !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
+
 /* ==================================================================
    Mobile polish & interaction comfort
    ==================================================================
