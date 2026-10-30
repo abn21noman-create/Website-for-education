@@ -302,6 +302,18 @@ const check = (ok, label, detail = '') => {
   failures += ok ? 0 : 1;
 };
 
+const bankIds = bank.MCQ_QUESTIONS.map((q) => q.id);
+check(
+  bank.MCQ_QUESTIONS.length >= 100,
+  'MCQ bank passed 100 questions',
+  String(bank.MCQ_QUESTIONS.length)
+);
+check(
+  new Set(bankIds).size === bankIds.length,
+  'every MCQ id is unique (mistake bank depends on it)',
+  `${bankIds.length - new Set(bankIds).size} duplicates`
+);
+
 const medical = patterns.getPatternById('medical-mbbs');
 check(
   patterns.patternTimeFor(medical, 10) === 360,

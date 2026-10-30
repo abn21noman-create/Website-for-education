@@ -1147,7 +1147,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
   },
   // EXPANDED HSC 2028 BOARD + ADMISSION BANK
   {
-    id: 'q-phy1-6',
+    id: 'q-phy1-6-b',
     subjectKey: 'physics1',
     chapter: { bn: 'গতিবিদ্যা', en: 'Dynamics' },
     question: {
@@ -1169,7 +1169,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-phy1-7',
+    id: 'q-phy1-7-b',
     subjectKey: 'physics1',
     chapter: { bn: 'নিউটনিয়ান বলবিদ্যা', en: 'Newtonian Mechanics' },
     question: {
@@ -1213,7 +1213,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'medium',
   },
   {
-    id: 'q-phy2-4',
+    id: 'q-phy2-4-b',
     subjectKey: 'physics2',
     chapter: { bn: 'তাপগতিবিদ্যা', en: 'Thermodynamics' },
     question: {
@@ -1235,7 +1235,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-phy2-5',
+    id: 'q-phy2-5-b',
     subjectKey: 'physics2',
     chapter: { bn: 'চল তড়িৎ', en: 'Current Electricity' },
     question: {
@@ -1279,7 +1279,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'hard',
   },
   {
-    id: 'q-chem1-5',
+    id: 'q-chem1-5-b',
     subjectKey: 'chemistry1',
     chapter: { bn: 'গুণগত রসায়ন', en: 'Qualitative Chemistry' },
     question: {
@@ -1345,7 +1345,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'medium',
   },
   {
-    id: 'q-chem2-4',
+    id: 'q-chem2-4-b',
     subjectKey: 'chemistry2',
     chapter: { bn: 'পরিবেশ রসায়ন', en: 'Environmental Chemistry' },
     question: {
@@ -1367,7 +1367,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-chem2-5',
+    id: 'q-chem2-5-b',
     subjectKey: 'chemistry2',
     chapter: { bn: 'জৈব রসায়ন', en: 'Organic Chemistry' },
     question: {
@@ -1411,7 +1411,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'medium',
   },
   {
-    id: 'q-math1-5',
+    id: 'q-math1-5-b',
     subjectKey: 'math1',
     chapter: { bn: 'ম্যাট্রিক্স ও নির্ণায়ক', en: 'Matrices & Determinants' },
     question: {
@@ -1499,7 +1499,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-math2-4',
+    id: 'q-math2-4-b',
     subjectKey: 'math2',
     chapter: { bn: 'জটিল সংখ্যা', en: 'Complex Numbers' },
     question: {
@@ -1543,7 +1543,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-bio1-4',
+    id: 'q-bio1-4-b',
     subjectKey: 'biology1',
     chapter: { bn: 'কোষ বিভাজন', en: 'Cell Division' },
     question: {
@@ -1565,7 +1565,7 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
     difficulty: 'easy',
   },
   {
-    id: 'q-bio1-5',
+    id: 'q-bio1-5-b',
     subjectKey: 'biology1',
     chapter: { bn: 'উদ্ভিদ শারীরতত্ত্ব', en: 'Plant Physiology' },
     question: {
@@ -1716,6 +1716,672 @@ export const MCQ_QUESTIONS: McqQuestion[] = [
       en: 'After "It is high time + Subject", the verb always takes the Past Simple (V₂ = followed) form.',
     },
     boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'easy',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Coverage pass: English, Bangla, Chemistry 2nd, Higher Math 2nd, Biology 2nd
+  // and Physics 2nd were the thinnest papers in the bank (4-8 questions each).
+  // These follow the same board-style framing as the rest of the file.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'q-eng-5',
+    subjectKey: 'english',
+    chapter: { bn: 'Correlative Conjunctions', en: 'Correlative Conjunctions' },
+    question: {
+      bn: 'শূন্যস্থান পূরণ করো: "No sooner had we reached the station ______ the train left."',
+      en: 'Fill in the blank: "No sooner had we reached the station ______ the train left."',
+    },
+    options: [
+      { bn: 'than', en: 'than' },
+      { bn: 'when', en: 'when' },
+      { bn: 'then', en: 'then' },
+      { bn: 'that', en: 'that' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: '"No sooner" জোড়ায় সবসময় "than" বসে এবং এরপর inverted clause (had + subject) আসে।',
+      en: '"No sooner" is always paired with "than", followed by an inverted clause.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-eng-6',
+    subjectKey: 'english',
+    chapter: { bn: 'Subject-Verb Agreement', en: 'Subject-Verb Agreement' },
+    question: {
+      bn: 'সঠিক ক্রিয়ার রূপ বাছো: "He is one of the students who ______ hard."',
+      en: 'Choose the correct verb: "He is one of the students who ______ hard."',
+    },
+    options: [
+      { bn: 'work', en: 'work' },
+      { bn: 'works', en: 'works' },
+      { bn: 'is working', en: 'is working' },
+      { bn: 'has worked', en: 'has worked' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: '"one of the + plural noun + who" কাঠামোতে who-এর antecedent হলো plural noun (students), তাই plural verb "work" বসে।',
+      en: 'In "one of the + plural noun + who", the antecedent of "who" is the plural noun, so the plural verb "work" is correct.',
+    },
+    boardTag: { bn: 'ঢাবি ও সকল বোর্ড', en: 'DU & All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-eng-7',
+    subjectKey: 'english',
+    chapter: { bn: 'Subjunctive Mood', en: 'Subjunctive Mood' },
+    question: {
+      bn: 'সঠিক রূপটি বেছে নাও: "The teacher insisted that he ______ the assignment on time."',
+      en: 'Choose the correct form: "The teacher insisted that he ______ the assignment on time."',
+    },
+    options: [
+      { bn: 'submits', en: 'submits' },
+      { bn: 'submitted', en: 'submitted' },
+      { bn: 'submit', en: 'submit' },
+      { bn: 'would submit', en: 'would submit' },
+    ],
+    correctIndex: 2,
+    explanation: {
+      bn: 'insist / demand / suggest / recommend-এর পর that-clause-এ subjunctive mood হয় — verb-এর base form (submit) বসে, person নির্বিশেষে।',
+      en: 'After insist/demand/suggest/recommend, the that-clause takes the subjunctive — the base form "submit" regardless of person.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-eng-8',
+    subjectKey: 'english',
+    chapter: { bn: 'Hardly / Scarcely', en: 'Hardly / Scarcely' },
+    question: {
+      bn: 'শূন্যস্থান পূরণ করো: "Hardly had I entered the classroom ______ the bell rang."',
+      en: 'Fill in the blank: "Hardly had I entered the classroom ______ the bell rang."',
+    },
+    options: [
+      { bn: 'than', en: 'than' },
+      { bn: 'when', en: 'when' },
+      { bn: 'that', en: 'that' },
+      { bn: 'while', en: 'while' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'Hardly / Scarcely-এর জোড়া "when"; আর No sooner-এর জোড়া "than" — দুটো গুলিয়ে ফেলা সবচেয়ে সাধারণ ভুল।',
+      en: 'Hardly/Scarcely pair with "when", while No sooner pairs with "than" — mixing them up is the usual mistake.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-eng-9',
+    subjectKey: 'english',
+    chapter: { bn: 'Voice Change', en: 'Voice Change' },
+    question: {
+      bn: '"They are building a new bridge." — এর সঠিক passive form কোনটি?',
+      en: 'Which is the correct passive form of "They are building a new bridge."?',
+    },
+    options: [
+      { bn: 'A new bridge is built.', en: 'A new bridge is built.' },
+      { bn: 'A new bridge is being built.', en: 'A new bridge is being built.' },
+      { bn: 'A new bridge has been built.', en: 'A new bridge has been built.' },
+      { bn: 'A new bridge was being built.', en: 'A new bridge was being built.' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'Present Continuous-এর passive = am/is/are + being + past participle. তাই "is being built"।',
+      en: 'Present continuous passive = am/is/are + being + past participle, hence "is being built".',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-eng-10',
+    subjectKey: 'english',
+    chapter: { bn: 'Preposition', en: 'Preposition' },
+    question: {
+      bn: '"He is good ______ mathematics but weak ______ English." — শূন্যস্থানে যথাক্রমে কী বসবে?',
+      en: '"He is good ______ mathematics but weak ______ English." — which pair fits?',
+    },
+    options: [
+      { bn: 'at / in', en: 'at / in' },
+      { bn: 'in / at', en: 'in / at' },
+      { bn: 'at / at', en: 'at / at' },
+      { bn: 'in / in', en: 'in / in' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: 'নির্দিষ্ট দক্ষতার ক্ষেত্রে "good at" এবং দুর্বলতার ক্ষেত্রে "weak in" — এটাই প্রচলিত ব্যবহার।',
+      en: 'Standard usage pairs "good at" (a skill) with "weak in" (a subject area).',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-ban-5',
+    subjectKey: 'bangla',
+    chapter: { bn: 'সন্ধি: গুণ ও স্বরসন্ধি', en: 'Sandhi: Guna & Swara' },
+    question: {
+      bn: '‘সূর্যোদয়’ শব্দের সঠিক সন্ধি-বিচ্ছেদ কোনটি?',
+      en: 'What is the correct sandhi split of the word "সূর্যোদয়"?',
+    },
+    options: [
+      { bn: 'সূর্য + উদয়', en: 'সূর্য + উদয়' },
+      { bn: 'সূর্য + ওদয়', en: 'সূর্য + ওদয়' },
+      { bn: 'সূর + যোদয়', en: 'সূর + যোদয়' },
+      { bn: 'সূর্যো + দয়', en: 'সূর্যো + দয়' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: 'সূর্য + উদয় = সূর্যোদয় — অ-কারের পর উ-কার এলে উভয় মিলে ও-কার হয়, এটি গুণ সন্ধি।',
+      en: 'সূর্য + উদয় → সূর্যোদয়: অ followed by উ becomes ও, a classic Guna sandhi.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-ban-6',
+    subjectKey: 'bangla',
+    chapter: { bn: 'কারক ও বিভক্তি', en: 'Karok & Case Endings' },
+    question: {
+      bn: '‘আমি ভাত খাই’ — এই বাক্যে ‘ভাত’ কোন কারক?',
+      en: 'In the sentence "আমি ভাত খাই", which karok is "ভাত"?',
+    },
+    options: [
+      { bn: 'কর্তৃকারক', en: 'কর্তৃকারক (subject)' },
+      { bn: 'কর্মকারক', en: 'কর্মকারক (object)' },
+      { bn: 'করণ কারক', en: 'করণ কারক (instrument)' },
+      { bn: 'অপাদান কারক', en: 'অপাদান কারক (source)' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'ক্রিয়ার (খাই) ফল যার ওপর পড়ে, তা-ই কর্মকারক। ‘ভাত’-এ দ্বিতীয়া বিভক্তি (শূন্য) থাকায় এটি কর্মে দ্বিতীয়া।',
+      en: 'The object on which the action falls is the কর্মকারক; "ভাত" carries the unmarked second case ending.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-ban-7',
+    subjectKey: 'bangla',
+    chapter: { bn: 'সমাস', en: 'Samas (Compound)' },
+    question: {
+      bn: '‘রাজপুত্র’ শব্দটি কোন সমাসের উদাহরণ?',
+      en: '"রাজপুত্র" is an example of which compound?',
+    },
+    options: [
+      { bn: 'দ্বন্দ্ব সমাস', en: 'দ্বন্দ্ব (copulative)' },
+      { bn: 'ষষ্ঠী তৎপুরুষ', en: 'ষষ্ঠী তৎপুরুষ (possessive)' },
+      { bn: 'বহুব্রীহি', en: 'বহুব্রীহি (exocentric)' },
+      { bn: 'অব্যয়ীভাব', en: 'অব্যয়ীভাব' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'রাজা + র (ষষ্ঠী) + পুত্র = রাজার পুত্র → ষষ্ঠী তৎপুরুষ সমাস।',
+      en: 'রাজার পুত্র → রাজপুত্র: the hidden sixth-case ending makes it ষষ্ঠী তৎপুরুষ.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-ban-8',
+    subjectKey: 'bangla',
+    chapter: { bn: 'বানান শুদ্ধিকরণ', en: 'Correct Spelling' },
+    question: {
+      bn: 'প্রমিত বানান অনুযায়ী শুদ্ধ শব্দটি কোনটি?',
+      en: 'According to standard Bangla spelling, which word is correct?',
+    },
+    options: [
+      { bn: 'দারিদ্রতা', en: 'দারিদ্রতা' },
+      { bn: 'দরিদ্রতা', en: 'দরিদ্রতা' },
+      { bn: 'দারিদ্র্য', en: 'দারিদ্র্য' },
+      { bn: 'দারিদ্র', en: 'দারিদ্র' },
+    ],
+    correctIndex: 2,
+    explanation: {
+      bn: '‘দারিদ্র্য’ শুদ্ধ রূপ — এখানে দারিদ্র + ‍্য প্রত্যয় যুক্ত হয়; ‘দারিদ্রতা’ দ্বিগুণ প্রত্যয়ের ভুল।',
+      en: '"দারিদ্র্য" is the standard form; "দারিদ্রতা" doubles the suffix and is incorrect.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-ban-9',
+    subjectKey: 'bangla',
+    chapter: { bn: 'উপসর্গ', en: 'Prefixes' },
+    question: {
+      bn: '‘অনুগ্রহ’ শব্দে ‘অনু’ কোন ধরনের উপসর্গ?',
+      en: 'In "অনুগ্রহ", what kind of prefix is "অনু"?',
+    },
+    options: [
+      { bn: 'বাংলা উপসর্গ', en: 'Bangla prefix' },
+      { bn: 'সংস্কৃত (তৎসম) উপসর্গ', en: 'Sanskrit (tatsama) prefix' },
+      { bn: 'আরবি উপসর্গ', en: 'Arabic prefix' },
+      { bn: 'ফারসি উপসর্গ', en: 'Persian prefix' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'অনু, অপ, নির, প্রতি — এগুলো সংস্কৃত (তৎসম) উপসর্গ; আর অ, আ, ভর, সা ইত্যাদি বাংলা উপসর্গ।',
+      en: 'অনু/অপ/নির/প্রতি are Sanskrit prefixes, whereas অ/আ/ভর/সা are native Bangla prefixes.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-ban-10',
+    subjectKey: 'bangla',
+    chapter: { bn: 'প্রকৃতি ও প্রত্যয়', en: 'Root & Suffix' },
+    question: {
+      bn: '‘পাঠক’ শব্দের প্রকৃতি ও প্রত্যয় কোনটি?',
+      en: 'What are the root and suffix of "পাঠক"?',
+    },
+    options: [
+      { bn: 'পাঠ + অক', en: 'পাঠ + অক' },
+      { bn: 'পাঠ + ক', en: 'পাঠ + ক' },
+      { bn: 'পা + ঠক', en: 'পা + ঠক' },
+      { bn: 'পাঠক + শূন্য', en: 'পাঠক + শূন্য' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: '√পাঠ (প্রকৃতি) + অক (কৃৎ প্রত্যয়) = পাঠক; ‘অক’ প্রত্যয়ে কর্তৃবাচক বিশেষ্য গঠিত হয়।',
+      en: '√পাঠ (root) + অক (krit suffix) = পাঠক, forming an agent noun.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'hard',
+  },
+  {
+    id: 'q-chem2-9',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'জৈব রসায়ন: হাইড্রোকার্বন', en: 'Organic: Hydrocarbons' },
+    question: {
+      bn: 'অ্যালকেন শ্রেণির সাধারণ সংকেত কোনটি?',
+      en: 'What is the general formula of the alkane series?',
+    },
+    options: [
+      { bn: 'CnH2n', en: 'CnH2n' },
+      { bn: 'CnH2n+2', en: 'CnH2n+2' },
+      { bn: 'CnH2n-2', en: 'CnH2n-2' },
+      { bn: 'CnHn', en: 'CnHn' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'অ্যালকেন সম্পৃক্ত হাইড্রোকার্বন — CnH2n+2। অ্যালকিন CnH2n এবং অ্যালকাইন CnH2n-2।',
+      en: 'Alkanes are saturated: CnH2n+2, while alkenes are CnH2n and alkynes CnH2n-2.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-chem2-10',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'জৈব রসায়ন: আইইউপিএসি নামকরণ', en: 'Organic: IUPAC Naming' },
+    question: {
+      bn: 'CH3–CH(CH3)–CH2–CH3 যৌগের আইইউপিএসি নাম কী?',
+      en: 'What is the IUPAC name of CH3–CH(CH3)–CH2–CH3?',
+    },
+    options: [
+      { bn: '২-মিথাইলবিউটেন', en: '2-methylbutane' },
+      { bn: '৩-মিথাইলবিউটেন', en: '3-methylbutane' },
+      { bn: 'পেন্টেন', en: 'Pentane' },
+      { bn: '২-মিথাইলপ্রোপেন', en: '2-methylpropane' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: 'দীর্ঘতম শিকলে ৪টি কার্বন (বিউটেন); মিথাইল শাখাটি ২ নম্বরে — তাই ২-মিথাইলবিউটেন।',
+      en: 'The longest chain has 4 carbons (butane) and the methyl branch sits at C-2: 2-methylbutane.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-chem2-11',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'পরিমাণগত রসায়ন: pH', en: 'Quantitative: pH' },
+    question: {
+      bn: '0.01 M HCl দ্রবণের pH কত?',
+      en: 'What is the pH of a 0.01 M HCl solution?',
+    },
+    options: [
+      { bn: '১', en: '1' },
+      { bn: '২', en: '2' },
+      { bn: '৩', en: '3' },
+      { bn: '১২', en: '12' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'HCl সম্পূর্ণ বিয়োজিত হয়, তাই [H+] = 10⁻² M; pH = −log(10⁻²) = ২।',
+      en: 'HCl dissociates fully, so [H+] = 10⁻² M and pH = −log(10⁻²) = 2.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-chem2-12',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'তড়িৎ রসায়ন', en: 'Electrochemistry' },
+    question: {
+      bn: 'গলিত NaCl-এর তড়িৎ বিশ্লেষণে ক্যাথোডে কী জমা হয়?',
+      en: 'In the electrolysis of molten NaCl, what is deposited at the cathode?',
+    },
+    options: [
+      { bn: 'ক্লোরিন গ্যাস', en: 'Chlorine gas' },
+      { bn: 'সোডিয়াম ধাতু', en: 'Sodium metal' },
+      { bn: 'হাইড্রোজেন গ্যাস', en: 'Hydrogen gas' },
+      { bn: 'সোডিয়াম হাইড্রোক্সাইড', en: 'Sodium hydroxide' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'ক্যাথোডে বিজারণ ঘটে: Na⁺ + e⁻ → Na। অ্যানোডে Cl⁻ জারিত হয়ে Cl₂ গ্যাস উৎপন্ন করে।',
+      en: 'Reduction occurs at the cathode: Na⁺ + e⁻ → Na; chloride ions oxidise to Cl₂ at the anode.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-chem2-13',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'জৈব রসায়ন: সম্পৃক্ততা', en: 'Organic: Saturation' },
+    question: {
+      bn: 'নিচের কোনটি সম্পৃক্ত হাইড্রোকার্বন?',
+      en: 'Which of the following is a saturated hydrocarbon?',
+    },
+    options: [
+      { bn: 'মিথিন (ইথিন)', en: 'Ethene' },
+      { bn: 'ইথাইন', en: 'Ethyne' },
+      { bn: 'ইথেন', en: 'Ethane' },
+      { bn: 'বেঞ্জিন', en: 'Benzene' },
+    ],
+    correctIndex: 2,
+    explanation: {
+      bn: 'ইথেন (C₂H₆)-এ শুধু একক বন্ধন, তাই সম্পৃক্ত। ইথিনে দ্বিবন্ধন, ইথাইনে ত্রিবন্ধন এবং বেঞ্জিন অ্যারোমেটিক।',
+      en: 'Ethane (C₂H₆) has only single bonds; ethene, ethyne and benzene are unsaturated/aromatic.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-math2-7',
+    subjectKey: 'math2',
+    chapter: { bn: 'ম্যাট্রিক্স ও নির্ণায়ক', en: 'Matrices & Determinants' },
+    question: {
+      bn: '[[2, 3], [1, 4]] ম্যাট্রিক্সের নির্ণায়কের মান কত?',
+      en: 'What is the determinant of the matrix [[2, 3], [1, 4]]?',
+    },
+    options: [
+      { bn: '৫', en: '5' },
+      { bn: '১১', en: '11' },
+      { bn: '−৫', en: '−5' },
+      { bn: '৮', en: '8' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: '২×২ নির্ণায়ক = ad − bc = 2×4 − 3×1 = ৮ − ৩ = ৫।',
+      en: 'For a 2×2 matrix, determinant = ad − bc = 8 − 3 = 5.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-math2-8',
+    subjectKey: 'math2',
+    chapter: { bn: 'সম্ভাবনা', en: 'Probability' },
+    question: {
+      bn: 'একটি ন্যায্য মুদ্রা দুইবার নিক্ষেপ করলে দুইবারই হেড আসার সম্ভাবনা কত?',
+      en: 'A fair coin is tossed twice. What is the probability of two heads?',
+    },
+    options: [
+      { bn: '১/২', en: '1/2' },
+      { bn: '১/৩', en: '1/3' },
+      { bn: '১/৪', en: '1/4' },
+      { bn: '৩/৪', en: '3/4' },
+    ],
+    correctIndex: 2,
+    explanation: {
+      bn: 'মোট ফল ৪টি (HH, HT, TH, TT); অনুকূল ফল ১টি — তাই সম্ভাবনা ১/৪।',
+      en: 'Four equally likely outcomes (HH, HT, TH, TT) and one favourable, so 1/4.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-math2-9',
+    subjectKey: 'math2',
+    chapter: { bn: 'ত্রিকোণমিতি: যৌগিক কোণ', en: 'Trigonometry: Compound Angles' },
+    question: {
+      bn: 'sin 2θ = কত?',
+      en: 'sin 2θ equals which expression?',
+    },
+    options: [
+      { bn: '2 sinθ cosθ', en: '2 sinθ cosθ' },
+      { bn: 'sin²θ − cos²θ', en: 'sin²θ − cos²θ' },
+      { bn: '1 − 2sin²θ', en: '1 − 2sin²θ' },
+      { bn: '2 cos²θ − 1', en: '2 cos²θ − 1' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: 'sin2θ = 2 sinθ cosθ; বাকি তিনটি cos2θ-এর রূপ (cos²θ − sin²θ, 1 − 2sin²θ, 2cos²θ − 1)।',
+      en: 'sin2θ = 2 sinθ cosθ; the others are the three forms of cos2θ.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-math2-10',
+    subjectKey: 'math2',
+    chapter: { bn: 'জটিল সংখ্যা', en: 'Complex Numbers' },
+    question: {
+      bn: 'i² + i⁴ এর মান কত?',
+      en: 'What is the value of i² + i⁴?',
+    },
+    options: [
+      { bn: '০', en: '0' },
+      { bn: '−২', en: '−2' },
+      { bn: '২', en: '2' },
+      { bn: '১ − i', en: '1 − i' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: 'i² = −1 এবং i⁴ = (i²)² = 1; তাই যোগফল ০।',
+      en: 'i² = −1 and i⁴ = 1, so the sum is 0.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-math2-11',
+    subjectKey: 'math2',
+    chapter: { bn: 'কলনবিদ্যা: সমাকলন', en: 'Calculus: Integration' },
+    question: {
+      bn: '∫ x² dx = ?',
+      en: 'What is ∫ x² dx?',
+    },
+    options: [
+      { bn: 'x³/3 + c', en: 'x³/3 + c' },
+      { bn: '2x + c', en: '2x + c' },
+      { bn: 'x³ + c', en: 'x³ + c' },
+      { bn: '3x² + c', en: '3x² + c' },
+    ],
+    correctIndex: 0,
+    explanation: {
+      bn: '∫xⁿ dx = xⁿ⁺¹/(n+1) + c (n ≠ −1); এখানে n = 2, তাই x³/3 + c।',
+      en: '∫xⁿ dx = xⁿ⁺¹/(n+1) + c (n ≠ −1); with n = 2 this gives x³/3 + c.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-bio2-7',
+    subjectKey: 'biology2',
+    chapter: { bn: 'রক্ত ও সঞ্চালন', en: 'Blood & Circulation' },
+    question: {
+      bn: 'সুস্থ মানুষের রক্তের pH কত?',
+      en: 'What is the pH of human blood?',
+    },
+    options: [
+      { bn: '৭.০', en: '7.0' },
+      { bn: '৭.৪', en: '7.4' },
+      { bn: '৭.৮', en: '7.8' },
+      { bn: '৬.৪', en: '6.4' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'মানব রক্ত সামান্য ক্ষারীয় — pH প্রায় ৭.৩৫–৭.৪৫; এই সীমার বাইরে গেলে অ্যাসিডোসিস/অ্যালকালোসিস।',
+      en: 'Human blood is slightly alkaline at pH ≈ 7.35–7.45; outside that range is acidosis or alkalosis.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-bio2-8',
+    subjectKey: 'biology2',
+    chapter: { bn: 'রক্ত ও সঞ্চালন', en: 'Blood & Circulation' },
+    question: {
+      bn: 'সর্বজনীন রক্তদাতা (Universal donor) কোন রক্তগ্রুপ?',
+      en: 'Which blood group is the universal donor?',
+    },
+    options: [
+      { bn: 'A+', en: 'A+' },
+      { bn: 'B+', en: 'B+' },
+      { bn: 'AB+', en: 'AB+' },
+      { bn: 'O−', en: 'O−' },
+    ],
+    correctIndex: 3,
+    explanation: {
+      bn: 'O− লোহিত কণিকায় A, B বা Rh অ্যান্টিজেন নেই, তাই সর্বজনীন দাতা; আর AB+ সর্বজনীন গ্রহীতা।',
+      en: 'O− red cells carry no A, B or Rh antigen, making it the universal donor; AB+ is the universal recipient.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-bio2-9',
+    subjectKey: 'biology2',
+    chapter: { bn: 'রেচন ও নিষ্কাশন', en: 'Excretion' },
+    question: {
+      bn: 'বৃক্কের গঠনগত ও কার্যিক একক কোনটি?',
+      en: 'What is the structural and functional unit of the kidney?',
+    },
+    options: [
+      { bn: 'নিউরন', en: 'Neuron' },
+      { bn: 'নেফ্রন', en: 'Nephron' },
+      { bn: 'অ্যালভিওলাস', en: 'Alveolus' },
+      { bn: 'অ্যাক্সন', en: 'Axon' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'প্রতিটি বৃক্কে প্রায় ১০ লক্ষ নেফ্রন থাকে; রেচন প্রক্রিয়ার মূল একক এটি।',
+      en: 'Each kidney holds about a million nephrons, the functional units of excretion.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-bio2-10',
+    subjectKey: 'biology2',
+    chapter: { bn: 'সমন্বয় ও নিয়ন্ত্রণ', en: 'Coordination & Control' },
+    question: {
+      bn: 'ইনসুলিন হরমোন কোন কোষ থেকে নিঃসৃত হয়?',
+      en: 'Which cells secrete the hormone insulin?',
+    },
+    options: [
+      { bn: 'আলফা কোষ', en: 'Alpha cells' },
+      { bn: 'বিটা কোষ', en: 'Beta cells' },
+      { bn: 'থাইরয়েড ফলিকল', en: 'Thyroid follicles' },
+      { bn: 'অ্যাড্রিনাল মেডালা', en: 'Adrenal medulla' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'অগ্ন্যাশয়ের ল্যাঙ্গারহ্যান্স আইলেটের বিটা কোষ ইনসুলিন নিঃসরণ করে; আলফা কোষ গ্লুকাগন।',
+      en: 'Beta cells of the islets of Langerhans secrete insulin; alpha cells secrete glucagon.',
+    },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড', en: 'Medical & All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-phy2-9',
+    subjectKey: 'physics2',
+    chapter: { bn: 'স্থির তড়িৎ', en: 'Current Electricity' },
+    question: {
+      bn: 'রোধের এসআই একক কী?',
+      en: 'What is the SI unit of resistance?',
+    },
+    options: [
+      { bn: 'ভোল্ট', en: 'Volt' },
+      { bn: 'অ্যাম্পিয়ার', en: 'Ampere' },
+      { bn: 'ওহম', en: 'Ohm' },
+      { bn: 'কুলম্ব', en: 'Coulomb' },
+    ],
+    correctIndex: 2,
+    explanation: {
+      bn: 'R = V/I — ভোল্ট/অ্যাম্পিয়ার = ওহম (Ω)।',
+      en: 'R = V/I, so volt per ampere is the ohm (Ω).',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-phy2-10',
+    subjectKey: 'physics2',
+    chapter: { bn: 'তড়িৎ প্রবাহের ক্রিয়া', en: 'Effects of Current' },
+    question: {
+      bn: 'শ্রেণি সমবায়ে (series) সংযুক্ত রোধগুলোর মধ্য দিয়ে কী অপরিবর্তিত থাকে?',
+      en: 'What stays the same through resistors connected in series?',
+    },
+    options: [
+      { bn: 'বিভব পার্থক্য', en: 'Potential difference' },
+      { bn: 'তড়িৎ প্রবাহ', en: 'Current' },
+      { bn: 'রোধ', en: 'Resistance' },
+      { bn: 'শক্তি', en: 'Power' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'শ্রেণিতে একটি মাত্র পথ, তাই প্রতিটি রোধে একই তড়িৎ প্রবাহ; সমান্তরালে বিভব সমান থাকে।',
+      en: 'A series circuit has one path, so the current is the same through each resistor; parallel branches share voltage.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'easy',
+  },
+  {
+    id: 'q-phy2-11',
+    subjectKey: 'physics2',
+    chapter: { bn: 'জ্যামিতিক আলোকবিজ্ঞান', en: 'Geometrical Optics' },
+    question: {
+      bn: 'সমতল দর্পণের ফোকাস দূরত্ব কত?',
+      en: 'What is the focal length of a plane mirror?',
+    },
+    options: [
+      { bn: 'শূন্য', en: 'Zero' },
+      { bn: 'অসীম', en: 'Infinity' },
+      { bn: 'দর্পণ থেকে বস্তুর দূরত্বের সমান', en: 'Equal to the object distance' },
+      { bn: 'অর্ধেক বস্তু দূরত্ব', en: 'Half the object distance' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'সমতল দর্পণের বক্রতার ব্যাসার্ধ অসীম, তাই f = R/2 = অসীম।',
+      en: 'A plane mirror has an infinite radius of curvature, so f = R/2 = infinity.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
+    difficulty: 'medium',
+  },
+  {
+    id: 'q-phy2-12',
+    subjectKey: 'physics2',
+    chapter: { bn: 'আধুনিক পদার্থবিজ্ঞান', en: 'Modern Physics' },
+    question: {
+      bn: 'শূন্যস্থানে আলোর বেগ প্রায় কত?',
+      en: 'What is the speed of light in vacuum, approximately?',
+    },
+    options: [
+      { bn: '3 × 10⁶ m/s', en: '3 × 10⁶ m/s' },
+      { bn: '3 × 10⁸ m/s', en: '3 × 10⁸ m/s' },
+      { bn: '3 × 10¹⁰ m/s', en: '3 × 10¹⁰ m/s' },
+      { bn: '1.5 × 10⁸ m/s', en: '1.5 × 10⁸ m/s' },
+    ],
+    correctIndex: 1,
+    explanation: {
+      bn: 'c ≈ 3 × 10⁸ m/s (প্রায় ২.৯৯৮ × 10⁸)। 1.5 × 10⁸ হলো কাচ/পানির মতো মাধ্যমে আলোর বেগ।',
+      en: 'c ≈ 3 × 10⁸ m/s (2.998 × 10⁸ exactly). ~1.5 × 10⁸ is light speed in glass or water.',
+    },
+    boardTag: { bn: 'সকল বোর্ড', en: 'All Boards' },
     difficulty: 'easy',
   },
 ];
