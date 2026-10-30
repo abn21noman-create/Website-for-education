@@ -115,6 +115,23 @@ for (const route of routes) {
     } else {
       console.log(`✓ ${route || 'dashboard'} (${text.trim().length} chars)`);
       if (route === 'syllabus') console.log('   ↳', text.trim().slice(0, 90).replace(/\s+/g, ' '));
+
+      // Screen-specific surfaces added with the exam-pattern / eligibility work.
+      const expectations = {
+        mcq: ['HSC বোর্ড প্যাটার্ন', 'মেডিকেল (১০০ MCQ)', 'মিশ্র প্র্যাকটিস'],
+        gpa: ['SSC-র মোট GPA', 'সরকারি মেডিকেল'],
+        admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
+        life: ['রিমাইন্ডার'],
+      }[route];
+      if (expectations) {
+        const missing = expectations.filter((needle) => !text.includes(needle));
+        console.log(
+          missing.length === 0
+            ? `   ↳ ✓ ${route} surface present`
+            : `   ↳ ✗ ${route} missing: ${missing.join(' | ')}`
+        );
+        failures += missing.length === 0 ? 0 : 1;
+      }
     }
   } catch (err) {
     failures++;
@@ -272,6 +289,131 @@ console.log(
     : `✗ parent/teacher wording found: ${forbidden.join(', ')}`
 );
 failures += forbidden.length === 0 ? 0 : 1;
+
+// ---------- Pure logic: exam patterns, eligibility, reasons, reminders ----------
+const patterns = await vite.ssrLoadModule('/src/lib/examPatterns.ts');
+const eligibility = await vite.ssrLoadModule('/src/lib/eligibility.ts');
+const mistakeTags = await vite.ssrLoadModule('/src/lib/mistakeTags.ts');
+const reminders = await vite.ssrLoadModule('/src/lib/reminders.ts');
+const bank = await vite.ssrLoadModule('/src/data/mcqData.ts');
+
+const check = (ok, label, detail = '') => {
+  console.log(ok ? `✓ ${label}` : `✗ ${label}${detail ? ` — ${detail}` : ''}`);
+  failures += ok ? 0 : 1;
+};
+
+const medical = patterns.getPatternById('medical-mbbs');
+check(
+  patterns.patternTimeFor(medical, 10) === 360,
+  'medical paper keeps the real 36s/question pace',
+  String(patterns.patternTimeFor(medical, 10))
+);
+
+const scored = patterns.scoreForPattern(medical, 8, 2, 10);
+check(
+  scored.score === 7.5 && scored.penalty === 0.5 && scored.total === 10,
+  'negative marking is 0.25 per wrong answer',
+  JSON.stringify(scored)
+);
+
+const boardScored = patterns.scoreForPattern(patterns.getPatternById('hsc-board'), 7, 3, 10);
+check(boardScored.score === 7, 'HSC board pattern never deducts', JSON.stringify(boardScored));
+
+const medicalPick = patterns.pickPatternQuestions(bank.MCQ_QUESTIONS, medical, 20);
+const pickedSubjects = new Set(medicalPick.map((q) => q.subjectKey));
+check(
+  medicalPick.length === 20 && pickedSubjects.size >= 3,
+  'medical paper draws from several subjects by weight',
+  `${medicalPick.length} questions / ${pickedSubjects.size} subjects`
+);
+
+const mixedPick = patterns.pickPatternQuestions(
+  bank.MCQ_QUESTIONS,
+  patterns.getPatternById('mixed-interleaved'),
+  15
+);
+const pickedChapters = new Set(mixedPick.map((q) => `${q.subjectKey}:${q.chapter.en}`));
+check(
+  mixedPick.length === 15 && pickedChapters.size >= 10,
+  'mixed practice spreads across chapters',
+  `${pickedChapters.size} chapters`
+);
+
+const ideal = eligibility.evaluateEligibility({
+  sscGpa: 5,
+  hscGpa: 5,
+  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5 },
+  group: 'science',
+});
+check(ideal.every((r) => r.ok), 'a 5.00 student matches every track');
+
+const weakBiology = eligibility.evaluateEligibility({
+  sscGpa: 5,
+  hscGpa: 4.29,
+  subjectGps: { physics: 5, chemistry: 4, math: 5, biology: 3.5 },
+  group: 'science',
+});
+const medicalRule = weakBiology.find((r) => r.id === 'medical');
+check(
+  !medicalRule.ok && medicalRule.missing.some((m) => m.bn.includes('জীববিজ্ঞান')),
+  'medical rules name the biology gap',
+  medicalRule.missing.map((m) => m.bn).join(' | ')
+);
+
+const weakCombined = eligibility.evaluateEligibility({
+  sscGpa: 4.5,
+  hscGpa: 4,
+  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5 },
+  group: 'science',
+});
+const combinedRule = weakCombined.find((r) => r.id === 'medical');
+check(
+  !combinedRule.ok && combinedRule.missing.some((m) => m.bn.includes('৯.০০')),
+  'combined SSC+HSC shortfall is explained',
+  combinedRule.missing.map((m) => m.bn).join(' | ')
+);
+
+const summary = mistakeTags.mistakeSummary(
+  ['q1', 'q2', 'q3'],
+  { q1: 'concept', q2: 'concept', q3: 'rushed' }
+);
+check(
+  summary.top === 'concept' && summary.counts.concept === 2 && summary.total === 3,
+  'error-reason summary picks the dominant cause',
+  JSON.stringify(summary.counts)
+);
+
+const soonReminders = reminders.buildReminders({
+  habits: {},
+  attendance: {},
+  deadlines: [],
+  exams: [{ id: 'e1', title: 'মডেল টেস্ট', date: new Date().toISOString().slice(0, 10), time: '10:00', subjectKey: 'all' }],
+  results: [],
+  examChecklist: [],
+  xpAwardedOn: [],
+  routine: [],
+  updatedAt: '',
+});
+check(
+  soonReminders.some((r) => r.kind === 'exam' && r.daysAway === 0),
+  'an exam today shows up as a reminder'
+);
+
+const quietReminders = reminders.buildReminders({
+  habits: {},
+  attendance: {},
+  deadlines: [],
+  exams: [],
+  results: [],
+  examChecklist: [],
+  xpAwardedOn: [],
+  routine: [],
+  updatedAt: '',
+});
+check(
+  quietReminders.length === 1 && quietReminders[0].kind === 'study',
+  'with nothing due, the nudge is a gentle 10-minute study prompt'
+);
 
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
