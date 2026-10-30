@@ -60,6 +60,9 @@
 - **PWA ইনস্টল:** Android/Chrome-এ "হোম স্ক্রিনে যোগ করুন" প্রম্পট, হোম স্ক্রিন শর্টকাট (MCQ, সিলেবাস, লাইফ হাব) ও অফলাইন ক্যাশ (`sw.js` v4)।
 - **স্মোক টেস্ট:** `npm run smoke` — jsdom-এ ১৪টি রুট মাউন্ট করে রেন্ডার ক্র্যাশ ও ডুপ্লিকেট key ধরে।
 
+## গবেষণা ও রোডম্যাপ (Research)
+- **প্রতিবেদন:** [`docs/research-hsc2028-student-needs.md`](docs/research-hsc2028-student-needs.md) — HSC-2028 বিজ্ঞান শিক্ষার্থীর চাহিদা, প্রতিযোগী বিশ্লেষণ, পরীক্ষা-ভর্তির কাঠামো, কনটেন্ট-গ্যাপ ও P0/P1/P2 রোডম্যাপ।
+
 ## প্রযুক্তিগত কাঠামো (Tech Stack)
 - **Frontend:** React 19 + TypeScript + Vite 6 + Tailwind CSS v4 + Lucide Icons
 - **Backend & Cloud Sync:** Supabase Auth + PostgreSQL (`public.hsc28_*` tables with Row Level Security) + Offline `localStorage` fallback
