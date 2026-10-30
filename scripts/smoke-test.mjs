@@ -144,6 +144,49 @@ if (habitButtons.length >= 7) {
   failures++;
 }
 
+// Life Hub → weekly class routine: switch section, add a slot, see it listed.
+const clickByText = (needle) => {
+  const el = Array.from(window.document.querySelectorAll('button')).find((b) =>
+    (b.textContent || '').includes(needle)
+  );
+  if (el) el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  return Boolean(el);
+};
+
+const setInput = (el, value) => {
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    'value'
+  ).set;
+  setter.call(el, value);
+  el.dispatchEvent(new window.Event('input', { bubbles: true }));
+};
+
+if (clickByText('ক্লাস রুটিন')) {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const subjectInput = window.document.querySelector('input[placeholder="বিষয় / ক্লাস"]');
+  const timeInputs = window.document.querySelectorAll('input[type="time"]');
+
+  if (subjectInput && timeInputs.length >= 2) {
+    setInput(subjectInput, 'টেস্ট ক্লাস');
+    setInput(timeInputs[0], '09:00');
+    setInput(timeInputs[1], '10:00');
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    clickByText('যোগ');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const added = (container.textContent || '').includes('টেস্ট ক্লাস');
+    console.log(added ? '✓ life hub class routine works' : '✗ class routine slot not added');
+    failures += added ? 0 : 1;
+  } else {
+    console.log('✗ routine form inputs not found');
+    failures++;
+  }
+} else {
+  console.log('✗ class routine section not found');
+  failures++;
+}
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

@@ -30,6 +30,12 @@ import {
   Play,
   CalendarDays,
   Target,
+  CloudUpload,
+  CloudOff,
+  Loader2,
+  MapPin,
+  Clock,
+  School,
 } from 'lucide-react';
 import type {
   ActiveTab,
@@ -39,11 +45,15 @@ import type {
   Theme,
 } from '../types';
 import { formatNum } from '../lib/i18n';
+import { getSupabase } from '../lib/supabase';
+import { syncWrite } from '../lib/sync';
 
 interface LifeHubViewProps {
   lang: Lang;
   theme: Theme;
   profile: StudentProfile;
+  /** Signed-in student, or null in guest/local-only mode. */
+  authUserId?: string | null;
   onNavigate: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
   onAwardXp: (points: number, msgBn: string, msgEn: string) => void;
 }
@@ -74,6 +84,16 @@ interface ExamItem {
   subjectKey: SubjectKey | 'all';
 }
 
+interface RoutineSlot {
+  id: string;
+  /** JavaScript day index: 0 = Sunday … 6 = Saturday. */
+  day: number;
+  start: string;
+  end: string;
+  subject: string;
+  room: string;
+}
+
 interface LifeData {
   /** ISO date (local) → ids of habits completed that day. */
   habits: Record<string, string[]>;
@@ -81,6 +101,10 @@ interface LifeData {
   exams: ExamItem[];
   examChecklist: string[];
   xpAwardedOn: string[];
+  /** Weekly class timetable. */
+  routine: RoutineSlot[];
+  /** Last local edit — used to decide which copy wins on sign-in. */
+  updatedAt: string;
 }
 
 const EMPTY_DATA: LifeData = {
@@ -89,20 +113,29 @@ const EMPTY_DATA: LifeData = {
   exams: [],
   examChecklist: [],
   xpAwardedOn: [],
+  routine: [],
+  updatedAt: '',
 };
+
+/** Coerces anything read from storage or the cloud into a valid LifeData. */
+function normalizeLifeData(input: unknown): LifeData {
+  const parsed = (input ?? {}) as Partial<LifeData>;
+  return {
+    habits: parsed.habits && typeof parsed.habits === 'object' ? parsed.habits : {},
+    deadlines: Array.isArray(parsed.deadlines) ? parsed.deadlines : [],
+    exams: Array.isArray(parsed.exams) ? parsed.exams : [],
+    examChecklist: Array.isArray(parsed.examChecklist) ? parsed.examChecklist : [],
+    xpAwardedOn: Array.isArray(parsed.xpAwardedOn) ? parsed.xpAwardedOn : [],
+    routine: Array.isArray(parsed.routine) ? parsed.routine : [],
+    updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : '',
+  };
+}
 
 function loadLifeData(): LifeData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_DATA;
-    const parsed = JSON.parse(raw) as Partial<LifeData>;
-    return {
-      habits: parsed.habits && typeof parsed.habits === 'object' ? parsed.habits : {},
-      deadlines: Array.isArray(parsed.deadlines) ? parsed.deadlines : [],
-      exams: Array.isArray(parsed.exams) ? parsed.exams : [],
-      examChecklist: Array.isArray(parsed.examChecklist) ? parsed.examChecklist : [],
-      xpAwardedOn: Array.isArray(parsed.xpAwardedOn) ? parsed.xpAwardedOn : [],
-    };
+    return normalizeLifeData(JSON.parse(raw));
   } catch {
     return EMPTY_DATA;
   }
@@ -150,6 +183,20 @@ const HABITS = [
 
 /** A day counts toward the streak once this many habits are ticked. */
 const HABIT_TARGET = 4;
+
+/**
+ * Bangladeshi academic week runs Saturday → Friday. `js` is the value returned
+ * by `Date#getDay()`, so "today" can be highlighted without conversion tables.
+ */
+const WEEK_DAYS = [
+  { js: 6, bn: 'শনিবার', shortBn: 'শনি', en: 'Saturday', shortEn: 'Sat' },
+  { js: 0, bn: 'রবিবার', shortBn: 'রবি', en: 'Sunday', shortEn: 'Sun' },
+  { js: 1, bn: 'সোমবার', shortBn: 'সোম', en: 'Monday', shortEn: 'Mon' },
+  { js: 2, bn: 'মঙ্গলবার', shortBn: 'মঙ্গল', en: 'Tuesday', shortEn: 'Tue' },
+  { js: 3, bn: 'বুধবার', shortBn: 'বুধ', en: 'Wednesday', shortEn: 'Wed' },
+  { js: 4, bn: 'বৃহস্পতিবার', shortBn: 'বৃহঃ', en: 'Thursday', shortEn: 'Thu' },
+  { js: 5, bn: 'শুক্রবার', shortBn: 'শুক্র', en: 'Friday', shortEn: 'Fri' },
+];
 
 const DEADLINE_META: Record<DeadlineCategory, { bn: string; en: string; tone: string }> = {
   admission: { bn: 'ভর্তি', en: 'Admission', tone: 'indigo' },
@@ -385,12 +432,13 @@ const STRESS_TIPS = [
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-type Section = 'today' | 'deadlines' | 'exams' | 'career' | 'mind';
+type Section = 'today' | 'deadlines' | 'exams' | 'routine' | 'career' | 'mind';
 
 export const LifeHubView: React.FC<LifeHubViewProps> = ({
   lang,
   theme,
   profile,
+  authUserId = null,
   onNavigate,
   onAwardXp,
 }) => {
@@ -400,6 +448,10 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
 
   const [data, setData] = useState<LifeData>(() => loadLifeData());
   const [section, setSection] = useState<Section>('today');
+  /** Tracks whether the cloud copy is reachable, so the header can be honest. */
+  const [cloudState, setCloudState] = useState<'guest' | 'loading' | 'synced' | 'local' | 'error'>(
+    authUserId ? 'loading' : 'guest'
+  );
   const [openCareer, setOpenCareer] = useState<string | null>('buet');
   const [quoteIndex, setQuoteIndex] = useState(() => new Date().getDate() % QUOTES.length);
 
@@ -412,6 +464,13 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
   const [eTitle, setETitle] = useState('');
   const [eDate, setEDate] = useState('');
   const [eTime, setETime] = useState('');
+
+  // Routine form
+  const [routineDay, setRoutineDay] = useState<number>(new Date().getDay());
+  const [rSubject, setRSubject] = useState('');
+  const [rStart, setRStart] = useState('');
+  const [rEnd, setREnd] = useState('');
+  const [rRoom, setRRoom] = useState('');
 
   // Breathing exercise — kept in one object so a tick is a single atomic update
   // (pure updater, so React StrictMode's double-invoke cannot double-count).
@@ -435,8 +494,106 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     return () => window.removeEventListener(LIFE_DATA_EVENT, reload);
   }, []);
 
+  /**
+   * Sign-in reconciliation.
+   *
+   * Guests collect habits/deadlines on the device; when they create an account
+   * the local document is uploaded once. On later devices whichever copy was
+   * edited more recently wins, so nothing is silently overwritten.
+   */
+  const lastPushedRef = useRef('');
+
+  useEffect(() => {
+    if (!authUserId) {
+      setCloudState('guest');
+      return;
+    }
+
+    let cancelled = false;
+    setCloudState('loading');
+
+    void (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: row, error } = await sb
+          .from('hsc28_life_data')
+          .select('data, updated_at')
+          .eq('user_id', authUserId)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (error) {
+          // 42P01 = table missing (migration not applied). Stay local instead of
+          // flagging every keystroke as a failed sync in the navbar.
+          setCloudState((error as { code?: string }).code === '42P01' ? 'local' : 'error');
+          return;
+        }
+
+        const local = loadLifeData();
+        const remote = row?.data ? normalizeLifeData(row.data) : null;
+        const remoteTime = remote?.updatedAt ? Date.parse(remote.updatedAt) || 0 : 0;
+        const localTime = local.updatedAt ? Date.parse(local.updatedAt) || 0 : 0;
+
+        if (remote && remoteTime > localTime) {
+          lastPushedRef.current = remote.updatedAt;
+          setData(remote);
+        } else if (!remote || localTime > remoteTime) {
+          await syncWrite(
+            {
+              op: 'upsert',
+              table: 'hsc28_life_data',
+              onConflict: 'user_id',
+              payload: {
+                user_id: authUserId,
+                data: local,
+                updated_at: new Date().toISOString(),
+              },
+            },
+            authUserId
+          );
+          lastPushedRef.current = local.updatedAt;
+        }
+
+        if (!cancelled) setCloudState('synced');
+      } catch {
+        if (!cancelled) setCloudState('error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUserId]);
+
+  // Debounced upload: a burst of habit ticks becomes one write.
+  useEffect(() => {
+    if (!authUserId || cloudState !== 'synced') return;
+    if (!data.updatedAt || data.updatedAt === lastPushedRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      lastPushedRef.current = data.updatedAt;
+      void syncWrite(
+        {
+          op: 'upsert',
+          table: 'hsc28_life_data',
+          onConflict: 'user_id',
+          payload: {
+            user_id: authUserId,
+            data,
+            updated_at: new Date().toISOString(),
+          },
+        },
+        authUserId
+      );
+    }, 1400);
+
+    return () => window.clearTimeout(timer);
+  }, [data, authUserId, cloudState]);
+
+  /** Every mutation stamps `updatedAt`, which decides who wins on sign-in. */
   const patch = useCallback((updater: (prev: LifeData) => LifeData) => {
-    setData((prev) => updater(prev));
+    setData((prev) => ({ ...updater(prev), updatedAt: new Date().toISOString() }));
   }, []);
 
   const todayHabits = data.habits[today] ?? [];
@@ -481,6 +638,22 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
   }, [data.habits, today]);
 
   const week = useMemo(() => lastNDays(7), []);
+
+  const todayClasses = useMemo(
+    () =>
+      [...data.routine]
+        .filter((slot) => slot.day === new Date().getDay())
+        .sort((a, b) => a.start.localeCompare(b.start)),
+    [data.routine]
+  );
+
+  const routineForDay = useMemo(
+    () =>
+      [...data.routine]
+        .filter((slot) => slot.day === routineDay)
+        .sort((a, b) => a.start.localeCompare(b.start)),
+    [data.routine, routineDay]
+  );
 
   const activeDeadlines = useMemo(
     () =>
@@ -539,6 +712,26 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     setDDate('');
   };
 
+  const addRoutineSlot = () => {
+    if (!rSubject.trim() || !rStart || !rEnd) return;
+    const slot: RoutineSlot = {
+      id: crypto.randomUUID(),
+      day: routineDay,
+      start: rStart,
+      end: rEnd,
+      subject: rSubject.trim(),
+      room: rRoom.trim(),
+    };
+    patch((prev) => ({
+      ...prev,
+      routine: [...prev.routine, slot].sort((a, b) => a.start.localeCompare(b.start)),
+    }));
+    setRSubject('');
+    setRStart('');
+    setREnd('');
+    setRRoom('');
+  };
+
   const addExam = () => {
     if (!eTitle.trim() || !eDate) return;
     const item: ExamItem = {
@@ -570,6 +763,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     { id: 'today', bn: 'আজকের অভ্যাস', en: 'Daily habits', icon: HeartPulse },
     { id: 'deadlines', bn: 'ডেডলাইন', en: 'Deadlines', icon: CalendarClock },
     { id: 'exams', bn: 'পরীক্ষা রুটিন', en: 'Exam routine', icon: AlarmClock },
+    { id: 'routine', bn: 'ক্লাস রুটিন', en: 'Class routine', icon: School },
     { id: 'career', bn: 'ক্যারিয়ার পথ', en: 'Career paths', icon: Compass },
     { id: 'mind', bn: 'মনোবল', en: 'Mind & focus', icon: Brain },
   ];
@@ -603,6 +797,45 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                 ? 'ঘুম, অভ্যাস, ডেডলাইন, পরীক্ষা আর ক্যারিয়ার — HSC থেকে অ্যাডমিশন পর্যন্ত সব এক জায়গায়।'
                 : 'Sleep, habits, deadlines, exams and careers — everything from HSC to admission in one place.'}
             </p>
+
+            <span
+              className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                cloudState === 'synced'
+                  ? isDark
+                    ? 'border-emerald-400/25 bg-emerald-500/12 text-emerald-300'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : cloudState === 'loading'
+                  ? isDark
+                    ? 'border-indigo-400/25 bg-indigo-500/12 text-indigo-300'
+                    : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                  : isDark
+                  ? 'border-slate-700 bg-slate-800/70 text-slate-300'
+                  : 'border-slate-200 bg-white text-slate-600'
+              }`}
+            >
+              {cloudState === 'loading' ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : cloudState === 'synced' ? (
+                <CloudUpload className="w-3 h-3" />
+              ) : (
+                <CloudOff className="w-3 h-3" />
+              )}
+              {cloudState === 'synced'
+                ? bn
+                  ? 'ক্লাউডে সংরক্ষিত'
+                  : 'Synced to cloud'
+                : cloudState === 'loading'
+                ? bn
+                  ? 'সিঙ্ক হচ্ছে…'
+                  : 'Syncing…'
+                : cloudState === 'error'
+                ? bn
+                  ? 'সিঙ্ক সমস্যা — ডিভাইসে সংরক্ষিত'
+                  : 'Sync issue — saved on device'
+                : bn
+                ? 'শুধু এই ডিভাইসে'
+                : 'Device only'}
+            </span>
           </div>
         </div>
 
@@ -650,9 +883,10 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
         </div>
       </header>
 
-      {/* Section switcher — scrolls horizontally on phones */}
-      <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto no-scrollbar">
-        <div className="flex gap-1.5 w-max sm:w-auto">
+      {/* Section switcher — a 3×2 grid on phones so every section is visible
+          without a horizontal swipe; a single row from small screens up. */}
+      <div className="sm:overflow-x-auto sm:no-scrollbar">
+        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:w-max">
           {sections.map((s) => {
             const Icon = s.icon;
             const active = section === s.id;
@@ -660,7 +894,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border shrink-0 transition-colors ${
+                className={`inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold border shrink-0 transition-colors ${
                   active
                     ? isDark
                       ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30'
@@ -670,8 +904,8 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                     : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {bn ? s.bn : s.en}
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{bn ? s.bn : s.en}</span>
               </button>
             );
           })}
@@ -742,6 +976,44 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               })}
             </div>
           </section>
+
+          {todayClasses.length > 0 && (
+            <section className={`${card} p-4 sm:p-5`}>
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <h2 className={`text-sm font-extrabold ${head}`}>
+                  {bn ? 'আজকের ক্লাস' : "Today's classes"}
+                </h2>
+                <button
+                  onClick={() => setSection('routine')}
+                  className={`text-[11px] font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}
+                >
+                  {bn ? 'পুরো রুটিন' : 'Full routine'} →
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {todayClasses.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 ${
+                      isDark ? 'border-slate-700/70 bg-slate-800/40' : 'border-slate-200/90 bg-slate-50/70'
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] font-extrabold tabular-nums px-1.5 py-0.5 rounded-md ${
+                        isDark ? 'bg-indigo-500/15 text-indigo-300' : 'bg-indigo-100 text-indigo-700'
+                      }`}
+                    >
+                      {slot.start}
+                    </span>
+                    <span className={`text-[11px] font-semibold truncate ${head}`}>{slot.subject}</span>
+                    {slot.room && (
+                      <span className={`ml-auto text-[10px] shrink-0 ${sub}`}>{slot.room}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className={`${card} p-4 sm:p-5`}>
             <h2 className={`text-sm font-extrabold mb-3 ${head}`}>
@@ -1146,6 +1418,181 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               })}
             </div>
           </section>
+        </div>
+      )}
+
+      {/* -------------------- Routine -------------------- */}
+      {section === 'routine' && (
+        <div className="space-y-4">
+          <section className={`${card} p-4 sm:p-5`}>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className={`text-sm font-extrabold ${head}`}>
+                {bn ? 'সাপ্তাহিক ক্লাস রুটিন' : 'Weekly class routine'}
+              </h2>
+              <span className={`text-[11px] font-bold ${sub}`}>
+                {formatNum(data.routine.length, lang)} {bn ? 'ক্লাস' : 'classes'}
+              </span>
+            </div>
+
+            <div className="-mx-1 px-1 overflow-x-auto no-scrollbar">
+              <div className="flex gap-1.5 w-max">
+                {WEEK_DAYS.map((day) => {
+                  const count = data.routine.filter((r) => r.day === day.js).length;
+                  const active = routineDay === day.js;
+                  const isToday = new Date().getDay() === day.js;
+                  return (
+                    <button
+                      key={day.js}
+                      onClick={() => setRoutineDay(day.js)}
+                      className={`relative shrink-0 px-3 py-2 rounded-xl border text-[11px] font-bold transition-colors ${
+                        active
+                          ? isDark
+                            ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/30'
+                            : 'bg-indigo-600 text-white border-indigo-600'
+                          : isDark
+                          ? 'bg-slate-800/50 text-slate-300 border-slate-700/70'
+                          : 'bg-white text-slate-600 border-slate-200'
+                      }`}
+                    >
+                      {bn ? day.shortBn : day.shortEn}
+                      {count > 0 && (
+                        <span
+                          className={`ml-1.5 text-[9px] px-1 rounded ${
+                            active
+                              ? 'bg-white/25'
+                              : isDark
+                              ? 'bg-slate-700 text-slate-300'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {formatNum(count, lang)}
+                        </span>
+                      )}
+                      {isToday && (
+                        <span
+                          className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
+                            isDark ? 'bg-emerald-400' : 'bg-emerald-500'
+                          }`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section className={`${card} p-4 sm:p-5`}>
+            <h3 className={`text-xs font-extrabold uppercase tracking-wide mb-2.5 ${sub}`}>
+              {bn
+                ? `${WEEK_DAYS.find((d) => d.js === routineDay)?.bn ?? ''}-এর ক্লাস`
+                : `${WEEK_DAYS.find((d) => d.js === routineDay)?.en ?? ''} classes`}
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <input
+                className={`${field} col-span-2 sm:col-span-1`}
+                value={rSubject}
+                onChange={(e) => setRSubject(e.target.value)}
+                placeholder={bn ? 'বিষয় / ক্লাস' : 'Subject / class'}
+              />
+              <input
+                type="time"
+                aria-label={bn ? 'শুরুর সময়' : 'Start time'}
+                className={field}
+                value={rStart}
+                onChange={(e) => setRStart(e.target.value)}
+              />
+              <input
+                type="time"
+                aria-label={bn ? 'শেষের সময়' : 'End time'}
+                className={field}
+                value={rEnd}
+                onChange={(e) => setREnd(e.target.value)}
+              />
+              <input
+                className={field}
+                value={rRoom}
+                onChange={(e) => setRRoom(e.target.value)}
+                placeholder={bn ? 'রুম (ঐচ্ছিক)' : 'Room (optional)'}
+              />
+              <button
+                onClick={addRoutineSlot}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${
+                  isDark ? 'bg-indigo-500 text-white' : 'bg-indigo-600 text-white'
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                {bn ? 'যোগ' : 'Add'}
+              </button>
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            {routineForDay.length === 0 && (
+              <div className={`${card} p-6 text-center`}>
+                <School className={`w-8 h-8 mx-auto mb-2 ${sub}`} />
+                <p className={`text-xs ${sub}`}>
+                  {bn
+                    ? 'এই দিনে কোনো ক্লাস যোগ করা হয়নি। উপরে বিষয় ও সময় দিয়ে যোগ করুন।'
+                    : 'No classes for this day yet. Add one above with a subject and time.'}
+                </p>
+              </div>
+            )}
+
+            {routineForDay.map((slot) => (
+              <div key={slot.id} className={`${card} p-3.5 flex items-center gap-3`}>
+                <div
+                  className={`w-14 shrink-0 rounded-lg border px-1 py-1 text-center ${
+                    isDark ? 'border-slate-700 bg-slate-800/50' : 'border-indigo-100 bg-indigo-50/70'
+                  }`}
+                >
+                  <p className={`text-[11px] font-extrabold tabular-nums leading-tight ${head}`}>
+                    {slot.start}
+                  </p>
+                  <p className={`text-[10px] tabular-nums leading-tight ${sub}`}>{slot.end}</p>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs font-bold truncate ${head}`}>{slot.subject}</p>
+                  <p className={`text-[11px] flex items-center gap-1 ${sub}`}>
+                    {slot.room ? (
+                      <>
+                        <MapPin className="w-3 h-3" />
+                        {slot.room}
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-3 h-3" />
+                        {bn ? 'রুম নেই' : 'No room'}
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() =>
+                    patch((prev) => ({
+                      ...prev,
+                      routine: prev.routine.filter((r) => r.id !== slot.id),
+                    }))
+                  }
+                  aria-label={bn ? 'মুছুন' : 'Delete'}
+                  className={`p-1.5 rounded-lg shrink-0 ${
+                    isDark ? 'text-slate-500 hover:text-rose-300' : 'text-slate-400 hover:text-rose-600'
+                  }`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </section>
+
+          <p className={`text-[11px] px-1 ${sub}`}>
+            {bn
+              ? 'টিপস: ক্লাস রুটিনের ফাঁকা সময়গুলোই আপনার সেলফ-স্টাডির সেরা সময় — প্ল্যানারে সেগুলো কাজ হিসেবে যোগ করুন।'
+              : 'Tip: the gaps in your class routine are your best self-study slots — add them as tasks in the Planner.'}
+          </p>
         </div>
       )}
 

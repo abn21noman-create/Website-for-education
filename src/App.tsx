@@ -54,6 +54,7 @@ import {
   LazyVirtualLabView,
   preloadAuthModal,
   preloadCommandPalette,
+  prefetchAllRoutes,
   preloadLikelyRoutes,
   preloadRoute,
 } from './lib/lazyViews';
@@ -189,6 +190,9 @@ export function App() {
   // idle — keeps the split invisible on a slow connection.
   useEffect(() => {
     preloadLikelyRoutes();
+    // After the dashboard has settled, fill the cache in the background so the
+    // whole app (and its service-worker copy) is available offline.
+    prefetchAllRoutes();
   }, []);
 
   useEffect(() => {
@@ -1364,6 +1368,7 @@ export function App() {
               lang={lang}
               theme={theme}
               profile={profile}
+              authUserId={authUserId}
               onNavigate={handleNavigate}
               onAwardXp={handleAwardStudentXp}
             />

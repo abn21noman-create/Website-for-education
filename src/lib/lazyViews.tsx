@@ -81,6 +81,38 @@ export function preloadRoute(tab: ActiveTab): void {
   });
 }
 
+/**
+ * Fetches the remaining route chunks one by one, a few seconds after load.
+ *
+ * Once every chunk is in the HTTP cache the service worker can serve the whole
+ * app offline — including modules the student has never opened. It is gated on
+ * the Network Information API so a 2G/3G or data-saver connection only ever
+ * downloads what is actually tapped.
+ */
+export function prefetchAllRoutes(): void {
+  if (typeof window === 'undefined') return;
+
+  const conn = (navigator as Navigator & {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  }).connection;
+  if (conn?.saveData) return;
+  if (conn?.effectiveType && /2g|slow-2g|3g/.test(conn.effectiveType)) return;
+
+  const tabs = Object.keys(loaders) as (keyof typeof loaders)[];
+  let index = 0;
+
+  const step = () => {
+    if (index >= tabs.length) return;
+    const key = tabs[index++];
+    void loaders[key]().catch(() => {
+      /* A failed prefetch is harmless: the real navigation retries. */
+    });
+    window.setTimeout(step, 1200);
+  };
+
+  window.setTimeout(step, 4000);
+}
+
 /** Warm the screens a student is most likely to open next, without blocking. */
 export function preloadLikelyRoutes(): void {
   const run = () => {
