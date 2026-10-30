@@ -262,9 +262,16 @@ const reviewRendered = (container.textContent || '').includes('এই সপ্�
 console.log(reviewRendered ? '✓ weekly review renders' : '✗ weekly review missing');
 failures += reviewRendered ? 0 : 1;
 
-const reportRendered = (container.textContent || '').includes('অভিভাবক রিপোর্ট');
-console.log(reportRendered ? '✓ parent report renders' : '✗ parent report missing');
-failures += reportRendered ? 0 : 1;
+// The product is student-only by design: no parent, teacher or admin surfaces.
+const forbidden = ['অভিভাবক', 'শিক্ষক', 'Guardian', 'Parent report', 'Teacher'].filter((w) =>
+  (container.textContent || '').includes(w)
+);
+console.log(
+  forbidden.length === 0
+    ? '✓ student-only UI (no parent/teacher surfaces)'
+    : `✗ parent/teacher wording found: ${forbidden.join(', ')}`
+);
+failures += forbidden.length === 0 ? 0 : 1;
 
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')

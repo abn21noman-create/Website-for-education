@@ -2148,8 +2148,8 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
             >
               <p className={`text-[11px] font-semibold leading-relaxed ${isDark ? 'text-rose-200' : 'text-rose-800'}`}>
                 {bn
-                  ? 'টানা কয়েক সপ্তাহ মন খারাপ, ঘুম না আসা বা পড়ায় মন না বসলে পরিবার, শিক্ষক বা বিশ্বস্ত কারো সাথে কথা বলুন। এটি দুর্বলতা নয়।'
-                  : 'If low mood, sleeplessness or an inability to study lasts weeks, talk to family, a teacher or someone you trust. That is not weakness.'}
+                  ? 'টানা কয়েক সপ্তাহ মন খারাপ, ঘুম না আসা বা পড়ায় মন না বসলে পরিবারের কারো বা বিশ্বস্ত বন্ধুর সাথে কথা বলুন। এটি দুর্বলতা নয়।'
+                  : 'If low mood, sleeplessness or an inability to study lasts weeks, talk to family or a friend you trust. That is not weakness.'}
               </p>
             </section>
           </div>
