@@ -585,7 +585,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
                   {lang === 'bn' ? '০৩. প্রশ্ন সংখ্যা' : '03. QUESTION COUNT'}
                 </label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {[5, 10, 20, 25, 50].map((n) => (
                     <button
                       type="button"
@@ -601,14 +601,16 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                           : 'bg-slate-50/70 border-slate-200 text-slate-700'
                       }`}
                     >
-                      {formatNum(Math.min(n, Math.max(1, availablePoolCount)), lang)}{' '}
-                      {n === 25
-                        ? lang === 'bn'
-                          ? '(বোর্ড)'
-                          : '(Board)'
-                        : lang === 'bn'
-                        ? 'টি'
-                        : 'Qs'}
+                      {formatNum(Math.min(n, Math.max(1, availablePoolCount)), lang)}
+                      <span className="block text-[10px] font-mono font-normal opacity-60 leading-none mt-0.5">
+                        {n === 25
+                          ? lang === 'bn'
+                            ? 'বোর্ড'
+                            : 'board'
+                          : lang === 'bn'
+                          ? 'টি'
+                          : 'qs'}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -658,7 +660,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
                 {lang === 'bn' ? '০৫. প্রশ্নের মান (Difficulty)' : '05. DIFFICULTY LEVEL'}
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(
                   [
                     { id: 'all', bn: 'সব স্তর', en: 'All' },
