@@ -47,6 +47,24 @@ import type {
 import { formatNum } from '../lib/i18n';
 import { getSupabase } from '../lib/supabase';
 import { syncWrite } from '../lib/sync';
+import {
+  HABIT_TARGET,
+  LIFE_DATA_EVENT,
+  attendanceForMonth,
+  daysUntil,
+  lastNDays,
+  loadLifeData,
+  localDateKey,
+  normalizeLifeData,
+  saveLifeData,
+  type AttendanceStatus,
+  type DeadlineCategory,
+  type DeadlineItem,
+  type ExamItem,
+  type ExamResult,
+  type LifeData,
+  type RoutineSlot,
+} from '../lib/lifeStore';
 
 interface LifeHubViewProps {
   lang: Lang;
@@ -59,113 +77,8 @@ interface LifeHubViewProps {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Persistence                                                        */
+/*  Persistence is shared with the weekly review — see lib/lifeStore    */
 /* ------------------------------------------------------------------ */
-
-const STORAGE_KEY = 'hsc28_life_v1';
-export const LIFE_DATA_EVENT = 'hsc28:life-data-changed';
-
-type DeadlineCategory = 'admission' | 'scholarship' | 'exam' | 'fee' | 'other';
-
-interface DeadlineItem {
-  id: string;
-  title: string;
-  date: string;
-  category: DeadlineCategory;
-  note: string;
-  done: boolean;
-}
-
-interface ExamItem {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  subjectKey: SubjectKey | 'all';
-}
-
-interface RoutineSlot {
-  id: string;
-  /** JavaScript day index: 0 = Sunday … 6 = Saturday. */
-  day: number;
-  start: string;
-  end: string;
-  subject: string;
-  room: string;
-}
-
-interface LifeData {
-  /** ISO date (local) → ids of habits completed that day. */
-  habits: Record<string, string[]>;
-  deadlines: DeadlineItem[];
-  exams: ExamItem[];
-  examChecklist: string[];
-  xpAwardedOn: string[];
-  /** Weekly class timetable. */
-  routine: RoutineSlot[];
-  /** Last local edit — used to decide which copy wins on sign-in. */
-  updatedAt: string;
-}
-
-const EMPTY_DATA: LifeData = {
-  habits: {},
-  deadlines: [],
-  exams: [],
-  examChecklist: [],
-  xpAwardedOn: [],
-  routine: [],
-  updatedAt: '',
-};
-
-/** Coerces anything read from storage or the cloud into a valid LifeData. */
-function normalizeLifeData(input: unknown): LifeData {
-  const parsed = (input ?? {}) as Partial<LifeData>;
-  return {
-    habits: parsed.habits && typeof parsed.habits === 'object' ? parsed.habits : {},
-    deadlines: Array.isArray(parsed.deadlines) ? parsed.deadlines : [],
-    exams: Array.isArray(parsed.exams) ? parsed.exams : [],
-    examChecklist: Array.isArray(parsed.examChecklist) ? parsed.examChecklist : [],
-    xpAwardedOn: Array.isArray(parsed.xpAwardedOn) ? parsed.xpAwardedOn : [],
-    routine: Array.isArray(parsed.routine) ? parsed.routine : [],
-    updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : '',
-  };
-}
-
-function loadLifeData(): LifeData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_DATA;
-    return normalizeLifeData(JSON.parse(raw));
-  } catch {
-    return EMPTY_DATA;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Dates                                                              */
-/* ------------------------------------------------------------------ */
-
-function localDateKey(date = new Date()): string {
-  const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return shifted.toISOString().slice(0, 10);
-}
-
-function daysUntil(dateStr: string): number {
-  const target = new Date(`${dateStr}T00:00:00`);
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((target.getTime() - start.getTime()) / 86400000);
-}
-
-function lastNDays(n: number): string[] {
-  const out: string[] = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    out.push(localDateKey(d));
-  }
-  return out;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Content                                                            */
@@ -181,9 +94,6 @@ const HABITS = [
   { id: 'plan', bn: 'কালকের প্ল্যান লিখে রাখা', en: "Tomorrow's plan written down", icon: ListChecks, tone: 'sky' },
 ] as const;
 
-/** A day counts toward the streak once this many habits are ticked. */
-const HABIT_TARGET = 4;
-
 /**
  * Bangladeshi academic week runs Saturday → Friday. `js` is the value returned
  * by `Date#getDay()`, so "today" can be highlighted without conversion tables.
@@ -197,6 +107,36 @@ const WEEK_DAYS = [
   { js: 4, bn: 'বৃহস্পতিবার', shortBn: 'বৃহঃ', en: 'Thursday', shortEn: 'Thu' },
   { js: 5, bn: 'শুক্রবার', shortBn: 'শুক্র', en: 'Friday', shortEn: 'Fri' },
 ];
+
+const ATTENDANCE_META: Record<
+  AttendanceStatus,
+  { bn: string; en: string; dot: string; active: string }
+> = {
+  present: {
+    bn: 'উপস্থিত',
+    en: 'Present',
+    dot: 'bg-emerald-500',
+    active: 'bg-emerald-600 text-white border-emerald-600',
+  },
+  late: {
+    bn: 'দেরি',
+    en: 'Late',
+    dot: 'bg-amber-400',
+    active: 'bg-amber-500 text-white border-amber-500',
+  },
+  absent: {
+    bn: 'অনুপস্থিত',
+    en: 'Absent',
+    dot: 'bg-rose-500',
+    active: 'bg-rose-600 text-white border-rose-600',
+  },
+  leave: {
+    bn: 'ছুটি',
+    en: 'Leave',
+    dot: 'bg-slate-400',
+    active: 'bg-slate-600 text-white border-slate-600',
+  },
+};
 
 const DEADLINE_META: Record<DeadlineCategory, { bn: string; en: string; tone: string }> = {
   admission: { bn: 'ভর্তি', en: 'Admission', tone: 'indigo' },
@@ -472,6 +412,13 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
   const [rEnd, setREnd] = useState('');
   const [rRoom, setRRoom] = useState('');
 
+  // Result form
+  const [resTitle, setResTitle] = useState('');
+  const [resSubject, setResSubject] = useState('');
+  const [resObtained, setResObtained] = useState('');
+  const [resTotal, setResTotal] = useState('');
+  const [resDate, setResDate] = useState('');
+
   // Breathing exercise — kept in one object so a tick is a single atomic update
   // (pure updater, so React StrictMode's double-invoke cannot double-count).
   const [breathing, setBreathing] = useState(false);
@@ -480,11 +427,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
   );
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      /* storage full or blocked — the session still works in memory */
-    }
+    saveLifeData(data);
   }, [data]);
 
   // Re-read when a backup is imported from the Analytics screen.
@@ -639,6 +582,28 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
 
   const week = useMemo(() => lastNDays(7), []);
 
+  /** This month's college attendance: present + late count as attended. */
+  const attendanceMonth = useMemo(() => {
+    const summary = attendanceForMonth(data.attendance);
+    const [year, month] = summary.monthPrefix.split('-').map(Number);
+    return {
+      ...summary,
+      monthLabel: new Date(year, month - 1, 1).toLocaleDateString(bn ? 'bn-BD' : 'en-GB', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    };
+  }, [data.attendance, bn]);
+
+  const resultStats = useMemo(() => {
+    const list = [...data.results].sort((a, b) => b.date.localeCompare(a.date));
+    const pcts = list.filter((r) => r.total > 0).map((r) => (r.obtained / r.total) * 100);
+    const average = pcts.length
+      ? Math.round(pcts.reduce((sum, p) => sum + p, 0) / pcts.length)
+      : 0;
+    return { list, average, best: pcts.length ? Math.round(Math.max(...pcts)) : 0 };
+  }, [data.results]);
+
   const todayClasses = useMemo(
     () =>
       [...data.routine]
@@ -710,6 +675,28 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     patch((prev) => ({ ...prev, deadlines: [item, ...prev.deadlines] }));
     setDTitle('');
     setDDate('');
+  };
+
+  const addResult = () => {
+    const obtained = Number(resObtained);
+    const total = Number(resTotal);
+    if (!resTitle.trim() || !Number.isFinite(obtained) || !Number.isFinite(total) || total <= 0) {
+      return;
+    }
+    const item: ExamResult = {
+      id: crypto.randomUUID(),
+      title: resTitle.trim(),
+      subject: resSubject.trim(),
+      obtained: Math.max(0, Math.min(obtained, total)),
+      total,
+      date: resDate || localDateKey(),
+    };
+    patch((prev) => ({ ...prev, results: [item, ...prev.results] }));
+    setResTitle('');
+    setResSubject('');
+    setResObtained('');
+    setResTotal('');
+    setResDate('');
   };
 
   const addRoutineSlot = () => {
@@ -975,6 +962,140 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                 );
               })}
             </div>
+          </section>
+
+          {/* College attendance */}
+          <section className={`${card} p-4 sm:p-5`}>
+            <div className="flex items-center justify-between gap-2 mb-2.5">
+              <h2 className={`text-sm font-extrabold ${head}`}>
+                {bn ? 'আজকের উপস্থিতি' : "Today's attendance"}
+              </h2>
+              <span
+                className={`text-[11px] font-extrabold tabular-nums px-2 py-0.5 rounded-full ${
+                  attendanceMonth.pct >= 75
+                    ? isDark
+                      ? 'bg-emerald-500/12 text-emerald-300'
+                      : 'bg-emerald-50 text-emerald-700'
+                    : isDark
+                    ? 'bg-rose-500/12 text-rose-300'
+                    : 'bg-rose-50 text-rose-700'
+                }`}
+              >
+                {attendanceMonth.monthLabel} · {formatNum(attendanceMonth.pct, lang)}%
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5">
+              {(Object.keys(ATTENDANCE_META) as AttendanceStatus[]).map((status) => {
+                const active = data.attendance[today] === status;
+                const meta = ATTENDANCE_META[status];
+                return (
+                  <button
+                    key={status}
+                    onClick={() =>
+                      patch((prev) => {
+                        const next = { ...prev.attendance };
+                        if (next[today] === status) delete next[today];
+                        else next[today] = status;
+                        return { ...prev, attendance: next };
+                      })
+                    }
+                    aria-pressed={active}
+                    className={`rounded-xl border px-2 py-2.5 text-[11px] font-bold transition-colors active:scale-[0.98] ${
+                      active
+                        ? meta.active
+                        : isDark
+                        ? 'border-slate-700/70 bg-slate-800/40 text-slate-300'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    {bn ? meta.bn : meta.en}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3">
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {(bn
+                  ? ['র', 'সো', 'ম', 'বু', 'বৃ', 'শু', 'শ']
+                  : ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                ).map((d, i) => (
+                  <span key={i} className={`text-center text-[9px] font-bold ${sub}`}>
+                    {d}
+                  </span>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: attendanceMonth.firstWeekday }).map((_, i) => (
+                  <span key={`blank-${i}`} />
+                ))}
+                {Array.from({ length: attendanceMonth.daysInMonth }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const key = `${attendanceMonth.monthPrefix}-${String(dayNum).padStart(2, '0')}`;
+                  const status = data.attendance[key];
+                  const isToday = key === today;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() =>
+                        patch((prev) => {
+                          const next = { ...prev.attendance };
+                          if (next[key]) delete next[key];
+                          else next[key] = 'present';
+                          return { ...prev, attendance: next };
+                        })
+                      }
+                      title={status ? (bn ? ATTENDANCE_META[status].bn : ATTENDANCE_META[status].en) : ''}
+                      className={`aspect-square rounded-md text-[10px] font-bold tabular-nums flex items-center justify-center transition-colors ${
+                        status
+                          ? status === 'present'
+                            ? isDark
+                              ? 'bg-emerald-500/25 text-emerald-200'
+                              : 'bg-emerald-500 text-white'
+                            : status === 'late'
+                            ? isDark
+                              ? 'bg-amber-400/25 text-amber-200'
+                              : 'bg-amber-400 text-white'
+                            : status === 'absent'
+                            ? isDark
+                              ? 'bg-rose-500/25 text-rose-200'
+                              : 'bg-rose-500 text-white'
+                            : isDark
+                            ? 'bg-slate-600/50 text-slate-200'
+                            : 'bg-slate-400 text-white'
+                          : isDark
+                          ? 'bg-slate-800/60 text-slate-500'
+                          : 'bg-slate-100 text-slate-500'
+                      } ${isToday ? 'ring-2 ring-indigo-500 ring-offset-1 ring-offset-transparent' : ''}`}
+                    >
+                      {dayNum}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5">
+              {(Object.keys(ATTENDANCE_META) as AttendanceStatus[]).map((status) => (
+                <span key={status} className={`inline-flex items-center gap-1 text-[10px] font-semibold ${sub}`}>
+                  <span className={`w-2 h-2 rounded-full ${ATTENDANCE_META[status].dot}`} />
+                  {formatNum(attendanceMonth.counts[status], lang)}
+                </span>
+              ))}
+              <span className={`ml-auto text-[10px] font-bold ${sub}`}>
+                {bn ? 'মাসিক' : 'Month'} {formatNum(attendanceMonth.attended, lang)}/
+                {formatNum(attendanceMonth.marked, lang)}
+              </span>
+            </div>
+
+            {attendanceMonth.marked >= 5 && attendanceMonth.pct < 75 && (
+              <p className={`mt-2 text-[11px] font-semibold ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>
+                {bn
+                  ? 'উপস্থিতি ৭৫%-এর নিচে — বোর্ড পরীক্ষার ফর্মে সমস্যা হতে পারে। এই সপ্তাহে ক্লাস মিস করবেন না।'
+                  : 'Attendance is below 75% — this can affect board form eligibility. Do not miss class this week.'}
+              </p>
+            )}
           </section>
 
           {todayClasses.length > 0 && (
@@ -1417,6 +1538,138 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
                 );
               })}
             </div>
+          </section>
+
+          {/* Exam results log — a plain record so trends are visible later */}
+          <section className={`${card} p-4 sm:p-5`}>
+            <div className="flex items-center justify-between gap-2 mb-2.5">
+              <h2 className={`text-sm font-extrabold ${head}`}>
+                {bn ? 'পরীক্ষার ফলাফল' : 'Exam results'}
+              </h2>
+              {resultStats.list.length > 0 && (
+                <span className={`text-[11px] font-bold ${sub}`}>
+                  {bn ? 'গড়' : 'Avg'} {formatNum(resultStats.average, lang)}% ·{' '}
+                  {bn ? 'সেরা' : 'Best'} {formatNum(resultStats.best, lang)}%
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <input
+                className={`${field} col-span-2`}
+                value={resTitle}
+                onChange={(e) => setResTitle(e.target.value)}
+                placeholder={bn ? 'পরীক্ষার নাম' : 'Exam name'}
+              />
+              <input
+                className={field}
+                value={resSubject}
+                onChange={(e) => setResSubject(e.target.value)}
+                placeholder={bn ? 'বিষয়' : 'Subject'}
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className={field}
+                  value={resObtained}
+                  onChange={(e) => setResObtained(e.target.value)}
+                  placeholder={bn ? 'প্রাপ্ত' : 'Got'}
+                  aria-label={bn ? 'প্রাপ্ত নম্বর' : 'Marks obtained'}
+                />
+                <span className={`text-xs font-bold ${sub}`}>/</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className={field}
+                  value={resTotal}
+                  onChange={(e) => setResTotal(e.target.value)}
+                  placeholder={bn ? 'মোট' : 'Total'}
+                  aria-label={bn ? 'মোট নম্বর' : 'Total marks'}
+                />
+              </div>
+              <input
+                type="date"
+                className={field}
+                value={resDate}
+                onChange={(e) => setResDate(e.target.value)}
+                aria-label={bn ? 'তারিখ' : 'Date'}
+              />
+              <button
+                onClick={addResult}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold ${
+                  isDark ? 'bg-indigo-500 text-white' : 'bg-indigo-600 text-white'
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                {bn ? 'যোগ' : 'Add'}
+              </button>
+            </div>
+
+            {resultStats.list.length === 0 ? (
+              <p className={`mt-3 text-[11px] ${sub}`}>
+                {bn
+                  ? 'ক্লাস টেস্ট বা মডেল টেস্টের নম্বর লিখে রাখুন — গড় ও উন্নতির ধারা এখানে দেখা যাবে।'
+                  : 'Log class or model test marks — your average and trend will show up here.'}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-1.5">
+                {resultStats.list.slice(0, 8).map((r) => {
+                  const pct = r.total > 0 ? Math.round((r.obtained / r.total) * 100) : 0;
+                  const tone =
+                    pct >= 80
+                      ? isDark
+                        ? 'bg-emerald-500/12 text-emerald-300 border-emerald-400/25'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : pct >= 60
+                      ? isDark
+                        ? 'bg-amber-500/12 text-amber-300 border-amber-400/25'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                      : isDark
+                      ? 'bg-rose-500/12 text-rose-300 border-rose-400/25'
+                      : 'bg-rose-50 text-rose-700 border-rose-200';
+                  return (
+                    <div
+                      key={r.id}
+                      className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 ${
+                        isDark ? 'border-slate-700/70 bg-slate-800/40' : 'border-slate-200/90 bg-white'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[11px] font-bold truncate ${head}`}>{r.title}</p>
+                        <p className={`text-[10px] ${sub}`}>
+                          {r.subject ? `${r.subject} • ` : ''}
+                          {new Date(`${r.date}T00:00:00`).toLocaleDateString(bn ? 'bn-BD' : 'en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </p>
+                      </div>
+                      <span className={`text-[11px] tabular-nums ${sub}`}>
+                        {formatNum(r.obtained, lang)}/{formatNum(r.total, lang)}
+                      </span>
+                      <span className={`text-[11px] font-extrabold tabular-nums px-2 py-0.5 rounded-md border ${tone}`}>
+                        {formatNum(pct, lang)}%
+                      </span>
+                      <button
+                        onClick={() =>
+                          patch((prev) => ({
+                            ...prev,
+                            results: prev.results.filter((x) => x.id !== r.id),
+                          }))
+                        }
+                        aria-label={bn ? 'মুছুন' : 'Delete'}
+                        className={`p-1 rounded-md shrink-0 ${
+                          isDark ? 'text-slate-500 hover:text-rose-300' : 'text-slate-400 hover:text-rose-600'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </div>
       )}

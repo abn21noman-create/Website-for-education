@@ -187,6 +187,66 @@ if (clickByText('ক্লাস রুটিন')) {
   failures++;
 }
 
+// Attendance: back to the habit screen, mark today as present.
+clickByText('আজকের অভ্যাস');
+await new Promise((resolve) => setTimeout(resolve, 250));
+
+const attendanceBtn = Array.from(window.document.querySelectorAll('button')).find(
+  (b) => (b.textContent || '').trim() === 'উপস্থিত'
+);
+if (attendanceBtn) {
+  attendanceBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const pressed = Array.from(window.document.querySelectorAll('button')).find(
+    (b) => (b.textContent || '').trim() === 'উপস্থিত'
+  );
+  const ok = pressed?.getAttribute('aria-pressed') === 'true';
+  console.log(ok ? '✓ life hub attendance works' : '✗ attendance not recorded');
+  failures += ok ? 0 : 1;
+} else {
+  console.log('✗ attendance buttons not found');
+  failures++;
+}
+
+// Exam results: switch to the exam screen and log a mark.
+clickByText('পরীক্ষা রুটিন');
+await new Promise((resolve) => setTimeout(resolve, 250));
+
+const resultTitle = window.document.querySelector('input[placeholder="পরীক্ষার নাম"]');
+const resultBits = Array.from(window.document.querySelectorAll('input[placeholder="প্রাপ্ত"], input[placeholder="মোট"]'));
+if (resultTitle && resultBits.length >= 2) {
+  setInput(resultTitle, 'মডেল টেস্ট');
+  setInput(resultBits[0], '78');
+  setInput(resultBits[1], '100');
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const addBtn = Array.from(window.document.querySelectorAll('button')).find(
+    (b) => (b.textContent || '').trim() === 'যোগ'
+  );
+  addBtn?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  // Bengali numerals are used in bn mode, so assert on the title that only
+  // appears in the saved-results list after the form resets.
+  const logged = (container.textContent || '').includes('মডেল টেস্ট');
+  console.log(logged ? '✓ life hub exam results work' : '✗ exam result not logged');
+  failures += logged ? 0 : 1;
+} else {
+  console.log('✗ result form inputs not found');
+  failures++;
+}
+
+// Weekly review renders on the analytics screen.
+window.history.replaceState(null, '', '/#/analytics');
+window.location.hash = '#/analytics';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+
+const reviewRendered = (container.textContent || '').includes('এই সপ্তাহের রিভিউ');
+console.log(reviewRendered ? '✓ weekly review renders' : '✗ weekly review missing');
+failures += reviewRendered ? 0 : 1;
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );
