@@ -97,8 +97,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     {
       id: 'gk',
-      labelBn: 'সাধারণ জ্ঞান',
-      labelEn: 'GK Drill',
+      labelBn: 'দ্রুত ড্রিল',
+      labelEn: 'Quick Drill',
       icon: <Brain className="w-3.5 h-3.5" />,
     },
     {

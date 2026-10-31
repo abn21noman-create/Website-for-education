@@ -123,7 +123,7 @@ for (const route of routes) {
         gpa: ['SSC-র মোট GPA', 'সরকারি মেডিকেল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
         life: ['রিমাইন্ডার'],
-        gk: ['সাধারণ জ্ঞান ড্রিল', 'মিশ্র রাউন্ড'],
+        gk: ['সাধারণ জ্ঞান ড্রিল', 'ইংরেজি গ্রামার', 'মিশ্র রাউন্ড'],
       }[route];
       if (expectations) {
         const missing = expectations.filter((needle) => !text.includes(needle));
@@ -312,6 +312,35 @@ console.log(
     : `\u2717 GK round failed (started=${startedRound}, options=${optionButtons.length}, explained=${explained})`
 );
 failures += gkRoundOk ? 0 : 1;
+
+// Switching banks must swap the whole screen, not just the label.
+// Remount first: the switcher only exists on the drill home screen, and the
+// earlier interaction test left a round running.
+window.history.replaceState(null, '', '/#/gk');
+window.location.hash = '#/gk';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+
+const switched = (() => {
+  const tab = [...container.querySelectorAll('button')].find((el) =>
+    (el.textContent || '').includes('\u0987\u0982\u09b0\u09c7\u099c\u09bf \u0997\u09cd\u09b0\u09be\u09ae\u09be\u09b0')
+  );
+  if (tab) tab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  return Boolean(tab);
+})();
+await new Promise((resolve) => setTimeout(resolve, 300));
+const englishTitleShown = (container.textContent || '').includes(
+  '\u0987\u0982\u09b0\u09c7\u099c\u09bf \u0997\u09cd\u09b0\u09be\u09ae\u09be\u09b0 \u0993 \u09b6\u09ac\u09cd\u09a6 \u09a1\u09cd\u09b0\u09bf\u09b2'
+);
+console.log(
+  switched && englishTitleShown
+    ? '\u2713 the drill screen switches between GK and English banks'
+    : `\u2717 bank switch failed (clicked=${switched}, title=${englishTitleShown})`
+);
+failures += switched && englishTitleShown ? 0 : 1;
 
 // The product is student-only by design: no parent, teacher or admin surfaces.
 const forbidden = ['অভিভাবক', 'শিক্ষক', 'Guardian', 'Parent report', 'Teacher'].filter((w) =>
@@ -533,6 +562,47 @@ check(
 check(
   gkBank.GK_QUESTIONS.every((item) => item.options.length === 4 && item.options[item.correctIndex]),
   'every GK question has four options and a valid answer index'
+);
+
+const englishBank = await vite.ssrLoadModule('/src/data/englishDrillBank.ts');
+const englishIds = englishBank.ENGLISH_DRILL_QUESTIONS.map((item) => item.id);
+check(
+  englishBank.ENGLISH_DRILL_QUESTIONS.length >= 30 && new Set(englishIds).size === englishIds.length,
+  'English drill bank holds 30+ unique rule-based questions',
+  `${englishBank.ENGLISH_DRILL_QUESTIONS.length} questions`
+);
+check(
+  englishBank.ENGLISH_DRILL_CATEGORIES.every((cat) =>
+    englishBank.ENGLISH_DRILL_QUESTIONS.some((item) => item.category === cat.key)
+  ),
+  'every English drill category is populated'
+);
+check(
+  englishBank.ENGLISH_DRILL_QUESTIONS.every(
+    (item) => item.options.length === 4 && item.options[item.correctIndex] && item.explanation.bn
+  ),
+  'every English drill question has four options, an answer and an explanation'
+);
+const englishRound = englishBank.pickEnglishRound('all');
+check(
+  englishRound.length === englishBank.ENGLISH_DRILL_ROUND_SIZE,
+  'an English round draws exactly 10 questions',
+  `${englishRound.length} questions`
+);
+const englishPrepositions = englishBank.pickEnglishRound('preposition', 10);
+check(
+  englishPrepositions.length > 0 &&
+    englishPrepositions.every((item) => item.category === 'preposition'),
+  'an English category round stays inside that category'
+);
+
+const drillBanks = await vite.ssrLoadModule('/src/data/drillBanks.ts');
+check(
+  drillBanks.DRILL_BANKS.length >= 2 &&
+    drillBanks.DRILL_BANKS.every(
+      (bank) => bank.questions.length > 0 && bank.categories.length >= 2 && bank.storageKey
+    ),
+  'the drill screen is generated from bank configs'
 );
 
 const selfNotes = await vite.ssrLoadModule('/src/lib/selfNotes.ts');
