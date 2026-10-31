@@ -259,8 +259,8 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     chapter: { bn: 'অধ্যায় ৩: সংখ্যা পদ্ধতি ও ডিজিটাল ডিভাইস', en: 'Ch 3: Number Systems & Logic Gates' },
     boardTag: { bn: 'যশোর, ঢাকা ও রাজশাহী বোর্ড সৃজনশীল', en: 'Jashore, Dhaka & Rajshahi Board' },
     stem: {
-      bn: 'রাহাত ও নুসরাতের আইসিটি ক্লাস টেস্টের নম্বর যথাক্রমে (35)₈ এবং (1F)₁₆। শিক্ষক তাদের একটি লজিক ফাংশন F = A′B + AB′ বাস্তবায়ন করতে বললেন।',
-      en: 'Rahat and Nusrat scored (35)₈ and (1F)₁₆ respectively on an ICT quiz. Their teacher asked them to implement the Boolean function F = A′B + AB′.',
+      bn: 'রাহাত ও নুসরাতের আইসিটি ক্লাস টেস্টের নম্বর যথাক্রমে (35)₈ এবং (1F)₁₆। ক্লাসে একটি লজিক ফাংশন F = A′B + AB′ বাস্তবায়ন করতে বললেন।',
+      en: 'Rahat and Nusrat scored (35)₈ and (1F)₁₆ respectively on an ICT quiz. In class they were asked to implement the Boolean function F = A′B + AB′.',
     },
     qA: {
       bn: 'BCD কোড কী?',
@@ -296,7 +296,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     },
   },
   {
-    id: 'cq-phy2-1',
+    id: 'cq-phy2-2',
     subjectKey: 'physics2',
     chapter: { bn: 'অধ্যায় ১: তাপগতিবিদ্যা', en: 'Ch 1: Thermodynamics' },
     boardTag: { bn: 'ঢাকা ও যশোর বোর্ড সৃজনশীল', en: 'Dhaka & Jashore Board Standard' },
@@ -386,7 +386,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     },
   },
   {
-    id: 'cq-bio1-1',
+    id: 'cq-bio1-2',
     subjectKey: 'biology1',
     chapter: { bn: 'অধ্যায় ৯: উদ্ভিদ শারীরতত্ত্ব', en: 'Ch 9: Plant Physiology' },
     boardTag: { bn: 'যশোর ও রাজশাহী বোর্ড সৃজনশীল', en: 'Jashore & Rajshahi Board Standard' },
@@ -421,7 +421,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     chapter: { bn: 'অধ্যায় ৫: প্রোগ্রামিং ভাষা (C ও ফ্লোচার্ট)', en: 'Ch 5: C Programming & Algorithms' },
     boardTag: { bn: 'সকল বোর্ড সৃজনশীল (অধ্যায় ৫)', en: 'All Boards Standard (Ch 5)' },
     stem: {
-      bn: 'একাদশ শ্রেণির শিক্ষার্থী আরিফ একটি ধারা লিখল: 2 + 4 + 6 + ... + N। শিক্ষক তাকে ধারাটির যোগফল নির্ণয়ের অ্যালগরিদম ও C প্রোগ্রাম তৈরি করতে বললেন।',
+      bn: 'একাদশ শ্রেণির শিক্ষার্থী আরিফ একটি ধারা লিখল: 2 + 4 + 6 + ... + N। তাকে ধারাটির যোগফল নির্ণয়ের অ্যালগরিদম ও C প্রোগ্রাম তৈরি করতে বললেন।',
       en: 'Class 11 student Arif wrote the series 2 + 4 + 6 + ... + N. His instructor asked him to design an algorithm and a C program to compute the sum.',
     },
     qA: { bn: 'কম্পাইলার কী?', en: 'What is a compiler?' },
@@ -443,6 +443,399 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     ansD: {
       bn: '#include <stdio.h>\nint main() {\n  int n, i = 2, sum = 0;\n  scanf("%d", &n);\n  while (i <= n) { sum = sum + i; i = i + 2; }\n  printf("Sum = %d", sum);\n  return 0;\n}',
       en: '#include <stdio.h>\nint main() {\n  int n, i = 2, sum = 0;\n  scanf("%d", &n);\n  while (i <= n) { sum += i; i += 2; }\n  printf("Sum = %d", sum);\n  return 0;\n}',
+    },
+  },
+
+  {
+    id: 'cq-chem2-2',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'অধ্যায় : তড়িৎ রসায়ন', en: 'Ch: Electrochemistry' },
+    boardTag: { bn: 'ঢাকা ও রাজশাহী বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Rajshahi Board Standard' },
+    stem: {
+      bn: '0.1 M কপার সালফেট দ্রবণে 2 A তড়িৎ প্রবাহ 30 মিনিট ধরে চালানো হলো। বিক্রিয়া: Cu²⁺ + 2e⁻ → Cu (Cu = 63.5, F = 96500 C/mol)।',
+      en: 'A current of 2 A is passed through 0.1 M copper sulphate solution for 30 minutes. Reaction: Cu²⁺ + 2e⁻ → Cu (Cu = 63.5, F = 96500 C/mol).',
+    },
+    qA: { bn: 'তড়িৎ বিশ্লেষণ কাকে বলে?', en: 'Define electrolysis.' },
+    qB: { bn: 'এই কোষে অ্যানোডে কোন প্রক্রিয়া ঘটে? ব্যাখ্যা করো।', en: 'What happens at the anode in this cell? Explain.' },
+    qC: { bn: 'প্রবাহিত মোট চার্জের পরিমাণ নির্ণয় করো।', en: 'Calculate the total charge passed.' },
+    qD: { bn: 'ক্যাথোডে জমা তামার ভর নির্ণয় করো।', en: 'Calculate the mass of copper deposited at the cathode.' },
+    ansA: {
+      bn: 'তড়িৎ প্রবাহের মাধ্যমে কোনো তড়িৎ বিশ্লেষ্যের গলিত বা জলীয় দ্রবণে রাসায়নিক বিক্রিয়া ঘটিয়ে নতুন পদার্থ উৎপন্ন করার প্রক্রিয়াকে তড়িৎ বিশ্লেষণ বলে।',
+      en: 'Electrolysis is the chemical change produced in a molten or aqueous electrolyte by passing an electric current through it.',
+    },
+    ansB: {
+      bn: 'অ্যানোডে জারণ ঘটে — দ্রবণের পানির OH⁻ আয়ন ইলেকট্রন ছেড়ে O₂ গ্যাস ও H⁺ উৎপন্ন করে: 4OH⁻ → O₂ + 2H₂O + 4e⁻। (নিষ্ক্রিয় অ্যানোড ব্যবহারে)।',
+      en: 'Oxidation occurs at the anode: hydroxide ions from water give up electrons to release O₂ — 4OH⁻ → O₂ + 2H₂O + 4e⁻ (with an inert anode).',
+    },
+    ansC: {
+      bn: 'Q = It = 2 A × (30 × 60) s = 3600 C।',
+      en: 'Q = It = 2 A × 1800 s = 3600 C.',
+    },
+    ansD: {
+      bn: 'মোল ইলেকট্রন = 3600 / 96500 = 0.0373 mol। Cu²⁺ + 2e⁻ → Cu অনুযায়ী ২টি ইলেকট্রনে ১টি Cu, তাই Cu-এর মোল = 0.0373 / 2 = 0.01865 mol। ভর = 0.01865 × 63.5 ≈ 1.18 g।',
+      en: 'Moles of electrons = 3600/96500 = 0.0373 mol. Since 2 e⁻ deposit 1 Cu, moles of Cu = 0.01865 mol and mass = 0.01865 × 63.5 ≈ 1.18 g.',
+    },
+  },
+  {
+    id: 'cq-math2-2',
+    subjectKey: 'math2',
+    chapter: { bn: 'অধ্যায় : সম্ভাবনা ও কলনবিদ্যা', en: 'Ch: Probability & Calculus' },
+    boardTag: { bn: 'চট্টগ্রাম ও বরিশাল বোর্ড আদর্শ সৃজনশীল', en: 'Chattogram & Barishal Board Standard' },
+    stem: {
+      bn: 'দুটি ন্যায্য ছক্কা একসাথে নিক্ষেপ করা হলো। অন্যদিকে f(x) = x² − 4x একটি ফাংশন।',
+      en: 'Two fair dice are thrown together. Separately, f(x) = x² − 4x is a function.',
+    },
+    qA: { bn: 'নমুনা ক্ষেত্র (Sample space) কাকে বলে?', en: 'Define sample space.' },
+    qB: { bn: 'দুই ছক্কায় মোট ৭ না আসার সম্ভাবনা নির্ণয় করো।', en: 'Find the probability that the total is not 7.' },
+    qC: { bn: 'দুই ছক্কায় সংখ্যা দুটির গুণফল জোড় হওয়ার সম্ভাবনা নির্ণয় করো।', en: 'Find the probability that the product of the two numbers is even.' },
+    qD: { bn: 'f(x) = x² − 4x-এর সর্বনিম্ন মান এবং কোন x-এ তা ঘটে নির্ণয় করো।', en: 'Find the minimum value of f(x) = x² − 4x and the x where it occurs.' },
+    ansA: {
+      bn: 'কোনো পরীক্ষার সম্ভাব্য সকল ফলাফলের সেটকে নমুনা ক্ষেত্র বলে। দুই ছক্কার ক্ষেত্রে n(S) = 6 × 6 = 36।',
+      en: 'The set of all possible outcomes of an experiment is the sample space; for two dice n(S) = 36.',
+    },
+    ansB: {
+      bn: 'মোট ৭ আসার অনুকূল ফল ৬টি — (1,6),(2,5),(3,4),(4,3),(5,2),(6,1)। তাই P(৭) = 6/36 = 1/6, এবং না আসার সম্ভাবনা = 1 − 1/6 = 5/6।',
+      en: 'Six outcomes give a total of 7, so P(7) = 1/6 and P(not 7) = 5/6.',
+    },
+    ansC: {
+      bn: 'গুণফল বিজোড় হয় কেবল দুটোই বিজোড় হলে — ৩ × ৩ = ৯টি ফল। তাই জোড় হওয়ার সম্ভাবনা = (36 − 9)/36 = 27/36 = 3/4।',
+      en: 'The product is odd only when both are odd (3 × 3 = 9 outcomes), so P(even) = 27/36 = 3/4.',
+    },
+    ansD: {
+      bn: 'f′(x) = 2x − 4 = 0 ⇒ x = 2। f″(x) = 2 > 0, তাই এটি সর্বনিম্ন বিন্দু। f(2) = 4 − 8 = −4।',
+      en: 'f′(x) = 2x − 4 = 0 gives x = 2; f″(x) = 2 > 0 so it is a minimum, and f(2) = −4.',
+    },
+  },
+  {
+    id: 'cq-bio2-1',
+    subjectKey: 'biology2',
+    chapter: { bn: 'অধ্যায় : রক্ত ও সঞ্চালন', en: 'Ch: Blood & Circulation' },
+    boardTag: { bn: 'ঢাকা ও সিলেট বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Sylhet Board Standard' },
+    stem: {
+      bn: 'একজন শিক্ষার্থীর রক্তচাপ 120/80 mmHg, হৃৎস্পন্দন প্রতি মিনিটে 72 এবং হিমোগ্লোবিন 9 g/dL পাওয়া গেল।',
+      en: 'A student has blood pressure 120/80 mmHg, a pulse of 72 beats per minute and haemoglobin of 9 g/dL.',
+    },
+    qA: { bn: 'হৃৎস্পন্দন (Heart beat) কাকে বলে?', en: 'Define a heartbeat.' },
+    qB: { bn: 'সিস্টোল ও ডায়াস্টোল কাকে বলে?', en: 'What are systole and diastole?' },
+    qC: { bn: '120/80 mmHg বলতে কী বোঝায়?', en: 'What does 120/80 mmHg mean?' },
+    qD: { bn: 'হিমোগ্লোবিন 9 g/dL হলে শরীরে কী প্রভাব পড়তে পারে? ব্যাখ্যা করো।', en: 'What effect can haemoglobin of 9 g/dL have on the body? Explain.' },
+    ansA: {
+      bn: 'হৃৎপিণ্ডের একবার সংকোচন ও প্রসারণের ফলে রক্ত সঞ্চালনের যে চক্র সম্পন্ন হয়, তাকে একবার হৃৎস্পন্দন বলে।',
+      en: 'One complete cycle of contraction and relaxation of the heart that circulates blood is one heartbeat.',
+    },
+    ansB: {
+      bn: 'হৃৎপিণ্ডের সংকোচনকে সিস্টোল (প্রায় ০.৩ সেকেন্ড) এবং প্রসারণকে ডায়াস্টোল (প্রায় ০.৫ সেকেন্ড) বলে।',
+      en: 'Contraction of the heart is systole (~0.3 s) and relaxation is diastole (~0.5 s).',
+    },
+    ansC: {
+      bn: 'প্রথম সংখ্যা 120 mmHg হলো সিস্টোলিক চাপ (সংকোচনের সময় ধমনিতে চাপ) এবং 80 mmHg ডায়াস্টোলিক চাপ (প্রসারণের সময়)। পার্থক্য 40 mmHg হলো পালস প্রেসার। এটি স্বাভাবিক সীমার মধ্যেই।',
+      en: '120 mmHg is systolic (during contraction) and 80 mmHg diastolic (during relaxation); the difference, 40 mmHg, is the pulse pressure. Both are within the normal range.',
+    },
+    ansD: {
+      bn: 'হিমোগ্লোবিন অক্সিজেন বহন করে; 9 g/dL (স্বাভাবিক ১৩–১৭ g/dL) হলে রক্তাল্পতা হয় — দুর্বলতা, সহজে ক্লান্তি, শ্বাসকষ্ট ও পড়াশোনায় মনোযোগ কমতে পারে। আয়রনসমৃদ্ধ খাবার ও চিকিৎসকের পরামর্শ দরকার।',
+      en: 'Haemoglobin carries oxygen; 9 g/dL is below normal (13–17 g/dL) and causes anaemia — fatigue, breathlessness and poor concentration. Iron-rich food and medical advice are needed.',
+    },
+  },
+  {
+    id: 'cq-ict-3',
+    subjectKey: 'ict',
+    chapter: { bn: 'অধ্যায় : সংখ্যা পদ্ধতি ও ডিজিটাল ডিভাইস', en: 'Ch: Number Systems & Digital Devices' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'A = (1101)₂ এবং B = (1011)₂ দুইটি বাইনারি সংখ্যা।',
+      en: 'A = (1101)₂ and B = (1011)₂ are two binary numbers.',
+    },
+    qA: { bn: 'বিট ও বাইটের সম্পর্ক লেখো।', en: 'State the relationship between a bit and a byte.' },
+    qB: { bn: 'কম্পিউটারে ঋণাত্মক সংখ্যা প্রকাশে ২-এর পরিপূরক পদ্ধতি কেন বেশি ব্যবহৃত হয়?', en: 'Why is the 2’s complement method preferred for negative numbers?' },
+    qC: { bn: 'A + B এর মান বাইনারিতে নির্ণয় করো।', en: 'Find A + B in binary.' },
+    qD: { bn: 'A − B এর মান ২-এর পরিপূরক পদ্ধতিতে নির্ণয় করো।', en: 'Find A − B using the 2’s complement method.' },
+    ansA: {
+      bn: '৮টি বিট = ১ বাইট। বিট হলো বাইনারি অঙ্ক (0 বা 1), আর বাইট হলো কম্পিউটারের মৌলিক স্মৃতিকোষের একক।',
+      en: '8 bits make 1 byte; a bit is a binary digit and a byte is the basic unit of memory.',
+    },
+    ansB: {
+      bn: '২-এর পরিপূরকে যোগ ও বিয়োগ একই যোগ-সার্কিট দিয়ে করা যায়, আলাদা বিয়োগ যন্ত্র লাগে না; শূন্যের দুই রূপ ( +0 ও −0) থাকে না এবং গাণিতিক ত্রুটি কম হয়।',
+      en: 'Two’s complement lets one adder circuit handle both addition and subtraction, has a single zero and avoids sign errors.',
+    },
+    ansC: {
+      bn: '(1101)₂ = ১৩ এবং (1011)₂ = ১১; যোগফল ২৪ = (11000)₂।',
+      en: '(1101)₂ = 13 and (1011)₂ = 11; the sum is 24 = (11000)₂.',
+    },
+    ansD: {
+      bn: 'B-এর ২-এর পরিপূরক: (1011)₂ → ১-এর পরিপূরক 0100 → +1 = 0101। এখন A + 0101 = 1101 + 0101 = (10010)₂; ৪-বিট রেজিস্টারে অতিরিক্ত ক্যারি বাদ দিলে (0010)₂ = ২, যা ১৩ − ১১ = ২-এর সমান।',
+      en: '2’s complement of B: 1011 → 0100 + 1 = 0101. Then 1101 + 0101 = 10010; dropping the carry in a 4-bit register gives 0010 = 2, which matches 13 − 11.',
+    },
+  },
+  {
+    id: 'cq-ban-1',
+    subjectKey: 'bangla',
+    chapter: { bn: 'ব্যাকরণ: সন্ধি, কারক ও উপসর্গ', en: 'Grammar: Sandhi, Karok & Prefixes' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'বিদ্যালয়ের ছাত্ররা মাঠে খেলছে। অনুগ্রহ করে তুমি একটু বসো।',
+      en: 'The students of the school are playing in the field. Please sit down for a moment.',
+    },
+    qA: { bn: 'সন্ধি কাকে বলে?', en: 'Define sandhi.' },
+    qB: { bn: '‘বিদ্যালয়’ শব্দের সন্ধি-বিচ্ছেদ করে সন্ধির প্রকার লেখো।', en: 'Split "বিদ্যালয়" and name the type of sandhi.' },
+    qC: { bn: '‘মাঠে’ কোন কারক ও কোন বিভক্তি?', en: 'Which karok and case ending is "মাঠে"?' },
+    qD: { bn: '‘অনুগ্রহ’ শব্দের উপসর্গ এবং ‘খেলছে’ ক্রিয়ার কাল নির্ণয় করো।', en: 'Identify the prefix in "অনুগ্রহ" and the tense of "খেলছে".' },
+    ansA: {
+      bn: 'পাশাপাশি দুটি বর্ণ বা ধ্বনির মিলিত হওয়ার ফলে যে পরিবর্তন ঘটে, তাকে সন্ধি বলে (বাংলা ও সংস্কৃত উভয় ক্ষেত্রেই)।',
+      en: 'Sandhi is the change that occurs when two adjacent sounds meet.',
+    },
+    ansB: {
+      bn: 'বিদ্যা + আলয় = বিদ্যালয়। অ-কারের পর আ-কার এলে উভয় মিলে আ-কার হয় — এটি স্বরসন্ধি (দীর্ঘস্বর সন্ধি)।',
+      en: 'বিদ্যা + আলয় = বিদ্যালয়: অ + আ becomes আ, a vowel (swara) sandhi.',
+    },
+    ansC: {
+      bn: '‘মাঠে’ অধিকরণ কারকে ৭মী (এ) বিভক্তি — ক্রিয়া সংঘটনের স্থান বোঝাচ্ছে।',
+      en: '"মাঠে" is in the locative (অধিকরণ) case with the 7th (এ) ending.',
+    },
+    ansD: {
+      bn: '‘অনুগ্রহ’ = অনু (সংস্কৃত/তৎসম উপসর্গ) + গ্রহ। ‘খেলছে’ বর্তমান কালের ঘটমান (চলমান) রূপ।',
+      en: '"অনুগ্রহ" uses the Sanskrit prefix অনু; "খেলছে" is present continuous.',
+    },
+  },
+  {
+    id: 'cq-phy2-3',
+    subjectKey: 'physics2',
+    chapter: { bn: 'অধ্যায় : তড়িৎ প্রবাহের ক্রিয়া', en: 'Ch: Effects of Electric Current' },
+    boardTag: { bn: 'যশোর ও দিনাজপুর বোর্ড আদর্শ সৃজনশীল', en: 'Jashore & Dinajpur Board Standard' },
+    stem: {
+      bn: '12 V বিভবের একটি ব্যাটারির সাথে 10 Ω ও 20 Ω রোধ দুইটি প্রথমে শ্রেণিতে, পরে সমান্তরালে সংযুক্ত করা হলো।',
+      en: 'Two resistors of 10 Ω and 20 Ω are connected first in series and then in parallel across a 12 V battery.',
+    },
+    qA: { bn: 'ওহমের সূত্রটি লেখো।', en: 'State Ohm’s law.' },
+    qB: { bn: 'শ্রেণি সংযোগে প্রতিটি রোধে তড়িৎ প্রবাহ সমান হয় কেন?', en: 'Why is the current the same through each resistor in series?' },
+    qC: { bn: 'শ্রেণি সংযোগে প্রবাহ ও প্রতিটি রোধের দুই প্রান্তের বিভব পার্থক্য নির্ণয় করো।', en: 'In series, find the current and the voltage across each resistor.' },
+    qD: { bn: 'সমান্তরাল সংযোগে মোট প্রবাহ নির্ণয় করে শ্রেণি সংযোগের সাথে তুলনা করো।', en: 'Find the total current in parallel and compare it with the series case.' },
+    ansA: {
+      bn: 'স্থির তাপমাত্রায় কোনো পরিবাহীর মধ্য দিয়ে প্রবাহিত তড়িৎ প্রবাহ তার দুই প্রান্তের বিভব পার্থক্যের সমানুপাতিক: I ∝ V, অর্থাৎ V = IR।',
+      en: 'At constant temperature the current through a conductor is proportional to the potential difference across it: V = IR.',
+    },
+    ansB: {
+      bn: 'শ্রেণি সংযোগে ইলেকট্রন চলার একটিই পথ থাকে; কোনো শাখা না থাকায় একই চার্জ প্রতি সেকেন্ডে প্রতিটি রোধের মধ্য দিয়ে যায়। তাই প্রবাহ অপরিবর্তিত থাকে।',
+      en: 'A series circuit offers a single path, so the same charge per second passes every resistor and the current is unchanged.',
+    },
+    ansC: {
+      bn: 'মোট রোধ R = 10 + 20 = 30 Ω। প্রবাহ I = V/R = 12/30 = 0.4 A। 10 Ω-এ V₁ = 0.4 × 10 = 4 V এবং 20 Ω-এ V₂ = 0.4 × 20 = 8 V (মোট 12 V)।',
+      en: 'Total resistance 30 Ω, so I = 0.4 A; the 10 Ω resistor drops 4 V and the 20 Ω drops 8 V.',
+    },
+    ansD: {
+      bn: 'সমান্তরালে R_p = (10 × 20)/(10 + 20) = 6.67 Ω। মোট প্রবাহ I = 12/6.67 ≈ 1.8 A — শ্রেণির 0.4 A-এর প্রায় ৪.৫ গুণ, কারণ সমান্তরালে প্রতিটি রোধে পূর্ণ 12 V পাওয়া যায়।',
+      en: 'In parallel R_p ≈ 6.67 Ω and total current ≈ 1.8 A — about 4.5× the series current, because each resistor sees the full 12 V.',
+    },
+  },
+
+  {
+    id: 'cq-phy1-3',
+    subjectKey: 'physics1',
+    chapter: { bn: 'অধ্যায় : প্রাসের গতি', en: 'Ch: Projectile Motion' },
+    boardTag: { bn: 'ঢাকা ও রাজশাহী বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Rajshahi Board Standard' },
+    stem: {
+      bn: 'একটি বস্তু ভূমি থেকে 20 m/s বেগে অনুভূমিকের সাথে 30° কোণে নিক্ষেপ করা হলো। (g = 9.8 m/s²)',
+      en: 'A body is projected from the ground at 20 m/s at 30° to the horizontal. (g = 9.8 m/s²)',
+    },
+    qA: { bn: 'প্রাস কাকে বলে?', en: 'What is a projectile?' },
+    qB: { bn: 'সর্বোচ্চ বিন্দুতে বস্তুর ত্বরণ কত? ব্যাখ্যা করো।', en: 'What is the acceleration at the highest point? Explain.' },
+    qC: { bn: 'বস্তুটির সর্বোচ্চ উচ্চতা নির্ণয় করো।', en: 'Find the maximum height reached.' },
+    qD: { bn: 'বিচরণকাল ও অনুভূমিক পাল্লা নির্ণয় করো।', en: 'Find the time of flight and the horizontal range.' },
+    ansA: {
+      bn: 'কোনো বস্তুকে কোণাকুণি বেগে নিক্ষেপ করলে অভিকর্ষের প্রভাবে যে বাঁকা পথে চলে, তাকে প্রাস বলে; সেই গতিকে প্রাসের গতি বলে।',
+      en: 'A body thrown at an angle that moves along a curved path under gravity is a projectile.',
+    },
+    ansB: {
+      bn: 'সর্বোচ্চ বিন্দুতেও ত্বরণ g = 9.8 m/s² নিচের দিকে থাকে, শূন্য নয়। সেখানে শুধু বেগের উল্লম্ব উপাংশ শূন্য হয়, অনুভূমিক উপাংশ অপরিবর্তিত থাকে।',
+      en: 'Acceleration is still g = 9.8 m/s² downward at the top; only the vertical velocity component becomes zero.',
+    },
+    ansC: {
+      bn: 'H = u²sin²θ / (2g) = (20² × sin²30°) / (2 × 9.8) = (400 × 0.25) / 19.6 = 100 / 19.6 ≈ 5.1 m।',
+      en: 'H = u²sin²θ/2g = (400 × 0.25)/19.6 ≈ 5.1 m.',
+    },
+    ansD: {
+      bn: 'T = 2u sinθ / g = (2 × 20 × 0.5)/9.8 = 20/9.8 ≈ 2.04 s। R = u² sin2θ / g = (400 × sin60°)/9.8 = (400 × 0.866)/9.8 ≈ 35.35 m।',
+      en: 'T = 2u sinθ/g ≈ 2.04 s and R = u² sin2θ/g = (400 × 0.866)/9.8 ≈ 35.35 m.',
+    },
+  },
+  {
+    id: 'cq-math2-3',
+    subjectKey: 'math2',
+    chapter: { bn: 'অধ্যায় : ম্যাট্রিক্স ও নির্ণায়ক', en: 'Ch: Matrices & Determinants' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'A = [[2, 1], [3, 4]] একটি ম্যাট্রিক্স।',
+      en: 'A = [[2, 1], [3, 4]] is a matrix.',
+    },
+    qA: { bn: 'বর্গ ম্যাট্রিক্স কাকে বলে?', en: 'Define a square matrix.' },
+    qB: { bn: 'অদ্বয়ী (singular) ম্যাট্রিক্স কাকে বলে?', en: 'Define a singular matrix.' },
+    qC: { bn: 'A-এর নির্ণায়ক নির্ণয় করো।', en: 'Find the determinant of A.' },
+    qD: { bn: 'A⁻¹ নির্ণয় করো।', en: 'Find A⁻¹.' },
+    ansA: {
+      bn: 'যে ম্যাট্রিক্সের সারি ও কলামের সংখ্যা সমান (n × n), তাকে বর্গ ম্যাট্রিক্স বলে।',
+      en: 'A matrix with equal numbers of rows and columns (n × n) is a square matrix.',
+    },
+    ansB: {
+      bn: 'যে বর্গ ম্যাট্রিক্সের নির্ণায়কের মান শূন্য, তাকে অদ্বয়ী বা singular ম্যাট্রিক্স বলে; এর বিপরীত ম্যাট্রিক্স থাকে না।',
+      en: 'A square matrix with determinant zero is singular and has no inverse.',
+    },
+    ansC: {
+      bn: '|A| = ad − bc = (2 × 4) − (1 × 3) = 8 − 3 = 5।',
+      en: '|A| = ad − bc = 8 − 3 = 5.',
+    },
+    ansD: {
+      bn: 'A⁻¹ = (1/|A|) × [[d, −b], [−c, a]] = (1/5) × [[4, −1], [−3, 2]]। যাচাই: AA⁻¹ = I।',
+      en: 'A⁻¹ = (1/5)[[4, −1], [−3, 2]]; check with AA⁻¹ = I.',
+    },
+  },
+  {
+    id: 'cq-bio2-2',
+    subjectKey: 'biology2',
+    chapter: { bn: 'অধ্যায় : বংশগতি ও বিবর্তন', en: 'Ch: Genetics & Evolution' },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড আদর্শ সৃজনশীল', en: 'Medical & All Boards Standard' },
+    stem: {
+      bn: 'মটরের একটি বিশুদ্ধ লম্বা (TT) গাছের সাথে একটি বিশুদ্ধ খাটো (tt) গাছের সংকরায়ণ করা হলো।',
+      en: 'A pure tall pea plant (TT) is crossed with a pure dwarf plant (tt).',
+    },
+    qA: { bn: 'জিনোটাইপ ও ফিনোটাইপ কাকে বলে?', en: 'Define genotype and phenotype.' },
+    qB: { bn: 'F₁ জনুতে সব গাছ লম্বা হয় কেন?', en: 'Why are all F₁ plants tall?' },
+    qC: { bn: 'F₂ জনুর ফিনোটাইপিক অনুপাত লেখো।', en: 'State the F₂ phenotypic ratio.' },
+    qD: { bn: 'F₂ জনুর লম্বা গাছগুলোর মধ্যে বিশুদ্ধ ও সংকর আলাদা করার উপায় ব্যাখ্যা করো।', en: 'How would you separate pure tall plants from hybrid tall ones in F₂? Explain.' },
+    ansA: {
+      bn: 'কোনো জীবের বংশগতিক গঠন বা জিনের সমাবেশকে জিনোটাইপ (যেমন TT, Tt) এবং বাহ্যিকভাবে প্রকাশিত বৈশিষ্ট্যকে ফিনোটাইপ (লম্বা/খাটো) বলে।',
+      en: 'The genetic make-up (e.g., TT, Tt) is the genotype; the visible trait is the phenotype.',
+    },
+    ansB: {
+      bn: 'F₁ জনুতে সব গাছ Tt হয় — এখানে T প্রকট ও t প্রচ্ছন্ন, তাই প্রচ্ছন্ন বৈশিষ্ট্য প্রকাশ পায় না এবং সব গাছ লম্বা দেখায়।',
+      en: 'All F₁ are Tt; T is dominant over t, so the recessive trait stays hidden and every plant looks tall.',
+    },
+    ansC: {
+      bn: 'F₂ জনুতে ফিনোটাইপিক অনুপাত ৩ : ১ (লম্বা : খাটো); জিনোটাইপিক অনুপাত ১ TT : ২ Tt : ১ tt।',
+      en: 'F₂ gives a 3 : 1 phenotypic ratio (tall : dwarf) and 1 TT : 2 Tt : 1 tt genotypically.',
+    },
+    ansD: {
+      bn: 'পরীক্ষামূলক সংকরায়ণ (test cross) করতে হবে — লম্বা গাছকে tt গাছের সাথে ক্রস করলে বিশুদ্ধ TT হলে সব সন্তান লম্বা, আর সংকর Tt হলে ১ : ১ অনুপাতে লম্বা ও খাটো পাওয়া যায়।',
+      en: 'Use a test cross: crossing with tt gives all tall offspring if the parent is TT, but a 1 : 1 tall : dwarf ratio if it is Tt.',
+    },
+  },
+
+  {
+    id: 'cq-chem1-2',
+    subjectKey: 'chemistry1',
+    chapter: { bn: 'অধ্যায় : মোল ও রাসায়নিক গণনা', en: 'Ch: Mole & Chemical Calculation' },
+    boardTag: { bn: 'ঢাকা ও চট্টগ্রাম বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Chattogram Board Standard' },
+    stem: {
+      bn: 'STP-তে 4.4 g CO₂ গ্যাসের একটি নমুনা নেওয়া হলো। (C = 12, O = 16, STP-তে মোলার আয়তন 22.4 L)',
+      en: 'A 4.4 g sample of CO₂ gas is taken at STP. (C = 12, O = 16, molar volume at STP = 22.4 L)',
+    },
+    qA: { bn: 'মোল কাকে বলে?', en: 'What is a mole?' },
+    qB: { bn: 'মোলার আয়তন বলতে কী বোঝায়? ব্যাখ্যা করো।', en: 'What is meant by molar volume? Explain.' },
+    qC: { bn: 'নমুনটিতে মোল ও অণুর সংখ্যা নির্ণয় করো।', en: 'Find the number of moles and molecules in the sample.' },
+    qD: { bn: 'STP-তে নমুনটির আয়তন এবং মোট পরমাণুর সংখ্যা নির্ণয় করো।', en: 'Find the volume at STP and the total number of atoms.' },
+    ansA: {
+      bn: 'কোনো পদার্থের যে পরিমাণে 6.023 × 10²³ টি (অ্যাভোগাড্রো সংখ্যা) কণা থাকে, তাকে এক মোল বলে।',
+      en: 'One mole is the amount containing 6.023 × 10²³ particles (Avogadro’s number).',
+    },
+    ansB: {
+      bn: 'এক মোল যেকোনো গ্যাস STP-তে যে আয়তন দখল করে তাকে মোলার আয়তন বলে; এর মান 22.4 L। কারণ একই তাপমাত্রা ও চাপে সমআয়তন গ্যাসে সমসংখ্যক অণু থাকে।',
+      en: 'The volume one mole of any gas occupies at STP is its molar volume: 22.4 L, because equal volumes of gases at the same temperature and pressure hold equal numbers of molecules.',
+    },
+    ansC: {
+      bn: 'CO₂-এর মোলার ভর = 12 + 2 × 16 = 44 g/mol। মোল = 4.4 / 44 = 0.1 mol। অণুর সংখ্যা = 0.1 × 6.023 × 10²³ = 6.023 × 10²²।',
+      en: 'Molar mass of CO₂ = 44 g/mol, so moles = 4.4/44 = 0.1. Molecules = 6.023 × 10²².',
+    },
+    ansD: {
+      bn: 'আয়তন = 0.1 × 22.4 = 2.24 L। প্রতিটি CO₂ অণুতে 3টি পরমাণু (1 C + 2 O), তাই পরমাণুর সংখ্যা = 3 × 6.023 × 10²² = 1.807 × 10²³।',
+      en: 'Volume = 2.24 L. Each molecule has three atoms, so atoms = 1.807 × 10²³.',
+    },
+  },
+  {
+    id: 'cq-math1-2',
+    subjectKey: 'math1',
+    chapter: { bn: 'অধ্যায় : দ্বিঘাত সমীকরণ', en: 'Ch: Quadratic Equations' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'x² − 5x + 6 = 0 একটি দ্বিঘাত সমীকরণ।',
+      en: 'x² − 5x + 6 = 0 is a quadratic equation.',
+    },
+    qA: { bn: 'দ্বিঘাত সমীকরণ কাকে বলে?', en: 'Define a quadratic equation.' },
+    qB: { bn: 'সমীকরণটির মূলদ্বয়ের প্রকৃতি নির্ণয় করো।', en: 'Determine the nature of the roots.' },
+    qC: { bn: 'সমীকরণটির মূল নির্ণয় করো।', en: 'Solve the equation.' },
+    qD: { bn: 'মূলদ্বয়ের যোগফল ও গুণফল নির্ণয় করে উত্তর যাচাই করো।', en: 'Verify your answer using the sum and product of the roots.' },
+    ansA: {
+      bn: 'ax² + bx + c = 0 আকারের সমীকরণকে দ্বিঘাত সমীকরণ বলে, যেখানে a ≠ 0 এবং a, b, c বাস্তব সংখ্যা।',
+      en: 'An equation of the form ax² + bx + c = 0 with a ≠ 0 and real coefficients.',
+    },
+    ansB: {
+      bn: 'নিশ্চায়ক D = b² − 4ac = 25 − 24 = 1 > 0। D ধনাত্মক ও পূর্ণবর্গ, তাই মূলদ্বয় বাস্তব, অসমান ও মূলদ।',
+      en: 'Discriminant D = b² − 4ac = 1 > 0, so the roots are real, unequal and rational.',
+    },
+    ansC: {
+      bn: 'x = (5 ± √1)/2 = (5 + 1)/2 বা (5 − 1)/2 = 3 অথবা 2। অর্থাৎ মূল 2 ও 3।',
+      en: 'x = (5 ± 1)/2 gives 3 and 2.',
+    },
+    ansD: {
+      bn: 'মূলের যোগফল = −b/a = 5/1 = 5; গুণফল = c/a = 6/1 = 6। আমাদের মূল 2 ও 3-এর যোগফল 5, গুণফল 6 — তাই উত্তর সঠিক।',
+      en: 'Sum = −b/a = 5 and product = c/a = 6; 2 + 3 = 5 and 2 × 3 = 6, confirming the roots.',
+    },
+  },
+  {
+    id: 'cq-ict-4',
+    subjectKey: 'ict',
+    chapter: { bn: 'অধ্যায় : ডেটাবেজ ম্যানেজমেন্ট সিস্টেম', en: 'Ch: Database Management System' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'একটি পাঠাগারের বইয়ের তথ্য রাখতে Books(id, title, author, price) টেবিল ব্যবহার করা হয়।',
+      en: 'A library stores its books in a table Books(id, title, author, price).',
+    },
+    qA: { bn: 'ডেটাবেজ কী?', en: 'What is a database?' },
+    qB: { bn: 'প্রাইমারি কী ও ফরেন কী-এর মধ্যে পার্থক্য লেখো।', en: 'State the difference between a primary key and a foreign key.' },
+    qC: { bn: '৩০০ টাকার বেশি দামের বইগুলোর title ও price বের করার SQL কোয়েরি লেখো।', en: 'Write an SQL query to list title and price of books that cost more than 300 taka.' },
+    qD: { bn: 'নতুন একটি বই যোগ করার SQL কমান্ড উদাহরণসহ লেখো।', en: 'Write the SQL command to insert a new book, with an example.' },
+    ansA: {
+      bn: 'পরস্পর সম্পর্কযুক্ত তথ্যের সুসংগঠিত সংগ্রহ, যা সহজে সংরক্ষণ, অনুসন্ধান ও হালনাগাদ করা যায়, তাকে ডেটাবেজ বলে।',
+      en: 'A database is an organised collection of related data that can be stored, searched and updated easily.',
+    },
+    ansB: {
+      bn: 'প্রাইমারি কী প্রতিটি রেকর্ডকে অনন্যভাবে শনাক্ত করে (যেমন Books-এ id) এবং শূন্য বা পুনরাবৃত্তি হতে পারে না। ফরেন কী অন্য টেবিলের প্রাইমারি কী-কে নির্দেশ করে এবং সম্পর্ক তৈরি করে — পুনরাবৃত্ত হতে পারে।',
+      en: 'A primary key uniquely identifies each record and cannot repeat or be null; a foreign key references another table’s primary key to build a relation, and may repeat.',
+    },
+    ansC: {
+      bn: 'SELECT title, price FROM Books WHERE price > 300; — SELECT দিয়ে কলাম, FROM দিয়ে টেবিল এবং WHERE দিয়ে শর্ত নির্দেশ করা হয়।',
+      en: 'SELECT title, price FROM Books WHERE price > 300;',
+    },
+    ansD: {
+      bn: 'INSERT INTO Books VALUES (4, “পথের পাঁচালী”, “বিভূতিভূষণ”, 250); — INSERT INTO দিয়ে টেবিলে নতুন রেকর্ড যোগ করা হয় এবং কলামের ক্রম অনুয়ায়ী মান দিতে হয়।',
+      en: 'INSERT INTO Books VALUES (4, “পথের পাঁচালী”, “বিভূতিভূষণ”, 250); — the values follow the column order.',
+    },
+  },
+  {
+    id: 'cq-bio1-3',
+    subjectKey: 'biology1',
+    chapter: { bn: 'অধ্যায় : সালোকসংশ্লেষণ', en: 'Ch: Photosynthesis' },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড আদর্শ সৃজনশীল', en: 'Medical & All Boards Standard' },
+    stem: {
+      bn: 'সূর্যালোকিত একটি দিনে একটি পত্রক ১২ ঘণ্টায় 0.264 g CO₂ গ্রহণ করে। (CO₂ = 44, গ্লুকোজ = 180)',
+      en: 'On a sunny day a leaf takes in 0.264 g of CO₂ in 12 hours. (CO₂ = 44, glucose = 180)',
+    },
+    qA: { bn: 'সালোকসংশ্লেষণ কাকে বলে?', en: 'What is photosynthesis?' },
+    qB: { bn: 'আলোক-নির্ভর বিক্রিয়ায় ATP ও NADPH কীভাবে তৈরি হয়?', en: 'How are ATP and NADPH produced in the light reaction?' },
+    qC: { bn: 'গৃহীত CO₂-এর মোল সংখ্যা নির্ণয় করো।', en: 'Find the number of moles of CO₂ taken in.' },
+    qD: { bn: 'উৎপন্ন গ্লুকোজের পরিমাণ নির্ণয় করো।', en: 'Find the mass of glucose produced.' },
+    ansA: {
+      bn: 'সবুজ উদ্ভিদ ও ক্লোরোফিলযুক্ত অংশ আলোক শক্তি ব্যবহার করে CO₂ ও পানি থেকে গ্লুকোজ তৈরি করে অক্সিজেন নির্গত করে — এ প্রক্রিয়াই সালোকসংশ্লেষণ।',
+      en: 'Green plants use light energy to make glucose from CO₂ and water and release oxygen.',
+    },
+    ansB: {
+      bn: 'থাইলাকয়েড ঝিল্লিতে আলোক শক্তি পানির ফটোফসফোরাইলেশন (water splitting) ও ইলেকট্রন প্রবাহ চালায়; এই প্রক্রিয়ায় হালকা ATP এবং NADP⁺ থেকে NADPH তৈরি হয়, যা পরে ক্যালভিন চক্রে ব্যবহৃত হয়।',
+      en: 'Light drives water splitting and electron transport in the thylakoid membrane, generating ATP and NADPH for the Calvin cycle.',
+    },
+    ansC: {
+      bn: 'মোল = ভর / মোলার ভর = 0.264 / 44 = 0.006 mol।',
+      en: 'Moles = 0.264/44 = 0.006 mol.',
+    },
+    ansD: {
+      bn: '6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂; 6 মোল CO₂ থেকে 1 মোল গ্লুকোজ হয়। তাই 0.006 মোল CO₂ থেকে 0.001 মোল গ্লুকোজ = 0.001 × 180 = 0.18 g।',
+      en: 'Six moles of CO₂ give one mole of glucose, so 0.006 mol gives 0.001 mol = 0.18 g.',
     },
   },
 ];

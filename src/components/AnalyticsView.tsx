@@ -23,6 +23,7 @@ import {
 import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
+import { WeeklyReviewCard } from './WeeklyReviewCard';
 
 interface AnalyticsViewProps {
   lang: Lang;
@@ -152,6 +153,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             : 'Personal diagnostic breakdown of syllabus mastery, MCQ speed, mistake bank, and priority focus papers.'}
         </p>
       </div>
+
+      <WeeklyReviewCard
+        lang={lang}
+        theme={theme}
+        quizHistory={quizHistory}
+        sessions={sessions}
+        onNavigate={onNavigate}
+      />
 
       {/* Top 4 Telemetry Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

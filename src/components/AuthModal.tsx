@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Lang, StudentProfile, Theme } from '../types';
 import { EDUCATION_BOARDS, TARGET_GOALS, formatNum, getBoardLabel } from '../lib/i18n';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -89,7 +89,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           );
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        const client = await getSupabase();
+        const { data, error } = await client.auth.signUp({
           email: cleanEmail,
           password,
           options: {
@@ -120,7 +121,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTimeout(() => onClose(), 800);
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const client = await getSupabase();
+        const { data, error } = await client.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
@@ -168,9 +170,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
       <div
-        className={`relative w-full max-w-md rounded-2xl border p-6 shadow-2xl max-h-[90vh] overflow-y-auto ${
+        className={`relative w-full max-w-md rounded-t-3xl sm:rounded-2xl border p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto overscroll-contain ${
           isDark
             ? 'bg-slate-800 border-slate-700 text-slate-100'
             : 'bg-white border-slate-200 text-slate-800'

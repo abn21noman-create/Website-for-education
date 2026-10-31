@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 
 /**
  * Durable write-through sync for Supabase.
@@ -133,6 +133,10 @@ function errorInfo(error: unknown): { permanent: boolean; message: string } {
 
 async function runOp(op: SyncOp): Promise<{ ok: boolean; permanent: boolean; message: string }> {
   try {
+    // Pulls the Supabase client in on first write; the import resolves from
+    // cache on every later call.
+    const supabase = await getSupabase();
+
     if (op.op === 'rpc') {
       const { error } = await supabase.rpc(op.fn, op.args);
       if (!error) return { ok: true, permanent: false, message: '' };

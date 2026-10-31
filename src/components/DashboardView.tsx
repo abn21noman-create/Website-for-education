@@ -15,6 +15,7 @@ import {
   Calculator,
   FlaskConical,
   MessageSquareText,
+  HeartPulse,
 } from 'lucide-react';
 import {
   ActiveTab,
@@ -640,6 +641,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {lang === 'bn'
               ? 'পদার্থ, রসায়ন, গণিত ও ICT-এর মূল সমীকরণ এবং ব্যক্তিগত রিভিশন নোট সংরক্ষণ।'
               : 'Key equations, flip-card active recall, and personal cloud-synced study notes.'}
+          </p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('life')}
+          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
+            isDark
+              ? 'bg-slate-800/60 border-slate-700/65 hover:border-rose-400/40 hover:bg-slate-800/90 card-soft-dark'
+              : 'bg-white/90 border-slate-200/80 hover:border-rose-300 hover:bg-white card-soft-light'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
+                isDark
+                  ? 'bg-rose-500/15 text-rose-300 border-rose-400/20'
+                  : 'bg-rose-50 text-rose-600 border-rose-100'
+              }`}
+            >
+              <HeartPulse className="w-4 h-4" />
+            </div>
+            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-rose-500 transition-all" />
+          </div>
+          <h3 className="font-bold text-sm">
+            {lang === 'bn'
+              ? 'লাইফ হাব — অভ্যাস, ডেডলাইন ও ক্যারিয়ার'
+              : 'Life Hub — Habits, Deadlines & Careers'}
+          </h3>
+          <p className="text-xs opacity-65 mt-1 leading-relaxed">
+            {lang === 'bn'
+              ? 'দৈনিক অভ্যাস স্ট্রিক, ভর্তি-বৃত্তির ডেডলাইন কাউন্টডাউন, পরীক্ষার রুটিন ও ক্যারিয়ার রোডম্যাপ।'
+              : 'Daily habit streaks, admission/scholarship countdowns, exam routine and career roadmaps.'}
           </p>
         </button>
       </section>
