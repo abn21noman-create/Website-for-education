@@ -147,8 +147,8 @@ export const EXAM_PATTERNS: ExamPattern[] = [
       ict: 10,
     },
     note: {
-      bn: 'সাধারণ জ্ঞানের আলাদা প্রশ্ন-ব্যাংক এখনো নেই — ওই ১০ নম্বরের জায়গায় ICT আসছে।',
-      en: 'No GK bank yet — ICT fills those 10 marks for now.',
+      bn: 'GK ১০ নম্বরের জন্য আলাদা “GK ড্রিল” স্ক্রিন আছে (৩০টি প্রশ্ন); এই মকে মোট ১০০ নম্বরের জন্য ওই জায়গায় ICT থেকে ১০টি প্রশ্ন আসছে।',
+      en: 'The 10 GK marks have their own “GK drill” screen (30 questions); inside this 100-mark mock, ICT still fills that slot.',
     },
     verifiedOn: '2026-10-30',
     officialUrl: 'https://dgme.gov.bd/',

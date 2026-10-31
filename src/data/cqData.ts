@@ -259,8 +259,8 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     chapter: { bn: 'অধ্যায় ৩: সংখ্যা পদ্ধতি ও ডিজিটাল ডিভাইস', en: 'Ch 3: Number Systems & Logic Gates' },
     boardTag: { bn: 'যশোর, ঢাকা ও রাজশাহী বোর্ড সৃজনশীল', en: 'Jashore, Dhaka & Rajshahi Board' },
     stem: {
-      bn: 'রাহাত ও নুসরাতের আইসিটি ক্লাস টেস্টের নম্বর যথাক্রমে (35)₈ এবং (1F)₁₆। শিক্ষক তাদের একটি লজিক ফাংশন F = A′B + AB′ বাস্তবায়ন করতে বললেন।',
-      en: 'Rahat and Nusrat scored (35)₈ and (1F)₁₆ respectively on an ICT quiz. Their teacher asked them to implement the Boolean function F = A′B + AB′.',
+      bn: 'রাহাত ও নুসরাতের আইসিটি ক্লাস টেস্টের নম্বর যথাক্রমে (35)₈ এবং (1F)₁₆। ক্লাসে একটি লজিক ফাংশন F = A′B + AB′ বাস্তবায়ন করতে বললেন।',
+      en: 'Rahat and Nusrat scored (35)₈ and (1F)₁₆ respectively on an ICT quiz. In class they were asked to implement the Boolean function F = A′B + AB′.',
     },
     qA: {
       bn: 'BCD কোড কী?',
@@ -421,7 +421,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     chapter: { bn: 'অধ্যায় ৫: প্রোগ্রামিং ভাষা (C ও ফ্লোচার্ট)', en: 'Ch 5: C Programming & Algorithms' },
     boardTag: { bn: 'সকল বোর্ড সৃজনশীল (অধ্যায় ৫)', en: 'All Boards Standard (Ch 5)' },
     stem: {
-      bn: 'একাদশ শ্রেণির শিক্ষার্থী আরিফ একটি ধারা লিখল: 2 + 4 + 6 + ... + N। শিক্ষক তাকে ধারাটির যোগফল নির্ণয়ের অ্যালগরিদম ও C প্রোগ্রাম তৈরি করতে বললেন।',
+      bn: 'একাদশ শ্রেণির শিক্ষার্থী আরিফ একটি ধারা লিখল: 2 + 4 + 6 + ... + N। তাকে ধারাটির যোগফল নির্ণয়ের অ্যালগরিদম ও C প্রোগ্রাম তৈরি করতে বললেন।',
       en: 'Class 11 student Arif wrote the series 2 + 4 + 6 + ... + N. His instructor asked him to design an algorithm and a C program to compute the sum.',
     },
     qA: { bn: 'কম্পাইলার কী?', en: 'What is a compiler?' },

@@ -43,6 +43,7 @@ import {
   LazyCommandPaletteModal,
   LazyCqBankView,
   LazyFormulaVaultView,
+  LazyGkDrillView,
   LazyGpaCalculatorView,
   LazyLeaderboardView,
   LazyLifeHubView,
@@ -1283,6 +1284,8 @@ export function App() {
               onCompleteQuiz={handleCompleteQuiz}
             />
           )}
+
+          {activeTab === 'gk' && <LazyGkDrillView lang={lang} theme={theme} />}
 
           {activeTab === 'lab' && <LazyVirtualLabView lang={lang} theme={theme} />}
 

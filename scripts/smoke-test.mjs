@@ -18,6 +18,7 @@ const routes = [
   'formulas',
   'cq',
   'mcq',
+  'gk',
   'lab',
   'planner',
   'analytics',
@@ -122,6 +123,7 @@ for (const route of routes) {
         gpa: ['SSC-র মোট GPA', 'সরকারি মেডিকেল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
         life: ['রিমাইন্ডার'],
+        gk: ['সাধারণ জ্ঞান ড্রিল', 'মিশ্র রাউন্ড'],
       }[route];
       if (expectations) {
         const missing = expectations.filter((needle) => !text.includes(needle));
@@ -278,6 +280,38 @@ await new Promise((resolve) => setTimeout(resolve, 900));
 const reviewRendered = (container.textContent || '').includes('এই সপ্তাহের রিভিউ');
 console.log(reviewRendered ? '✓ weekly review renders' : '✗ weekly review missing');
 failures += reviewRendered ? 0 : 1;
+
+// GK drill: a round must actually start and explain the first answer.
+window.history.replaceState(null, '', '/#/gk');
+window.location.hash = '#/gk';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+
+const startedRound = clickByText('মিশ্র রাউন্ড শুরু');
+await new Promise((resolve) => setTimeout(resolve, 400));
+const roundText = container.textContent || '';
+const roundStarted = startedRound && roundText.includes('প্রশ্ন') && roundText.includes('সঠিক');
+
+const optionButtons = [...container.querySelectorAll('button')].filter((el) => {
+  const badge = el.querySelector('span');
+  return Boolean(badge) && /^[A-D]$/.test((badge.textContent || '').trim());
+});
+if (optionButtons[0]) {
+  optionButtons[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+await new Promise((resolve) => setTimeout(resolve, 300));
+const explained = (container.textContent || '').includes('ব্যাখ্যা');
+
+const gkRoundOk = roundStarted && optionButtons.length >= 4 && explained;
+console.log(
+  gkRoundOk
+    ? `\u2713 a GK round starts, offers four options and explains the answer (${optionButtons.length} options)`
+    : `\u2717 GK round failed (started=${startedRound}, options=${optionButtons.length}, explained=${explained})`
+);
+failures += gkRoundOk ? 0 : 1;
 
 // The product is student-only by design: no parent, teacher or admin surfaces.
 const forbidden = ['অভিভাবক', 'শিক্ষক', 'Guardian', 'Parent report', 'Teacher'].filter((w) =>
@@ -446,6 +480,35 @@ check(
   !combinedRule.ok && combinedRule.missing.some((m) => m.bn.includes('৯.০০')),
   'combined SSC+HSC shortfall is explained',
   combinedRule.missing.map((m) => m.bn).join(' | ')
+);
+
+const gkBank = await vite.ssrLoadModule('/src/data/gkBank.ts');
+const gkIds = gkBank.GK_QUESTIONS.map((item) => item.id);
+check(
+  gkBank.GK_QUESTIONS.length >= 30 && new Set(gkIds).size === gkIds.length,
+  'GK bank holds 30+ unique facts for the medical paper',
+  `${gkBank.GK_QUESTIONS.length} questions`
+);
+check(
+  gkBank.GK_CATEGORIES.every((cat) =>
+    gkBank.GK_QUESTIONS.some((item) => item.category === cat.key)
+  ),
+  'every GK category has at least one question'
+);
+const gkRound = gkBank.pickGkRound('all');
+check(
+  gkRound.length === gkBank.GK_RAPID_ROUND_SIZE,
+  'a rapid GK round draws exactly 10 questions',
+  `${gkRound.length} questions`
+);
+const gkSports = gkBank.pickGkRound('sports', 10);
+check(
+  gkSports.length > 0 && gkSports.every((item) => item.category === 'sports'),
+  'a category round stays inside that category'
+);
+check(
+  gkBank.GK_QUESTIONS.every((item) => item.options.length === 4 && item.options[item.correctIndex]),
+  'every GK question has four options and a valid answer index'
 );
 
 const selfNotes = await vite.ssrLoadModule('/src/lib/selfNotes.ts');

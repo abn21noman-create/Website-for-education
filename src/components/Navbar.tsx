@@ -26,6 +26,7 @@ import {
   HardDrive,
   AlertTriangle,
   HeartPulse,
+  Brain,
 } from 'lucide-react';
 import { ActiveTab, Lang, StudentProfile, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
@@ -93,6 +94,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       labelBn: 'MCQ পরীক্ষা',
       labelEn: 'MCQ Exam',
       icon: <FileCheck2 className="w-3.5 h-3.5" />,
+    },
+    {
+      id: 'gk',
+      labelBn: 'সাধারণ জ্ঞান',
+      labelEn: 'GK Drill',
+      icon: <Brain className="w-3.5 h-3.5" />,
     },
     {
       id: 'lab',

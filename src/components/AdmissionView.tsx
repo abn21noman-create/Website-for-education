@@ -409,6 +409,20 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
             <Zap className="w-3.5 h-3.5" />
             <span>{lang === 'bn' ? 'এই প্যাটার্নে মক দাও' : 'Mock this pattern'}</span>
           </button>
+          {track === 'medical' && (
+            <button
+              type="button"
+              onClick={() => onNavigate('gk')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
+                isDark
+                  ? 'border-emerald-400/30 text-emerald-300 hover:border-emerald-400'
+                  : 'border-emerald-200 text-emerald-800 bg-emerald-50 hover:border-emerald-400'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{lang === 'bn' ? 'GK ড্রিল (১০ নম্বর)' : 'GK drill (10 marks)'}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onNavigate('gpa')}

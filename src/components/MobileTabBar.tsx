@@ -18,6 +18,7 @@ import {
   Calculator,
   Trophy,
   HeartPulse,
+  Brain,
 } from 'lucide-react';
 import type { ActiveTab, Lang, Theme } from '../types';
 
@@ -71,6 +72,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     { id: 'formulas', bn: 'সূত্র ভল্ট', en: 'Formula Vault', icon: <BookMarked className="w-4 h-4" /> },
     { id: 'cq', bn: 'CQ ব্যাংক', en: 'CQ Bank', icon: <FileSpreadsheet className="w-4 h-4" /> },
     { id: 'mcq', bn: 'MCQ পরীক্ষা', en: 'MCQ Exam', icon: <FileCheck2 className="w-4 h-4" /> },
+    { id: 'gk', bn: 'সাধারণ জ্ঞান ড্রিল', en: 'GK Drill', icon: <Brain className="w-4 h-4" /> },
     { id: 'lab', bn: 'ভার্চুয়াল ল্যাব', en: 'Virtual Lab', icon: <FlaskConical className="w-4 h-4" /> },
     { id: 'planner', bn: 'স্টাডি প্ল্যানার', en: 'Study Planner', icon: <Clock className="w-4 h-4" /> },
     { id: 'analytics', bn: 'বিশ্লেষণ', en: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },

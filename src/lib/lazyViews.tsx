@@ -39,6 +39,7 @@ const loaders = {
   gpa: () => import('../components/GpaCalculatorView'),
   leaderboard: () => import('../components/LeaderboardView'),
   life: () => import('../components/LifeHubView'),
+  gk: () => import('../components/GkDrillView'),
 } as const;
 
 export const LazySyllabusTrackerView = lazyNamed(loaders.syllabus, 'SyllabusTrackerView');
@@ -54,6 +55,7 @@ export const LazyPracticalWritingView = lazyNamed(loaders.practical, 'PracticalW
 export const LazyGpaCalculatorView = lazyNamed(loaders.gpa, 'GpaCalculatorView');
 export const LazyLeaderboardView = lazyNamed(loaders.leaderboard, 'LeaderboardView');
 export const LazyLifeHubView = lazyNamed(loaders.life, 'LifeHubView');
+export const LazyGkDrillView = lazyNamed(loaders.gk, 'GkDrillView');
 
 /**
  * Modals are split too: the command palette pulls the whole chapter, formula
