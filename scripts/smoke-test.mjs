@@ -351,23 +351,38 @@ console.log(
 );
 failures += tickedInRoutine && syllabusSynced ? 0 : 1;
 
-// The study-time tab must show the chronotype picker, the sleep verdict and
-// the evidence list behind the plan.
+// Today's card carries the adjusted target and the next mock; the study-time
+// tab carries chronotype, sleep, evidence and the weekly pacing; the weekly tab
+// lists the scheduled mock.
+const todayCardText = container.textContent || '';
 const openedTimeTab = clickByText('পড়ার সময়');
 await new Promise((resolve) => setTimeout(resolve, 400));
 const timeTabText = container.textContent || '';
+const hasTarget = todayCardText.includes('আজকের পড়ার লক্ষ্য');
+const hasNextMock = todayCardText.includes('পরের মক টেস্ট');
+const hasPacing = timeTabText.includes('এই সপ্তাহের হিসাব');
 const hasChronotype =
   timeTabText.includes('তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?') &&
   timeTabText.includes('সকালে') &&
   timeTabText.includes('রাতে');
 const hasEvidence = timeTabText.includes('এই রুটিনের পেছনের প্রমাণ');
-const hasSleep = timeTabText.includes('ঘুম:');
 console.log(
-  openedTimeTab && hasChronotype && hasEvidence && hasSleep
-    ? '\u2713 the study-time tab shows chronotype, sleep verdict and evidence'
-    : `\u2717 study-time tab incomplete (tab=${openedTimeTab}, chrono=${hasChronotype}, evidence=${hasEvidence}, sleep=${hasSleep})`
+  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence
+    ? 'the today card shows target + next mock, and study time shows pacing, chronotype and evidence'
+    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence})`
 );
-failures += openedTimeTab && hasChronotype && hasEvidence && hasSleep ? 0 : 1;
+failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence ? 0 : 1;
+
+const openedWeekTab = clickByText('এই সপ্তাহ');
+await new Promise((resolve) => setTimeout(resolve, 400));
+const weekTabText = container.textContent || '';
+const hasWeekMockCard = weekTabText.includes('এই সপ্তাহের মক টেস্ট');
+console.log(
+  openedWeekTab && hasWeekMockCard
+    ? 'the weekly tab lists the scheduled mock test'
+    : `weekly mock card missing (tab=${openedWeekTab}, card=${hasWeekMockCard})`
+);
+failures += openedWeekTab && hasWeekMockCard ? 0 : 1;
 
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
@@ -410,7 +425,6 @@ console.log(
 failures += forbidden.length === 0 ? 0 : 1;
 
 // ---------- Pure logic: exam patterns, eligibility, reasons, reminders ----------
-const patterns = await vite.ssrLoadModule('/src/lib/examPatterns.ts');
 const eligibility = await vite.ssrLoadModule('/src/lib/eligibility.ts');
 const mistakeTags = await vite.ssrLoadModule('/src/lib/mistakeTags.ts');
 const reminders = await vite.ssrLoadModule('/src/lib/reminders.ts');
@@ -485,6 +499,7 @@ check(
   'every CQ carries a stem plus ক-ঘ and answers'
 );
 
+const patterns = await vite.ssrLoadModule('/src/lib/examPatterns.ts');
 const medical = patterns.getPatternById('medical-mbbs');
 check(
   patterns.patternTimeFor(medical, 10) === 360,
@@ -686,6 +701,101 @@ check(
 check(
   science.EVIDENCE.length >= 4 && science.EVIDENCE.every((item) => item.claimBn && item.sourceBn),
   'every timetable rule shows its research claim and source'
+);
+
+const mockPlan = await vite.ssrLoadModule('/src/lib/mockPlan.ts');
+
+check(
+  mockPlan.mockTestForDay(1) === null && mockPlan.mockTestForDay(6) === null && mockPlan.mockTestForDay(7) !== null,
+  'mock tests only land on the Friday revision day'
+);
+const firstMock = mockPlan.mockTestForDay(7);
+check(
+  firstMock && firstMock.track.key === 'weekly' && firstMock.papersBn.length === 2,
+  'the academic phase sets a weekly test on that week\u2019s two papers'
+);
+const admissionKinds = mockPlan
+  .mockTestsBetween(240, 340)
+  .map((test) => test.track.key);
+const admissionSet = new Set(admissionKinds);
+check(
+  admissionSet.size === 3 &&
+    admissionSet.has('varsity') &&
+    admissionSet.has('engineering') &&
+    admissionSet.has('medical'),
+  'the pre-admission phase rotates varsity, engineering and medical',
+  [...admissionSet].join('/')
+);
+const fullPhase = mockPlan.mockTestsBetween(341, 391);
+check(
+  fullPhase.length > 0 && fullPhase.every((test) => test.track.key === 'combined'),
+  'the final phase runs combined full mocks'
+);
+check(
+  mockPlan.mockTestsBetween(mockPlan.FINAL_REVISION_FROM_DAY, 391).length === 0 &&
+    mockPlan.mockTestForDay(mockPlan.FINAL_REVISION_FROM_DAY - 1) === null,
+  'the last two weeks carry no new mock \u2014 they are final revision'
+);
+const allMocks = mockPlan.mockTestsBetween(1, 391);
+check(
+  allMocks.length > 0 &&
+    allMocks.every(
+      (test) =>
+        test.track.minutes > 0 &&
+        test.track.marks > 0 &&
+        patterns.EXAM_PATTERNS.some((pattern) => pattern.id === test.track.patternId)
+    ),
+  'every scheduled mock points at a real exam pattern with real time and marks'
+);
+const counts = mockPlan.mockCounts();
+check(
+  Object.values(counts).reduce((a, b) => a + b, 0) === allMocks.length,
+  'the mock counts add up to the calendar'
+);
+const upcoming = mockPlan.upcomingMocks(1, 3, '2026-01-01');
+check(
+  upcoming.length === 3 &&
+    upcoming[0].dayNumber === 7 &&
+    upcoming.every((test, i) => i === 0 || test.daysAway > upcoming[i - 1].daysAway) &&
+    upcoming.every((test) => test.dateKey === routine.dateForDayNumber('2026-01-01', test.dayNumber)),
+  'upcoming mocks are ordered and carry their real dates'
+);
+const lastTwoWeeks = routine.weekPacing(
+  '2026-01-01',
+  routine.dateForDayNumber('2026-01-01', routine.TOTAL_PLAN_DAYS),
+  {}
+);
+check(
+  lastTwoWeeks && lastTwoWeeks.toDay === 391 && lastTwoWeeks.daysLeft === 1,
+  'the week window clamps to the end of the 391-day plan'
+);
+
+const emptyWeek = routine.weekPacing('2026-01-01', '2026-01-03', {});
+check(
+  emptyWeek &&
+    emptyWeek.fromDay === 1 &&
+    emptyWeek.toDay === 7 &&
+    emptyWeek.verdict === 'farBehind' &&
+    emptyWeek.perDayExtra === 90,
+  'a week with no logged minutes is flagged as far behind, capped at +90 min/day',
+  emptyWeek ? `${emptyWeek.verdict} +${emptyWeek.perDayExtra}` : 'null'
+);
+const weekMinutes = {};
+for (let day = 1; day <= 3; day += 1) {
+  weekMinutes[routine.dateForDayNumber('2026-01-01', day)] = 215;
+}
+const balancedWeek = routine.weekPacing('2026-01-01', '2026-01-03', weekMinutes);
+check(
+  balancedWeek &&
+    Math.abs(balancedWeek.expectedMinutes - balancedWeek.doneMinutes) <= 5 &&
+    (balancedWeek.verdict === 'onTrack' || balancedWeek.verdict === 'ahead') &&
+    balancedWeek.perDayExtra <= 5,
+  'hitting the pro-rata target reads as on track',
+  balancedWeek ? `${balancedWeek.verdict} +${balancedWeek.perDayExtra}` : 'null'
+);
+check(
+  routine.weekPacing('2026-01-01', '2025-12-31', {}) === null,
+  'week pacing stays silent outside the plan'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

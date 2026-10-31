@@ -23,6 +23,7 @@ import {
   WEEKLY_HOUR_TARGET,
   availableStudyMinutes,
   buildStudyDay,
+  weekPacing,
   classSlotsForDay,
   EVIDENCE,
   revisionQueue,
@@ -34,6 +35,13 @@ import {
   toDateKey,
   weekdayIndexForDay,
 } from '../lib/masterRoutine';
+import {
+  FINAL_REVISION_FROM_DAY,
+  MOCK_TRACKS,
+  mockCounts,
+  mockTestsBetween,
+  upcomingMocks,
+} from '../lib/mockPlan';
 import type { Chronotype } from '../lib/studyScience';
 import { sleepFeedback } from '../lib/studyScience';
 import {
@@ -57,6 +65,8 @@ interface MasterRoutineViewProps {
   progressMap?: Record<string, ChapterProgressState>;
   /** Marking a class chapter done writes straight into the syllabus tracker. */
   onToggleStage?: (chapterId: string, stage: keyof ChapterProgressState) => void;
+  /** Jump to the mock-test screen when the student taps a scheduled test. */
+  onOpenMock?: () => void;
 }
 
 type Tab = 'today' | 'week' | 'time';
@@ -75,6 +85,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   theme,
   progressMap = {},
   onToggleStage,
+  onOpenMock,
 }) => {
   const isDark = theme === 'dark';
   const useBn = lang === 'bn';
@@ -105,6 +116,31 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
     [state, dateKey]
   );
   const minutesToday = state.minutes[dateKey] || 0;
+
+  // Weekly target vs what was actually logged (Sat→Fri plan week).
+  const pacing = useMemo(
+    () => weekPacing(state.startDate, dateKey, state.minutes),
+    [state.startDate, dateKey, state.minutes]
+  );
+  const nextMocks = useMemo(
+    () => (dayNumber ? upcomingMocks(dayNumber, 3, state.startDate) : []),
+    [dayNumber, state.startDate]
+  );
+  const weekMocks = useMemo(() => {
+    if (!dayNumber) return [];
+    const base = new Date(`${dateKey}T00:00:00`);
+    const weekdayIdx = (base.getDay() + 1) % 7;
+    const saturday = new Date(base.getTime());
+    saturday.setDate(saturday.getDate() - weekdayIdx);
+    const friday = new Date(saturday.getTime());
+    friday.setDate(friday.getDate() + 6);
+    const from = dayNumberForDate(state.startDate, toDateKey(saturday));
+    const to = dayNumberForDate(state.startDate, toDateKey(friday));
+    if (!from || !to) return [];
+    return mockTestsBetween(from, to);
+  }, [dayNumber, dateKey, state.startDate]);
+  const mockTotals = useMemo(() => mockCounts(), []);
+  const todayTarget = studyMinutes + (pacing ? pacing.perDayExtra : 0);
   const tickedToday = completedTasksForDate(state, dateKey);
 
   // Last seven days of logged minutes, oldest first.
@@ -436,6 +472,113 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             </div>
           )}
 
+          {/* Target for today, nudged by this week's pacing */}
+          {pacing && (
+            <div className={`rounded-2xl border p-4 ${card}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">
+                  {useBn ? 'আজকের পড়ার লক্ষ্য' : 'Today’s study target'}
+                </p>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${chip}`}>
+                  {useBn ? `${bn(todayTarget)} মিনিট` : `${todayTarget} min`}
+                </span>
+              </div>
+              <div className={`mt-2 h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <div
+                  className={`h-full ${
+                    pacing.verdict === 'ahead' || pacing.verdict === 'onTrack'
+                      ? 'bg-emerald-500'
+                      : pacing.verdict === 'behind'
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500'
+                  }`}
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.round((pacing.doneMinutes / Math.max(1, pacing.expectedMinutes)) * 100)
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p className={`text-[11px] mt-2 leading-relaxed ${muted}`}>
+                {useBn ? pacing.messageBn : pacing.messageEn}
+              </p>
+              {pacing.perDayExtra > 0 && (
+                <p className="text-[11px] mt-1 font-bold text-amber-600 dark:text-amber-300">
+                  {useBn
+                    ? `আজকের ব্লকে +${bn(pacing.perDayExtra)} মিনিট যোগ হয়েছে`
+                    : `Today’s blocks carry +${pacing.perDayExtra} min`}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Upcoming mock tests */}
+          {nextMocks.length > 0 && (
+            <div className={`rounded-2xl border p-4 ${card}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">
+                  {useBn ? 'পরের মক টেস্ট' : 'Next mock tests'}
+                </p>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${chip}`}>
+                  {useBn
+                    ? `প্ল্যানে ${bn(
+                        mockTotals.weekly +
+                          mockTotals.varsity +
+                          mockTotals.engineering +
+                          mockTotals.medical +
+                          mockTotals.combined
+                      )}টি`
+                    : `${mockTotals.weekly +
+                        mockTotals.varsity +
+                        mockTotals.engineering +
+                        mockTotals.medical +
+                        mockTotals.combined} in plan`}
+                </span>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {nextMocks.map((test) => (
+                  <li key={test.id}>
+                    <button
+                      onClick={() => (onOpenMock ? onOpenMock() : undefined)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
+                        test.daysAway === 0
+                          ? isDark
+                            ? 'border-rose-400/40 bg-rose-500/10'
+                            : 'border-rose-300 bg-rose-50'
+                          : isDark
+                            ? 'border-slate-800 hover:border-slate-600'
+                            : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-bold">{useBn ? test.titleBn : test.titleEn}</span>
+                        <span className="shrink-0 font-mono text-[10px] opacity-80">
+                          Day {bn(test.dayNumber)}
+                        </span>
+                      </div>
+                      <p className={`text-[10px] mt-0.5 ${muted}`}>
+                        {test.dateKey} ·{' '}
+                        {useBn
+                          ? `${bn(test.track.minutes)} মিনিট · ${bn(test.track.marks)} নম্বর`
+                          : `${test.track.minutes} min · ${test.track.marks} marks`}
+                        {test.track.negative ? (useBn ? ' · নেগেটিভ আছে' : ' · negative marking') : ''}
+                        {' · '}
+                        {test.daysAway === 0
+                          ? useBn
+                            ? 'আজ'
+                            : 'today'
+                          : useBn
+                            ? `${bn(test.daysAway)} দিন পরে`
+                            : `in ${test.daysAway} d`}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Hours log */}
           <div className={`rounded-2xl border p-4 ${card}`}>
             <div className="flex items-center justify-between gap-3">
@@ -541,6 +684,66 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
         </div>
       )}
 
+      {tab === 'week' && (
+        <div className={`rounded-2xl border p-4 ${card}`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-extrabold">
+              {useBn ? 'এই সপ্তাহের মক টেস্ট' : 'Mock tests this week'}
+            </p>
+            {dayNumber && dayNumber >= FINAL_REVISION_FROM_DAY && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isDark ? 'bg-emerald-500/15 text-emerald-300' : 'bg-emerald-50 text-emerald-700'}`}>
+                {useBn ? 'ফাইনাল রিভিশন' : 'Final revision'}
+              </span>
+            )}
+          </div>
+          {weekMocks.length === 0 ? (
+            <p className={`text-[11px] mt-2 ${muted}`}>
+              {useBn
+                ? dayNumber && dayNumber >= FINAL_REVISION_FROM_DAY
+                  ? 'শেষ দুই সপ্তাহে নতুন মক নেই — পুরোটা ফাইনাল রিভিশনের জন্য।'
+                  : 'এই সপ্তাহে কোনো মক নেই — ক্লাস ও রিভিশন চালাও।'
+                : dayNumber && dayNumber >= FINAL_REVISION_FROM_DAY
+                  ? 'No new mock in the last two weeks — that time is pure final revision.'
+                  : 'No mock this week — keep the classes and revision going.'}
+            </p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {weekMocks.map((test) => (
+                <li key={test.id} className="flex items-start justify-between gap-2 text-xs">
+                  <span>
+                    <span className="font-bold">{useBn ? test.titleBn : test.titleEn}</span>
+                    <span className={`block text-[10px] mt-0.5 ${muted}`}>
+                      Day {bn(test.dayNumber)} · {dateForDayNumber(state.startDate, test.dayNumber)} ·{' '}
+                      {useBn
+                        ? `${bn(test.track.minutes)} মিনিট · ${bn(test.track.marks)} নম্বর`
+                        : `${test.track.minutes} min · ${test.track.marks} marks`}
+                      {test.track.negative ? (useBn ? ' · নেগেটিভ' : ' · negative') : ''}
+                    </span>
+                  </span>
+                  {onOpenMock && (
+                    <button
+                      onClick={onOpenMock}
+                      className="shrink-0 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      {useBn ? 'শুরু' : 'Start'}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className={`text-[10px] mt-3 ${muted}`}>
+            {weekMocks.length > 0
+              ? useBn
+                ? weekMocks[0].track.noteBn
+                : weekMocks[0].track.noteEn
+              : useBn
+                ? MOCK_TRACKS.weekly.noteBn
+                : MOCK_TRACKS.weekly.noteEn}
+          </p>
+        </div>
+      )}
+
       {/* ── Time ──────────────────────────────────────────────────────── */}
       {tab === 'time' && (
         <div className="space-y-4">
@@ -608,6 +811,58 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               </span>
             </div>
           </div>
+
+          {/* This week: target vs logged minutes */}
+          {pacing && (
+            <div className={`rounded-2xl border p-4 ${card}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">
+                  {useBn ? 'এই সপ্তাহের হিসাব' : 'This week’s score'}
+                </p>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${chip}`}>
+                  {useBn
+                    ? `${bn(Math.round((pacing.doneMinutes / 60) * 10) / 10)} / ${bn(WEEKLY_HOUR_TARGET)} ঘণ্টা`
+                    : `${Math.round((pacing.doneMinutes / 60) * 10) / 10} / ${WEEKLY_HOUR_TARGET} h`}
+                </span>
+              </div>
+              <div className={`mt-2 h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <div
+                  className={`h-full transition-all ${
+                    pacing.verdict === 'ahead' || pacing.verdict === 'onTrack'
+                      ? 'bg-emerald-500'
+                      : pacing.verdict === 'behind'
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${Math.min(100, Math.round((pacing.doneMinutes / pacing.targetMinutes) * 100))}%` }}
+                />
+              </div>
+              <p className={`text-[11px] mt-2 leading-relaxed ${muted}`}>
+                {useBn ? pacing.messageBn : pacing.messageEn}
+              </p>
+              <div className={`mt-3 grid grid-cols-3 gap-2 text-center text-[10px]`}>
+                <div className={`rounded-lg py-2 ${isDark ? 'bg-slate-800/70' : 'bg-slate-50'}`}>
+                  <p className="font-bold tabular-nums">{bn(Math.round((pacing.doneMinutes / 60) * 10) / 10)} ঘ</p>
+                  <p className={muted}>{useBn ? 'হয়েছে' : 'done'}</p>
+                </div>
+                <div className={`rounded-lg py-2 ${isDark ? 'bg-slate-800/70' : 'bg-slate-50'}`}>
+                  <p className="font-bold tabular-nums">{bn(Math.round((pacing.expectedMinutes / 60) * 10) / 10)} ঘ</p>
+                  <p className={muted}>{useBn ? 'এখন পর্যন্ত উচিত' : 'expected so far'}</p>
+                </div>
+                <div className={`rounded-lg py-2 ${isDark ? 'bg-slate-800/70' : 'bg-slate-50'}`}>
+                  <p className="font-bold tabular-nums">{bn(pacing.daysLeft)}</p>
+                  <p className={muted}>{useBn ? 'দিন বাকি' : 'days left'}</p>
+                </div>
+              </div>
+              {pacing.perDayExtra > 0 && (
+                <p className="text-[11px] mt-2 font-bold text-amber-600 dark:text-amber-300">
+                  {useBn
+                    ? `সাজেশন: বাকি দিনগুলোতে দিনে +${bn(pacing.perDayExtra)} মিনিট`
+                    : `Suggested: +${pacing.perDayExtra} min on each remaining day`}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Chronotype + sleep check */}
           <div className={`rounded-2xl border p-4 ${card}`}>

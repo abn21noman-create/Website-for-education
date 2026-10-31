@@ -260,6 +260,8 @@ export {
 } from './studyScience';
 
 export type { LearnedItem, RevisionDue, EvidenceNote } from './studyScience';
+export { mockTestsBetween, mockTestForDay, mockCounts, upcomingMocks, MOCK_TRACKS, FINAL_REVISION_FROM_DAY } from './mockPlan';
+export type { MockKind, MockTest, MockTrack, UpcomingMock } from './mockPlan';
 
 export const DEFAULT_TIME_SETTINGS = {
   wake: '06:00',
@@ -276,3 +278,98 @@ export function buildTimePlan(settings: typeof DEFAULT_TIME_SETTINGS, chronotype
 
 /** Monday-first free weekly target, shown next to the logged hours. */
 export const WEEKLY_HOUR_TARGET = 25;
+
+/**
+ * Weekly target versus what was actually logged.
+ *
+ * The plan week runs Saturday→Friday (day 1 is a Saturday), so the window is
+ * derived from the plan day, not the calendar's Monday. The shortfall is turned
+ * into a small per-day extra so a lost week can be caught up without inventing a
+ * heroic 6-hour Sunday — the extra is capped at 90 minutes a day.
+ */
+export interface WeekPacing {
+  fromDay: number;
+  toDay: number;
+  fromKey: string;
+  toKey: string;
+  targetMinutes: number;
+  expectedMinutes: number;
+  doneMinutes: number;
+  daysLeft: number;
+  deficitMinutes: number;
+  perDayExtra: number;
+  verdict: 'ahead' | 'onTrack' | 'behind' | 'farBehind';
+  messageBn: string;
+  messageEn: string;
+}
+
+const MAX_PER_DAY_EXTRA = 90;
+
+export function weekPacing(
+  startDate: string,
+  todayKey: string,
+  minutes: Record<string, number>
+): WeekPacing | null {
+  const day = dayNumberForDate(startDate, todayKey);
+  if (day === null) return null;
+  const weekIndex = Math.floor((day - 1) / 7);
+  const fromDay = weekIndex * 7 + 1;
+  const toDay = Math.min(TOTAL_PLAN_DAYS, fromDay + 6);
+  const targetMinutes = WEEKLY_HOUR_TARGET * 60;
+  const daysInWeek = toDay - fromDay + 1;
+  const daysLeft = toDay - Math.min(day, toDay) + 1;
+  const elapsed = Math.max(1, Math.min(day, toDay) - fromDay + 1);
+  const expectedMinutes = Math.round((targetMinutes * elapsed) / daysInWeek);
+
+  let doneMinutes = 0;
+  for (let d = fromDay; d <= toDay; d += 1) {
+    doneMinutes += minutes[dateForDayNumber(startDate, d)] || 0;
+  }
+
+  const deficitMinutes = expectedMinutes - doneMinutes;
+  const perDayExtra =
+    deficitMinutes > 0 && daysLeft > 0
+      ? Math.min(MAX_PER_DAY_EXTRA, Math.ceil(deficitMinutes / daysLeft))
+      : 0;
+
+  const ratio = expectedMinutes > 0 ? doneMinutes / expectedMinutes : 1;
+  const verdict: WeekPacing['verdict'] =
+    ratio >= 1.05 ? 'ahead' : ratio >= 0.85 ? 'onTrack' : ratio >= 0.55 ? 'behind' : 'farBehind';
+
+  const hoursDone = Math.round((doneMinutes / 60) * 10) / 10;
+  const hoursTarget = WEEKLY_HOUR_TARGET;
+  const messages: Record<WeekPacing['verdict'], { bn: string; en: string }> = {
+    ahead: {
+      bn: `${hoursDone} ঘণ্টা হয়েছে — সপ্তাহের লক্ষ্য ${hoursTarget} ঘণ্টার চেয়ে এগিয়ে। এই গতি ধরে রাখো।`,
+      en: `${hoursDone} h done — ahead of this week’s ${hoursTarget} h target. Keep this pace.`,
+    },
+    onTrack: {
+      bn: `${hoursDone} ঘণ্টা হয়েছে — ${hoursTarget} ঘণ্টার লক্ষ্যের সাথে তাল মিলছে।`,
+      en: `${hoursDone} h done — on track for the ${hoursTarget} h week.`,
+    },
+    behind: {
+      bn: `${hoursDone} ঘণ্টা হয়েছে, ${Math.max(0, Math.round(deficitMinutes / 60 * 10) / 10)} ঘণ্টা পিছিয়ে — বাকি ${daysLeft} দিনে দিনে ${perDayExtra} মিনিট বেশি পড়লে ধরা পড়ে যাবে।`,
+      en: `${hoursDone} h done, ${Math.max(0, Math.round(deficitMinutes / 60 * 10) / 10)} h behind — ${perDayExtra} extra minutes on each of the ${daysLeft} remaining days catches it up.`,
+    },
+    farBehind: {
+      bn: `${hoursDone} ঘণ্টা হয়েছে — অনেক পিছিয়ে। পুরো সপ্তাহ উড়িয়ে দিও না: আজ ${perDayExtra} মিনিট বেশি দিয়ে শুরু করো, বাকিটা পরের সপ্তাহে টেনে নাও।`,
+      en: `${hoursDone} h done — well behind. Don’t write the week off: start with ${perDayExtra} extra minutes today and carry the rest into next week.`,
+    },
+  };
+
+  return {
+    fromDay,
+    toDay,
+    fromKey: dateForDayNumber(startDate, fromDay),
+    toKey: dateForDayNumber(startDate, toDay),
+    targetMinutes,
+    expectedMinutes,
+    doneMinutes,
+    daysLeft,
+    deficitMinutes,
+    perDayExtra,
+    verdict,
+    messageBn: messages[verdict].bn,
+    messageEn: messages[verdict].en,
+  };
+}

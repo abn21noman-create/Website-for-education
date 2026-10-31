@@ -1294,6 +1294,7 @@ export function App() {
               theme={theme}
               progressMap={progressMap}
               onToggleStage={handleToggleStage}
+              onOpenMock={() => handleNavigate('mcq')}
             />
           )}
 

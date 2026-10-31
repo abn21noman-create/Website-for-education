@@ -36,6 +36,7 @@ import {
   isRevisionDay,
   toDateKey,
   revisionQueue,
+  upcomingMocks,
 } from '../lib/masterRoutine';
 import { learnedChapters, loadRoutineState } from '../lib/routineStore';
 import { formatNum, getBoardLabel } from '../lib/i18n';
@@ -81,6 +82,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       slots: dayNumber ? classSlotsForDay(dayNumber) : [],
       revision: dayNumber ? isRevisionDay(dayNumber) : false,
       dueReviews: due.length,
+      nextMock: dayNumber ? upcomingMocks(dayNumber, 1, routine.startDate)[0] ?? null : null,
     };
   });
 
@@ -395,6 +397,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </li>
             ))}
           </ul>
+        )}
+
+        {routineToday.nextMock && (
+          <div className={`mt-3 pt-3 border-t flex items-center justify-between gap-2 ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>
+            <p className="text-[11px] font-semibold flex items-center gap-1.5">
+              <CalendarClock className="w-3.5 h-3.5 text-rose-500" />
+              {lang === 'bn'
+                ? routineToday.nextMock.daysAway === 0
+                  ? `আজ মক টেস্ট: ${routineToday.nextMock.track.nameBn}`
+                  : `পরের মক: ${routineToday.nextMock.track.nameBn} · ${formatNum(routineToday.nextMock.daysAway, lang)} দিন পরে`
+                : routineToday.nextMock.daysAway === 0
+                  ? `Mock today: ${routineToday.nextMock.track.nameEn}`
+                  : `Next mock: ${routineToday.nextMock.track.nameEn} · in ${routineToday.nextMock.daysAway} d`}
+            </p>
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded shrink-0 ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+              {lang === 'bn'
+                ? `${formatNum(routineToday.nextMock.track.minutes, lang)} মি · ${formatNum(routineToday.nextMock.track.marks, lang)} নম্বর`
+                : `${routineToday.nextMock.track.minutes} min · ${routineToday.nextMock.track.marks} marks`}
+            </span>
+          </div>
         )}
       </section>
 
