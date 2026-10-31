@@ -482,6 +482,30 @@ check(
   combinedRule.missing.map((m) => m.bn).join(' | ')
 );
 
+const formulaBank = await vite.ssrLoadModule('/src/data/formulasData.ts');
+const formulaIds = formulaBank.FORMULAS.map((f) => f.id);
+check(
+  formulaBank.FORMULAS.length >= 50 && new Set(formulaIds).size === formulaIds.length,
+  'formula vault holds 50+ unique cards',
+  `${formulaBank.FORMULAS.length} cards`
+);
+const formulaPerPaper = {};
+formulaBank.FORMULAS.forEach((f) => {
+  formulaPerPaper[f.subjectKey] = (formulaPerPaper[f.subjectKey] || 0) + 1;
+});
+const thinFormulaPaper = Object.entries(formulaPerPaper).sort((a, b) => a[1] - b[1])[0] || ['', 0];
+check(
+  Object.keys(formulaPerPaper).length === 11 && thinFormulaPaper[1] >= 2,
+  'every paper has at least two formula cards',
+  `${thinFormulaPaper[0]}: ${thinFormulaPaper[1]}`
+);
+check(
+  formulaBank.FORMULAS.every(
+    (f) => f.formula && f.explanation.bn && f.explanation.en && f.examTip.bn
+  ),
+  'every formula card carries a bilingual explanation and exam tip'
+);
+
 const gkBank = await vite.ssrLoadModule('/src/data/gkBank.ts');
 const gkIds = gkBank.GK_QUESTIONS.map((item) => item.id);
 check(
