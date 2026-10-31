@@ -717,4 +717,125 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
       en: 'Use a test cross: crossing with tt gives all tall offspring if the parent is TT, but a 1 : 1 tall : dwarf ratio if it is Tt.',
     },
   },
+
+  {
+    id: 'cq-chem1-2',
+    subjectKey: 'chemistry1',
+    chapter: { bn: 'অধ্যায় : মোল ও রাসায়নিক গণনা', en: 'Ch: Mole & Chemical Calculation' },
+    boardTag: { bn: 'ঢাকা ও চট্টগ্রাম বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Chattogram Board Standard' },
+    stem: {
+      bn: 'STP-তে 4.4 g CO₂ গ্যাসের একটি নমুনা নেওয়া হলো। (C = 12, O = 16, STP-তে মোলার আয়তন 22.4 L)',
+      en: 'A 4.4 g sample of CO₂ gas is taken at STP. (C = 12, O = 16, molar volume at STP = 22.4 L)',
+    },
+    qA: { bn: 'মোল কাকে বলে?', en: 'What is a mole?' },
+    qB: { bn: 'মোলার আয়তন বলতে কী বোঝায়? ব্যাখ্যা করো।', en: 'What is meant by molar volume? Explain.' },
+    qC: { bn: 'নমুনটিতে মোল ও অণুর সংখ্যা নির্ণয় করো।', en: 'Find the number of moles and molecules in the sample.' },
+    qD: { bn: 'STP-তে নমুনটির আয়তন এবং মোট পরমাণুর সংখ্যা নির্ণয় করো।', en: 'Find the volume at STP and the total number of atoms.' },
+    ansA: {
+      bn: 'কোনো পদার্থের যে পরিমাণে 6.023 × 10²³ টি (অ্যাভোগাড্রো সংখ্যা) কণা থাকে, তাকে এক মোল বলে।',
+      en: 'One mole is the amount containing 6.023 × 10²³ particles (Avogadro’s number).',
+    },
+    ansB: {
+      bn: 'এক মোল যেকোনো গ্যাস STP-তে যে আয়তন দখল করে তাকে মোলার আয়তন বলে; এর মান 22.4 L। কারণ একই তাপমাত্রা ও চাপে সমআয়তন গ্যাসে সমসংখ্যক অণু থাকে।',
+      en: 'The volume one mole of any gas occupies at STP is its molar volume: 22.4 L, because equal volumes of gases at the same temperature and pressure hold equal numbers of molecules.',
+    },
+    ansC: {
+      bn: 'CO₂-এর মোলার ভর = 12 + 2 × 16 = 44 g/mol। মোল = 4.4 / 44 = 0.1 mol। অণুর সংখ্যা = 0.1 × 6.023 × 10²³ = 6.023 × 10²²।',
+      en: 'Molar mass of CO₂ = 44 g/mol, so moles = 4.4/44 = 0.1. Molecules = 6.023 × 10²².',
+    },
+    ansD: {
+      bn: 'আয়তন = 0.1 × 22.4 = 2.24 L। প্রতিটি CO₂ অণুতে 3টি পরমাণু (1 C + 2 O), তাই পরমাণুর সংখ্যা = 3 × 6.023 × 10²² = 1.807 × 10²³।',
+      en: 'Volume = 2.24 L. Each molecule has three atoms, so atoms = 1.807 × 10²³.',
+    },
+  },
+  {
+    id: 'cq-math1-2',
+    subjectKey: 'math1',
+    chapter: { bn: 'অধ্যায় : দ্বিঘাত সমীকরণ', en: 'Ch: Quadratic Equations' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'x² − 5x + 6 = 0 একটি দ্বিঘাত সমীকরণ।',
+      en: 'x² − 5x + 6 = 0 is a quadratic equation.',
+    },
+    qA: { bn: 'দ্বিঘাত সমীকরণ কাকে বলে?', en: 'Define a quadratic equation.' },
+    qB: { bn: 'সমীকরণটির মূলদ্বয়ের প্রকৃতি নির্ণয় করো।', en: 'Determine the nature of the roots.' },
+    qC: { bn: 'সমীকরণটির মূল নির্ণয় করো।', en: 'Solve the equation.' },
+    qD: { bn: 'মূলদ্বয়ের যোগফল ও গুণফল নির্ণয় করে উত্তর যাচাই করো।', en: 'Verify your answer using the sum and product of the roots.' },
+    ansA: {
+      bn: 'ax² + bx + c = 0 আকারের সমীকরণকে দ্বিঘাত সমীকরণ বলে, যেখানে a ≠ 0 এবং a, b, c বাস্তব সংখ্যা।',
+      en: 'An equation of the form ax² + bx + c = 0 with a ≠ 0 and real coefficients.',
+    },
+    ansB: {
+      bn: 'নিশ্চায়ক D = b² − 4ac = 25 − 24 = 1 > 0। D ধনাত্মক ও পূর্ণবর্গ, তাই মূলদ্বয় বাস্তব, অসমান ও মূলদ।',
+      en: 'Discriminant D = b² − 4ac = 1 > 0, so the roots are real, unequal and rational.',
+    },
+    ansC: {
+      bn: 'x = (5 ± √1)/2 = (5 + 1)/2 বা (5 − 1)/2 = 3 অথবা 2। অর্থাৎ মূল 2 ও 3।',
+      en: 'x = (5 ± 1)/2 gives 3 and 2.',
+    },
+    ansD: {
+      bn: 'মূলের যোগফল = −b/a = 5/1 = 5; গুণফল = c/a = 6/1 = 6। আমাদের মূল 2 ও 3-এর যোগফল 5, গুণফল 6 — তাই উত্তর সঠিক।',
+      en: 'Sum = −b/a = 5 and product = c/a = 6; 2 + 3 = 5 and 2 × 3 = 6, confirming the roots.',
+    },
+  },
+  {
+    id: 'cq-ict-4',
+    subjectKey: 'ict',
+    chapter: { bn: 'অধ্যায় : ডেটাবেজ ম্যানেজমেন্ট সিস্টেম', en: 'Ch: Database Management System' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'একটি পাঠাগারের বইয়ের তথ্য রাখতে Books(id, title, author, price) টেবিল ব্যবহার করা হয়।',
+      en: 'A library stores its books in a table Books(id, title, author, price).',
+    },
+    qA: { bn: 'ডেটাবেজ কী?', en: 'What is a database?' },
+    qB: { bn: 'প্রাইমারি কী ও ফরেন কী-এর মধ্যে পার্থক্য লেখো।', en: 'State the difference between a primary key and a foreign key.' },
+    qC: { bn: '৩০০ টাকার বেশি দামের বইগুলোর title ও price বের করার SQL কোয়েরি লেখো।', en: 'Write an SQL query to list title and price of books that cost more than 300 taka.' },
+    qD: { bn: 'নতুন একটি বই যোগ করার SQL কমান্ড উদাহরণসহ লেখো।', en: 'Write the SQL command to insert a new book, with an example.' },
+    ansA: {
+      bn: 'পরস্পর সম্পর্কযুক্ত তথ্যের সুসংগঠিত সংগ্রহ, যা সহজে সংরক্ষণ, অনুসন্ধান ও হালনাগাদ করা যায়, তাকে ডেটাবেজ বলে।',
+      en: 'A database is an organised collection of related data that can be stored, searched and updated easily.',
+    },
+    ansB: {
+      bn: 'প্রাইমারি কী প্রতিটি রেকর্ডকে অনন্যভাবে শনাক্ত করে (যেমন Books-এ id) এবং শূন্য বা পুনরাবৃত্তি হতে পারে না। ফরেন কী অন্য টেবিলের প্রাইমারি কী-কে নির্দেশ করে এবং সম্পর্ক তৈরি করে — পুনরাবৃত্ত হতে পারে।',
+      en: 'A primary key uniquely identifies each record and cannot repeat or be null; a foreign key references another table’s primary key to build a relation, and may repeat.',
+    },
+    ansC: {
+      bn: 'SELECT title, price FROM Books WHERE price > 300; — SELECT দিয়ে কলাম, FROM দিয়ে টেবিল এবং WHERE দিয়ে শর্ত নির্দেশ করা হয়।',
+      en: 'SELECT title, price FROM Books WHERE price > 300;',
+    },
+    ansD: {
+      bn: 'INSERT INTO Books VALUES (4, “পথের পাঁচালী”, “বিভূতিভূষণ”, 250); — INSERT INTO দিয়ে টেবিলে নতুন রেকর্ড যোগ করা হয় এবং কলামের ক্রম অনুয়ায়ী মান দিতে হয়।',
+      en: 'INSERT INTO Books VALUES (4, “পথের পাঁচালী”, “বিভূতিভূষণ”, 250); — the values follow the column order.',
+    },
+  },
+  {
+    id: 'cq-bio1-3',
+    subjectKey: 'biology1',
+    chapter: { bn: 'অধ্যায় : সালোকসংশ্লেষণ', en: 'Ch: Photosynthesis' },
+    boardTag: { bn: 'মেডিকেল ও সকল বোর্ড আদর্শ সৃজনশীল', en: 'Medical & All Boards Standard' },
+    stem: {
+      bn: 'সূর্যালোকিত একটি দিনে একটি পত্রক ১২ ঘণ্টায় 0.264 g CO₂ গ্রহণ করে। (CO₂ = 44, গ্লুকোজ = 180)',
+      en: 'On a sunny day a leaf takes in 0.264 g of CO₂ in 12 hours. (CO₂ = 44, glucose = 180)',
+    },
+    qA: { bn: 'সালোকসংশ্লেষণ কাকে বলে?', en: 'What is photosynthesis?' },
+    qB: { bn: 'আলোক-নির্ভর বিক্রিয়ায় ATP ও NADPH কীভাবে তৈরি হয়?', en: 'How are ATP and NADPH produced in the light reaction?' },
+    qC: { bn: 'গৃহীত CO₂-এর মোল সংখ্যা নির্ণয় করো।', en: 'Find the number of moles of CO₂ taken in.' },
+    qD: { bn: 'উৎপন্ন গ্লুকোজের পরিমাণ নির্ণয় করো।', en: 'Find the mass of glucose produced.' },
+    ansA: {
+      bn: 'সবুজ উদ্ভিদ ও ক্লোরোফিলযুক্ত অংশ আলোক শক্তি ব্যবহার করে CO₂ ও পানি থেকে গ্লুকোজ তৈরি করে অক্সিজেন নির্গত করে — এ প্রক্রিয়াই সালোকসংশ্লেষণ।',
+      en: 'Green plants use light energy to make glucose from CO₂ and water and release oxygen.',
+    },
+    ansB: {
+      bn: 'থাইলাকয়েড ঝিল্লিতে আলোক শক্তি পানির ফটোফসফোরাইলেশন (water splitting) ও ইলেকট্রন প্রবাহ চালায়; এই প্রক্রিয়ায় হালকা ATP এবং NADP⁺ থেকে NADPH তৈরি হয়, যা পরে ক্যালভিন চক্রে ব্যবহৃত হয়।',
+      en: 'Light drives water splitting and electron transport in the thylakoid membrane, generating ATP and NADPH for the Calvin cycle.',
+    },
+    ansC: {
+      bn: 'মোল = ভর / মোলার ভর = 0.264 / 44 = 0.006 mol।',
+      en: 'Moles = 0.264/44 = 0.006 mol.',
+    },
+    ansD: {
+      bn: '6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂; 6 মোল CO₂ থেকে 1 মোল গ্লুকোজ হয়। তাই 0.006 মোল CO₂ থেকে 0.001 মোল গ্লুকোজ = 0.001 × 180 = 0.18 g।',
+      en: 'Six moles of CO₂ give one mole of glucose, so 0.006 mol gives 0.001 mol = 0.18 g.',
+    },
+  },
 ];

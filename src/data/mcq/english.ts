@@ -601,7 +601,167 @@ const QUESTIONS: McqQuestion[] = [
       "en": "DU & All Boards"
     },
     "difficulty": "medium"
-  }
+  },
+{
+  "id": "q-eng-16",
+  "subjectKey": "english",
+  "chapter": {
+    "bn": "Grammar: Gerund",
+    "en": "Grammar: Gerund"
+  },
+  "question": {
+    "bn": "He is used to ___ up early.",
+    "en": "He is used to ___ up early."
+  },
+  "options": [
+    {
+      "bn": "get",
+      "en": "get"
+    },
+    {
+      "bn": "getting",
+      "en": "getting"
+    },
+    {
+      "bn": "got",
+      "en": "got"
+    },
+    {
+      "bn": "gets",
+      "en": "gets"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "'be used to' অর্থ অভ্যস্ত হওয়া; এর পরে gerund (verb + ing) বসে — তাই getting up।",
+    "en": "Here 'used to' means accustomed to, so a gerund follows: getting up."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-eng-17",
+  "subjectKey": "english",
+  "chapter": {
+    "bn": "Grammar: Subject-Verb Agreement",
+    "en": "Grammar: Subject-Verb Agreement"
+  },
+  "question": {
+    "bn": "Neither of the boys ___ present in class.",
+    "en": "Neither of the boys ___ present in class."
+  },
+  "options": [
+    {
+      "bn": "are",
+      "en": "are"
+    },
+    {
+      "bn": "is",
+      "en": "is"
+    },
+    {
+      "bn": "were",
+      "en": "were"
+    },
+    {
+      "bn": "have",
+      "en": "have"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "'Neither of + plural noun' এ কবচন অর্থ বোঝায়, তাই is বসে।",
+    "en": "'Neither of' takes a singular verb: is."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-eng-18",
+  "subjectKey": "english",
+  "chapter": {
+    "bn": "Grammar: Passive Voice",
+    "en": "Grammar: Passive Voice"
+  },
+  "question": {
+    "bn": "The letter ___ by him yesterday.",
+    "en": "The letter ___ by him yesterday."
+  },
+  "options": [
+    {
+      "bn": "writes",
+      "en": "writes"
+    },
+    {
+      "bn": "was written",
+      "en": "was written"
+    },
+    {
+      "bn": "has wrote",
+      "en": "has wrote"
+    },
+    {
+      "bn": "is writing",
+      "en": "is writing"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "অতীতকালের passive: was/were + past participle — was written।",
+    "en": "Past passive is was/were + past participle: was written."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-eng-19",
+  "subjectKey": "english",
+  "chapter": {
+    "bn": "Vocabulary: Synonyms",
+    "en": "Vocabulary: Synonyms"
+  },
+  "question": {
+    "bn": "Choose the word closest in meaning to \"abundant\".",
+    "en": "Choose the word closest in meaning to \"abundant\"."
+  },
+  "options": [
+    {
+      "bn": "scarce",
+      "en": "scarce"
+    },
+    {
+      "bn": "plentiful",
+      "en": "plentiful"
+    },
+    {
+      "bn": "fragile",
+      "en": "fragile"
+    },
+    {
+      "bn": "hollow",
+      "en": "hollow"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "'Abundant' মানে প্রচুর; 'plentiful' একই অর্থ, 'scarce' বিপরীতার্থক।",
+    "en": "'Abundant' means existing in large quantities; 'plentiful' is its synonym, 'scarce' the antonym."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;

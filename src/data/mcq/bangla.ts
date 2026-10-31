@@ -601,7 +601,87 @@ const QUESTIONS: McqQuestion[] = [
       "en": "All Boards"
     },
     "difficulty": "medium"
-  }
+  },
+{
+  "id": "q-ban-16",
+  "subjectKey": "bangla",
+  "chapter": {
+    "bn": "ভাষা: সমার্থক শব্দ",
+    "en": "Synonyms"
+  },
+  "question": {
+    "bn": "নিচের কোনটি \"আকাশ\" শব্দের সমার্থক?",
+    "en": "Which word is a synonym of the Bangla word for \"sky\"?"
+  },
+  "options": [
+    {
+      "bn": "গগন",
+      "en": "গগন"
+    },
+    {
+      "bn": "তটিনী",
+      "en": "তটিনী"
+    },
+    {
+      "bn": "সলিল",
+      "en": "সলিল"
+    },
+    {
+      "bn": "অনল",
+      "en": "অনল"
+    }
+  ],
+  "correctIndex": 0,
+  "explanation": {
+    "bn": "গগন = আকাশ; তটিনী = নদী, সলিল = পানি, অনল = আগুন।",
+    "en": "গগন means sky; তটিনী = river, সলিল = water, অনল = fire."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-ban-17",
+  "subjectKey": "bangla",
+  "chapter": {
+    "bn": "ভাষা: সমার্থক শব্দ",
+    "en": "Synonyms"
+  },
+  "question": {
+    "bn": "\"হাতি\" শব্দের সমার্থক কোনটি?",
+    "en": "Which is a synonym of the Bangla word for \"elephant\"?"
+  },
+  "options": [
+    {
+      "bn": "কপোত",
+      "en": "কপোত"
+    },
+    {
+      "bn": "গজ",
+      "en": "গজ"
+    },
+    {
+      "bn": "মৃগ",
+      "en": "মৃগ"
+    },
+    {
+      "bn": "অশ্ব",
+      "en": "অশ্ব"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "গজ = হাতি; কপোত = পায়রা, মৃগ = হরিণ, অশ্ব = ঘোড়া।",
+    "en": "গজ means elephant; কপোত = pigeon, মৃগ = deer, অশ্ব = horse."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;

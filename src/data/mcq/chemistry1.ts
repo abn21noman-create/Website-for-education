@@ -415,7 +415,7 @@ const QUESTIONS: McqQuestion[] = [
     },
     "options": [
       {
-        "bn": "সহसंयোজী বন্ধন",
+        "bn": "সমযোজী বন্ধন",
         "en": "Covalent bond"
       },
       {
@@ -561,7 +561,87 @@ const QUESTIONS: McqQuestion[] = [
       "en": "Medical & All Boards"
     },
     "difficulty": "easy"
-  }
+  },
+{
+  "id": "q-chem1-15",
+  "subjectKey": "chemistry1",
+  "chapter": {
+    "bn": "মৌলের শ্রেণিবিন্যাস",
+    "en": "Classification of Elements"
+  },
+  "question": {
+    "bn": "নিচের কোনটি ক্ষার ধাতু?",
+    "en": "Which of the following is an alkali metal?"
+  },
+  "options": [
+    {
+      "bn": "Mg",
+      "en": "Mg"
+    },
+    {
+      "bn": "Na",
+      "en": "Na"
+    },
+    {
+      "bn": "Al",
+      "en": "Al"
+    },
+    {
+      "bn": "Fe",
+      "en": "Fe"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "Na (সোডিয়াম) 1ম শ্রেণির ক্ষার ধাতু; Mg ও Al ধাতু হলেও ক্ষার ধাতু নয়।",
+    "en": "Sodium is a group-1 alkali metal; Mg and Al are metals but not alkali metals."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-chem1-16",
+  "subjectKey": "chemistry1",
+  "chapter": {
+    "bn": "মোল ও রসায়নিক গণনা",
+    "en": "Mole Concept"
+  },
+  "question": {
+    "bn": "৪.৪ গ্রাম CO₂-এর মোল সংখ্যা কত? (C = 12, O = 16)",
+    "en": "How many moles are there in 4.4 g of CO₂? (C = 12, O = 16)"
+  },
+  "options": [
+    {
+      "bn": "০.০৫",
+      "en": "0.05"
+    },
+    {
+      "bn": "০.১",
+      "en": "0.1"
+    },
+    {
+      "bn": "০.২",
+      "en": "0.2"
+    },
+    {
+      "bn": "১",
+      "en": "1"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "CO₂-এর মোলার ভর = 12 + 32 = 44 g; মোল = 4.4/44 = 0.1।",
+    "en": "Molar mass of CO₂ is 44 g, so 4.4/44 = 0.1 mol."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;

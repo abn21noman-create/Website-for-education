@@ -365,8 +365,8 @@ check(
 
 const bankIds = allQuestions.map((q) => q.id);
 check(
-  allQuestions.length >= 160,
-  'MCQ bank passed 160 questions',
+  allQuestions.length >= 175,
+  'MCQ bank passed 175 questions',
   String(allQuestions.length)
 );
 
@@ -376,8 +376,8 @@ const perPaper = allQuestions.reduce((acc, q) => {
 }, {});
 const thinnestPaper = Object.entries(perPaper).sort((a, b) => a[1] - b[1])[0];
 check(
-  Object.keys(perPaper).length === 11 && thinnestPaper[1] >= 12,
-  'every one of the 11 papers has at least 12 questions',
+  Object.keys(perPaper).length === 11 && thinnestPaper[1] >= 14,
+  'every one of the 11 papers has at least 14 questions',
   `${thinnestPaper[0]}: ${thinnestPaper[1]}`
 );
 check(
@@ -389,8 +389,8 @@ check(
 const cqBank = await vite.ssrLoadModule('/src/data/cqData.ts');
 const cqIds = cqBank.CQ_QUESTIONS.map((q) => q.id);
 check(
-  cqBank.CQ_QUESTIONS.length >= 20 && new Set(cqIds).size === cqIds.length,
-  'CQ bank has 20+ unique creative questions',
+  cqBank.CQ_QUESTIONS.length >= 24 && new Set(cqIds).size === cqIds.length,
+  'CQ bank has 24+ unique creative questions',
   `${cqBank.CQ_QUESTIONS.length} total / ${new Set(cqIds).size} unique`
 );
 check(

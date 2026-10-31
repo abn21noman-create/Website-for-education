@@ -521,7 +521,127 @@ const QUESTIONS: McqQuestion[] = [
       "en": "All Boards"
     },
     "difficulty": "medium"
-  }
+  },
+{
+  "id": "q-ict-14",
+  "subjectKey": "ict",
+  "chapter": {
+    "bn": "Input & Output Devices",
+    "en": "Input & Output Devices"
+  },
+  "question": {
+    "bn": "নিচের কোনটি ইনপুট ডিভাইস নয়?",
+    "en": "Which of the following is NOT an input device?"
+  },
+  "options": [
+    {
+      "bn": "স্ক্যানার",
+      "en": "Scanner"
+    },
+    {
+      "bn": "প্লটার",
+      "en": "Plotter"
+    },
+    {
+      "bn": "মাউস",
+      "en": "Mouse"
+    },
+    {
+      "bn": "মাইক্রোফোন",
+      "en": "Microphone"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "প্লটার একটি আউটপুট ডিভাইস — বড় মাপের ডিজাইন/ম্যাপ প্রিন্ট করে। বাকি তিনটি তথ্য ঢোকায়।",
+    "en": "A plotter is an output device that prints large drawings; the others feed data in."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-ict-15",
+  "subjectKey": "ict",
+  "chapter": {
+    "bn": "HTML",
+    "en": "HTML"
+  },
+  "question": {
+    "bn": "HTML-এ নতুন লাইনে যাওয়ার ট্যাগ কোনটি?",
+    "en": "Which HTML tag inserts a line break?"
+  },
+  "options": [
+    {
+      "bn": "<br>",
+      "en": "<br>"
+    },
+    {
+      "bn": "<hr>",
+      "en": "<hr>"
+    },
+    {
+      "bn": "<p>",
+      "en": "<p>"
+    },
+    {
+      "bn": "<lb>",
+      "en": "<lb>"
+    }
+  ],
+  "correctIndex": 0,
+  "explanation": {
+    "bn": "<br> লাইন ব্রেক তৈরি করে; <hr> অনুভূমিক রেখা, <p> নতুন প্যারাগ্রাফ।",
+    "en": "<br> breaks the line; <hr> draws a horizontal rule and <p> starts a paragraph."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-ict-16",
+  "subjectKey": "ict",
+  "chapter": {
+    "bn": "Number Systems",
+    "en": "Number Systems"
+  },
+  "question": {
+    "bn": "বাইনারি ১০১০-এর দশমিক মান কত?",
+    "en": "What is the decimal value of binary 1010?"
+  },
+  "options": [
+    {
+      "bn": "৮",
+      "en": "8"
+    },
+    {
+      "bn": "৯",
+      "en": "9"
+    },
+    {
+      "bn": "১০",
+      "en": "10"
+    },
+    {
+      "bn": "১২",
+      "en": "12"
+    }
+  ],
+  "correctIndex": 2,
+  "explanation": {
+    "bn": "1010 = 1×2³ + 0×2² + 1×2¹ + 0×2⁰ = 8 + 2 = 10।",
+    "en": "1010 = 8 + 2 = 10 in decimal."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;

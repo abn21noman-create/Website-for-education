@@ -521,7 +521,127 @@ const QUESTIONS: McqQuestion[] = [
       "en": "Medical & All Boards"
     },
     "difficulty": "medium"
-  }
+  },
+{
+  "id": "q-bio1-14",
+  "subjectKey": "biology1",
+  "chapter": {
+    "bn": "কোষ ও এর গঠন",
+    "en": "Cell and Its Structure"
+  },
+  "question": {
+    "bn": "কোষের কোন অঙ্গাণুকে শক্তিঘর বলা হয়?",
+    "en": "Which organelle is called the powerhouse of the cell?"
+  },
+  "options": [
+    {
+      "bn": "রাইবোজোম",
+      "en": "Ribosome"
+    },
+    {
+      "bn": "মাইটোকন্ড্রিয়া",
+      "en": "Mitochondrion"
+    },
+    {
+      "bn": "লাইসোজোম",
+      "en": "Lysosome"
+    },
+    {
+      "bn": "গলগি বডি",
+      "en": "Golgi body"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "মাইটোকন্ড্রিয়ায় শ্বসনের মাধ্যমে ATP উৎপন্ন হয়।",
+    "en": "Mitochondria produce ATP through respiration, earning the \"powerhouse\" name."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-bio1-15",
+  "subjectKey": "biology1",
+  "chapter": {
+    "bn": "সালোকসংশ্লেষণ",
+    "en": "Photosynthesis"
+  },
+  "question": {
+    "bn": "সালোকসংশ্লেষণের আলোক-নির্ভর বিক্রিয়া কোথায় ঘটে?",
+    "en": "Where does the light-dependent reaction of photosynthesis occur?"
+  },
+  "options": [
+    {
+      "bn": "স্ট্রোমা",
+      "en": "Stroma"
+    },
+    {
+      "bn": "থাইলাকয়েড/গ্রানা",
+      "en": "Thylakoid/grana"
+    },
+    {
+      "bn": "মাইটোকন্ড্রিয়ার ম্যাট্রিক্স",
+      "en": "Mitochondrial matrix"
+    },
+    {
+      "bn": "সাইটোপ্লাজম",
+      "en": "Cytoplasm"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "আলোক-নির্ভর বিক্রিয়া থাইলাকয়েডে, ক্যালভিন চক্র স্ট্রোমায়।",
+    "en": "The light reaction occurs in the thylakoids; the Calvin cycle happens in the stroma."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+},
+{
+  "id": "q-bio1-16",
+  "subjectKey": "biology1",
+  "chapter": {
+    "bn": "কোষ বিভাজন",
+    "en": "Cell Division"
+  },
+  "question": {
+    "bn": "DNA অনুলিপন কোষচক্রের কোন দশায় ঘটে?",
+    "en": "DNA replication occurs in which phase of the cell cycle?"
+  },
+  "options": [
+    {
+      "bn": "G₁ দশা",
+      "en": "G₁ phase"
+    },
+    {
+      "bn": "S দশা",
+      "en": "S phase"
+    },
+    {
+      "bn": "G₂ দশা",
+      "en": "G₂ phase"
+    },
+    {
+      "bn": "M দশা",
+      "en": "M phase"
+    }
+  ],
+  "correctIndex": 1,
+  "explanation": {
+    "bn": "S (Synthesis) দশায় DNA-র অনুলিপন হয়।",
+    "en": "DNA duplicates in the S (synthesis) phase; M is division."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;

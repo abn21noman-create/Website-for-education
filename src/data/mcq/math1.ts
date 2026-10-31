@@ -601,7 +601,47 @@ const QUESTIONS: McqQuestion[] = [
       "en": "All Boards"
     },
     "difficulty": "medium"
-  }
+  },
+{
+  "id": "q-math1-16",
+  "subjectKey": "math1",
+  "chapter": {
+    "bn": "সসীম ধারা",
+    "en": "Finite Series"
+  },
+  "question": {
+    "bn": "১ + ২ + ৩ + … + n = কত?",
+    "en": "What is 1 + 2 + 3 + … + n?"
+  },
+  "options": [
+    {
+      "bn": "n(n+1)/2",
+      "en": "n(n+1)/2"
+    },
+    {
+      "bn": "n(n−1)/2",
+      "en": "n(n−1)/2"
+    },
+    {
+      "bn": "n²/2",
+      "en": "n²/2"
+    },
+    {
+      "bn": "n(n+1)",
+      "en": "n(n+1)"
+    }
+  ],
+  "correctIndex": 0,
+  "explanation": {
+    "bn": "সমান্তর ধারার যোগফল = n/2 × (প্রথম + শেষ) = n(n+1)/2।",
+    "en": "Arithmetic-series sum = n/2 (first + last) = n(n+1)/2."
+  },
+  "boardTag": {
+    "bn": "সকল বোর্ড",
+    "en": "All Boards"
+  },
+  "difficulty": "easy"
+}
 ];
 
 export default QUESTIONS;
