@@ -19,9 +19,26 @@ import {
   SubjectKey,
   Theme,
 } from '../types';
-import { MCQ_QUESTIONS } from '../data/mcqData';
+import {
+  ALL_SUBJECT_KEYS,
+  MCQ_COUNTS,
+  MCQ_TOTAL,
+  loadAllMcq,
+  loadMcqSubjects,
+} from '../data/mcqBank';
 import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import {
+  EXAM_PATTERNS,
+  ExamPattern,
+  getPatternById,
+  patternTimeFor,
+  pickPatternQuestions,
+  scoreForPattern,
+  writtenSectionLabel,
+} from '../lib/examPatterns';
+import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
+import { SelfExplainBox } from './SelfExplainBox';
 
 interface McqExamViewProps {
   lang: Lang;
@@ -51,6 +68,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   const [stage, setStage] = useState<'setup' | 'running' | 'result'>('setup');
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>('all');
+  const [patternId, setPatternId] = useState<string>('custom');
   const [difficultyFilter, setDifficultyFilter] = useState<
     'all' | 'easy' | 'medium' | 'hard'
   >('all');
@@ -72,42 +90,155 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     score: number;
     accuracy: number;
     durationSeconds: number;
+    pattern: ExamPattern;
+    penalty: number;
+    total: number;
   } | null>(null);
+  const [reasonStore, setReasonStore] = useState<Record<string, MistakeReason>>(
+    () => loadMistakeReasons()
+  );
+  /**
+   * The bank is split per paper: the screen renders from the static counts at
+   * once and only fetches the papers this session actually needs.
+   */
+  const [bank, setBank] = useState<McqQuestion[]>([]);
+  const [bankLoading, setBankLoading] = useState(true);
+  const bankCache = React.useRef<Map<SubjectKey, McqQuestion[]>>(new Map());
 
-  const filteredPool = MCQ_QUESTIONS.filter((q) => {
+  const activePattern = getPatternById(patternId);
+  const isWeighted = activePattern.subjectMode === 'weighted';
+  /** Custom sets honour the manual toggle; real patterns follow their own rule. */
+  const scoringPattern: ExamPattern =
+    activePattern.kind === 'custom'
+      ? { ...activePattern, negativeMarking }
+      : activePattern;
+
+  const filteredPool = bank.filter((q) => {
     if (selectedSubject !== 'all' && q.subjectKey !== selectedSubject) return false;
     if (difficultyFilter !== 'all' && q.difficulty !== difficultyFilter) return false;
     return true;
   });
 
-  const availablePoolCount = filteredPool.length;
+  /**
+   * Weighted papers (BUET/medical/DU) span several papers by design, so the
+   * subject filter is skipped for them — only the difficulty filter applies.
+   */
+  const patternPool = isWeighted
+    ? bank.filter(
+        (q) => difficultyFilter === 'all' || q.difficulty === difficultyFilter
+      )
+    : filteredPool;
+
+  const availablePoolCount = patternPool.length;
+
+  /** Picking a pattern sets the clock, the marking and the question count. */
+  const applyPattern = (nextId: string) => {
+    const next = getPatternById(nextId);
+    setPatternId(nextId);
+    setNegativeMarking(next.negativeMarking);
+    setExamMode('timed');
+
+    if (next.subjectMode === 'single' && selectedSubject === 'all') {
+      setSelectedSubject('physics1');
+    }
+    if (next.subjectMode !== 'single') {
+      setSelectedSubject('all');
+    }
+
+    if (next.paperQuestions > 0) {
+      // Counts are static, so this works before the bank has downloaded.
+      const available =
+        next.subjectMode === 'single' && selectedSubject !== 'all'
+          ? MCQ_COUNTS[selectedSubject]
+          : next.subjectMode === 'single'
+          ? MCQ_COUNTS.physics1
+          : MCQ_TOTAL;
+      setQuestionCount(Math.max(1, Math.min(next.paperQuestions, available)));
+    }
+  };
 
   const startMistakeRemediation = React.useCallback(() => {
-    const pool = MCQ_QUESTIONS.filter((q) => mistakeIds.includes(q.id));
-    if (pool.length === 0) return;
-    setExamQuestions(pool);
-    setIsMistakeRun(true);
-    setAnswers({});
-    setFlagged({});
-    setFocusTabSwitches(0);
-    setSecondsLeft(pool.length * 60);
-    setStartedAt(Date.now());
-    setLastResult(null);
-    setStage('running');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [mistakeIds]);
+    const start = (questions: McqQuestion[]) => {
+      const pool = questions.filter((q) => mistakeIds.includes(q.id));
+      if (pool.length === 0) return;
+      setExamQuestions(pool);
+      setIsMistakeRun(true);
+      setAnswers({});
+      setFlagged({});
+      setFocusTabSwitches(0);
+      setSecondsLeft(pool.length * 60);
+      setStartedAt(Date.now());
+      setLastResult(null);
+      setStage('running');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    if (bank.length > 0) {
+      start(bank);
+      return;
+    }
+    // Deep-link from another screen may beat the loader — fetch then start.
+    loadAllMcq().then(start).catch(() => undefined);
+  }, [mistakeIds, bank]);
 
   useEffect(() => {
-    if (autoStartMistakeExam && mistakeIds.length > 0) {
+    if (autoStartMistakeExam && mistakeIds.length > 0 && bank.length > 0) {
       startMistakeRemediation();
       onConsumedMistakeExam?.();
     }
   }, [
     autoStartMistakeExam,
     mistakeIds.length,
+    bank.length,
     startMistakeRemediation,
     onConsumedMistakeExam,
   ]);
+
+  /**
+   * Which papers this configuration needs. A single-paper drill asks for one
+   * file; admission papers and mixed practice span several.
+   */
+  const requiredSubjects: SubjectKey[] = React.useMemo(() => {
+    if (isWeighted || activePattern.subjectMode === 'interleaved') return ALL_SUBJECT_KEYS;
+    if (selectedSubject === 'all') return ALL_SUBJECT_KEYS;
+    return [selectedSubject];
+  }, [isWeighted, activePattern.subjectMode, selectedSubject]);
+
+  const requiredKey = requiredSubjects.join(',');
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing = requiredSubjects.filter((key) => !bankCache.current.has(key));
+    const publish = () => setBank([...bankCache.current.values()].flat());
+
+    if (missing.length === 0) {
+      publish();
+      setBankLoading(false);
+      return;
+    }
+
+    setBankLoading(true);
+    loadMcqSubjects(missing)
+      .then((questions) => {
+        if (cancelled) return;
+        missing.forEach((key) => {
+          bankCache.current.set(key, questions.filter((q) => q.subjectKey === key));
+        });
+        publish();
+      })
+      .catch(() => {
+        /* counts still render; the start button stays guarded */
+      })
+      .finally(() => {
+        if (!cancelled) setBankLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // `requiredKey` captures the subject list; `requiredSubjects` is rebuilt each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requiredKey]);
 
   useEffect(() => {
     if (stage !== 'running' || examMode !== 'timed') return;
@@ -121,21 +252,15 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   }, [stage, examMode]);
 
   const startExam = () => {
-    const pool =
-      filteredPool.length > 0 ? [...filteredPool] : [...MCQ_QUESTIONS];
+    const basePool = patternPool.length > 0 ? patternPool : bank;
+    const picked = pickPatternQuestions(basePool, activePattern, questionCount);
 
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-
-    const picked = pool.slice(0, Math.min(questionCount, pool.length));
     setExamQuestions(picked);
     setIsMistakeRun(false);
     setAnswers({});
     setFlagged({});
     setFocusTabSwitches(0);
-    setSecondsLeft(picked.length * 60);
+    setSecondsLeft(patternTimeFor(activePattern, picked.length));
     setStartedAt(Date.now());
     setLastResult(null);
     setStage('running');
@@ -168,8 +293,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
     onUpdateMistakeIds(newMistakes, fixedMistakes);
 
-    const rawScore = negativeMarking ? correct - wrong * 0.25 : correct;
-    const score = Number(Math.max(0, rawScore).toFixed(2));
+    const scored = scoreForPattern(scoringPattern, correct, wrong, examQuestions.length);
+    const score = scored.score;
     const accuracy =
       examQuestions.length > 0
         ? Number(((correct / examQuestions.length) * 100).toFixed(1))
@@ -183,6 +308,12 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
       ? lang === 'bn'
         ? 'ভুল প্রশ্নের রিভিশন পরীক্ষা (Mistake Bank)'
         : 'Mistake Bank Remediation Exam'
+      : activePattern.kind !== 'custom'
+      ? `${activePattern.name[lang]}${
+          selectedSubject === 'all'
+            ? ''
+            : ` • ${getSubjectByKey(selectedSubject).name[lang]}`
+        }`
       : selectedSubject === 'all'
       ? lang === 'bn'
         ? 'সমন্বিত HSC বিজ্ঞান মডেল টেস্ট'
@@ -196,6 +327,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
       score,
       accuracy,
       durationSeconds,
+      pattern: scoringPattern,
+      penalty: scored.penalty,
+      total: scored.total,
     });
     setStage('result');
 
@@ -217,7 +351,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     answers,
     isMistakeRun,
     mistakeIds,
-    negativeMarking,
+    scoringPattern,
     startedAt,
     selectedSubject,
     lang,
@@ -340,10 +474,76 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               </span>
             </h2>
 
-            {/* Subject Select */}
+            {/* Real paper patterns */}
             <div>
               <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2.5 opacity-65">
-                {lang === 'bn' ? '০১. বিষয় নির্বাচন' : '01. SELECT SUBJECT'}
+                {lang === 'bn' ? '০১. পরীক্ষার ধরন (প্রকৃত কাগজ)' : '01. PAPER PATTERN'}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {EXAM_PATTERNS.map((p) => {
+                  const active = patternId === p.id;
+                  return (
+                    <button
+                      type="button"
+                      key={p.id}
+                      onClick={() => applyPattern(p.id)}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        active
+                          ? isDark
+                            ? 'bg-indigo-500/22 border-indigo-400/45'
+                            : 'bg-indigo-50 border-indigo-300 shadow-2xs'
+                          : isDark
+                          ? 'bg-slate-900/50 border-slate-700/80 hover:border-slate-500'
+                          : 'bg-slate-50/70 border-slate-200/85 hover:border-indigo-200 hover:bg-white'
+                      }`}
+                    >
+                      <div className="text-xs font-extrabold flex items-center gap-1.5">
+                        {p.kind === 'admission' && (
+                          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                            {lang === 'bn' ? 'ভর্তি' : 'ADM'}
+                          </span>
+                        )}
+                        {p.kind === 'hsc' && (
+                          <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                            HSC
+                          </span>
+                        )}
+                        <span>{p.name[lang]}</span>
+                      </div>
+                      <div className="text-[10px] mt-1 leading-relaxed opacity-70">
+                        {p.breakdown[lang]}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activePattern.note && (
+                <p className={`mt-2 text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {activePattern.note[lang]}
+                </p>
+              )}
+
+              {activePattern.paperQuestions > availablePoolCount && (
+                <p
+                  className={`mt-2 p-2.5 rounded-lg border text-[11px] leading-relaxed ${
+                    isDark
+                      ? 'bg-amber-500/10 border-amber-400/25 text-amber-200'
+                      : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                  }`}
+                >
+                  {lang === 'bn'
+                    ? `প্রকৃত কাগজে ${formatNum(activePattern.paperQuestions, lang)}টি প্রশ্ন থাকে; ব্যাংকে এখন ${formatNum(availablePoolCount, lang)}টি আছে — সবগুলো দিয়েই পূর্ণ সময়ে অনুশীলন হবে।`
+                    : `The real paper has ${activePattern.paperQuestions} questions; the bank currently holds ${availablePoolCount} — you will practise all of them at the real pace.`}
+                </p>
+              )}
+            </div>
+
+            {/* Subject Select — weighted papers choose their own mix */}
+            {!isWeighted && (
+            <div>
+              <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2.5 opacity-65">
+                {lang === 'bn' ? '০২. বিষয় নির্বাচন' : '02. SELECT SUBJECT'}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <button
@@ -361,15 +561,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 >
                   <div>{lang === 'bn' ? 'সকল বিষয় সমন্বিত' : 'All Combined'}</div>
                   <div className="text-[10px] font-mono opacity-65 mt-0.5">
-                    {formatNum(MCQ_QUESTIONS.length, lang)}{' '}
+                    {formatNum(MCQ_TOTAL, lang)}{' '}
                     {lang === 'bn' ? 'টি প্রশ্ন' : 'MCQs'}
                   </div>
                 </button>
 
                 {SUBJECTS.map((s) => {
-                  const count = MCQ_QUESTIONS.filter(
-                    (q) => q.subjectKey === s.key
-                  ).length;
+                  const count = MCQ_COUNTS[s.key] ?? 0;
                   const active = selectedSubject === s.key;
                   return (
                     <button
@@ -396,14 +594,113 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               </div>
             </div>
 
+            )}
+
+            {isWeighted && (
+              <div
+                className={`p-4 rounded-xl border space-y-2.5 ${
+                  isDark ? 'bg-slate-900/55 border-slate-700/80' : 'bg-slate-50/75 border-slate-200/85'
+                }`}
+              >
+                <div className="text-xs font-bold flex items-center gap-1.5">
+                  <Scale className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>
+                    {lang === 'bn' ? 'প্রকৃত কাগজের বিষয়-ভার' : 'REAL PAPER SUBJECT WEIGHT'}
+                  </span>
+                </div>
+                <p className="text-[11px] opacity-70 leading-relaxed">
+                  {lang === 'bn'
+                    ? `প্রশ্নগুলো ওজন অনুযায়ীই আসবে — ${formatNum(questionCount, lang)}টি প্রশ্নে কোন বিষয় কতটি, নিচে দেখা যাচ্ছে।`
+                    : `Questions follow the official weight — see how many of the ${questionCount} come from each paper.`}
+                </p>
+                {Object.entries(activePattern.weights ?? {}).map(([key, w]) => {
+                  const totalWeight = Object.values(activePattern.weights ?? {}).reduce(
+                    (sum, v) => sum + v,
+                    0
+                  );
+                  const share = totalWeight > 0 ? (w / totalWeight) * 100 : 0;
+                  const howMany = Math.round((w / (totalWeight || 1)) * questionCount);
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-20 sm:w-24 truncate font-semibold">
+                        {getSubjectByKey(key as SubjectKey).shortName[lang]}
+                      </span>
+                      <span
+                        className={`flex-1 h-1.5 rounded-full overflow-hidden ${
+                          isDark ? 'bg-slate-700' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span
+                          className="block h-full rounded-full bg-indigo-500"
+                          style={{ width: `${share}%` }}
+                        />
+                      </span>
+                      <span className="font-mono tabular-nums opacity-70 w-8 text-right">
+                        {formatNum(howMany, lang)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* How close is this paper to a full board paper? */}
+            {activePattern.kind === 'hsc' && selectedSubject !== 'all' && (() => {
+              const paperCount = MCQ_COUNTS[selectedSubject] ?? 0;
+              const target = activePattern.id === 'hsc-practical' ? 25 : 30;
+              const pct = Math.min(100, Math.round((paperCount / target) * 100));
+              return (
+                <div
+                  className={`p-3 rounded-xl border ${
+                    isDark
+                      ? 'bg-slate-900/55 border-slate-700/80'
+                      : 'bg-slate-50/75 border-slate-200/85'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                    <span>
+                      {lang === 'bn' ? 'এই পত্রের প্রশ্ন-প্রস্তুতি' : 'Questions available for this paper'}
+                    </span>
+                    <span className="font-mono tabular-nums opacity-75">
+                      {formatNum(paperCount, lang)}/{formatNum(target, lang)}
+                    </span>
+                  </div>
+                  <div
+                    className={`mt-1.5 h-1.5 rounded-full overflow-hidden ${
+                      isDark ? 'bg-slate-700' : 'bg-slate-200'
+                    }`}
+                  >
+                    <div
+                      className={`h-full rounded-full ${
+                        pct >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] leading-relaxed opacity-70 mt-1.5">
+                    {paperCount >= target
+                      ? lang === 'bn'
+                        ? 'পূর্ণ বোর্ড কাগজ দেওয়া যাচ্ছে ✓'
+                        : 'A full board paper is possible ✓'
+                      : lang === 'bn'
+                      ? `পূর্ণ ${formatNum(target, lang)}-প্রশ্নের কাগজের জন্য আরও ${formatNum(
+                          target - paperCount,
+                          lang
+                        )}টি প্রশ্ন দরকার — ব্যাংক ধাপে ধাপে বাড়ছে।`
+                      : `${target - paperCount} more questions are needed for a full ${target}-question paper — the bank grows in batches.`}
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* Question Count & Mode */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
-                  {lang === 'bn' ? '০২. প্রশ্ন সংখ্যা' : '02. QUESTION COUNT'}
+                  {lang === 'bn' ? '০৩. প্রশ্ন সংখ্যা' : '03. QUESTION COUNT'}
                 </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[5, 10, 20, 25].map((n) => (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {[5, 10, 20, 25, 50].map((n) => (
                     <button
                       type="button"
                       key={n}
@@ -418,14 +715,16 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                           : 'bg-slate-50/70 border-slate-200 text-slate-700'
                       }`}
                     >
-                      {formatNum(Math.min(n, Math.max(1, availablePoolCount)), lang)}{' '}
-                      {n === 25
-                        ? lang === 'bn'
-                          ? '(বোর্ড)'
-                          : '(Board)'
-                        : lang === 'bn'
-                        ? 'টি'
-                        : 'Qs'}
+                      {formatNum(Math.min(n, Math.max(1, availablePoolCount)), lang)}
+                      <span className="block text-[10px] font-mono font-normal opacity-60 leading-none mt-0.5">
+                        {n === 25
+                          ? lang === 'bn'
+                            ? 'বোর্ড'
+                            : 'board'
+                          : lang === 'bn'
+                          ? 'টি'
+                          : 'qs'}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -473,9 +772,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             {/* Difficulty Filter */}
             <div>
               <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
-                {lang === 'bn' ? '০৪. প্রশ্নের মান (Difficulty)' : '04. DIFFICULTY LEVEL'}
+                {lang === 'bn' ? '০৫. প্রশ্নের মান (Difficulty)' : '05. DIFFICULTY LEVEL'}
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(
                   [
                     { id: 'all', bn: 'সব স্তর', en: 'All' },
@@ -506,8 +805,12 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
             {/* Negative Marking Option */}
             <div
-              onClick={() => setNegativeMarking(!negativeMarking)}
-              className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+              onClick={() => {
+                if (activePattern.kind === 'custom') setNegativeMarking(!negativeMarking);
+              }}
+              className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                activePattern.kind === 'custom' ? 'cursor-pointer' : 'cursor-default'
+              } ${
                 negativeMarking
                   ? isDark
                     ? 'bg-amber-500/12 border-amber-400/35'
@@ -521,14 +824,26 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 <Scale className="w-4 h-4 text-amber-500 shrink-0" />
                 <div>
                   <div className="text-xs font-bold">
-                    {lang === 'bn'
-                      ? 'ভর্তি পরীক্ষা মানদণ্ড (-০.২৫ নেগেটিভ মার্কিং)'
-                      : 'Admission Standard (-0.25 Negative Marking)'}
+                    {activePattern.kind === 'custom'
+                      ? lang === 'bn'
+                        ? 'ভর্তি পরীক্ষা মানদণ্ড (-০.২৫ নেগেটিভ মার্কিং)'
+                        : 'Admission Standard (-0.25 Negative Marking)'
+                      : activePattern.negativeMarking
+                      ? lang === 'bn'
+                        ? `${activePattern.name.bn}: প্রতি ভুলে −০.২৫`
+                        : `${activePattern.name.en}: −0.25 per wrong answer`
+                      : lang === 'bn'
+                      ? `${activePattern.name.bn}: নেগেটিভ মার্কিং নেই`
+                      : `${activePattern.name.en}: no negative marking`}
                   </div>
                   <div className="text-[11px] opacity-60 mt-0.5">
-                    {lang === 'bn'
-                      ? 'নিষ্ক্রিয় থাকলে HSC বোর্ড মানদণ্ড অনুযায়ী ভুল উত্তরে নম্বর কর্তন হবে না'
-                      : 'Unchecked = HSC Board Standard (no deduction for wrong answers)'}
+                    {activePattern.kind === 'custom'
+                      ? lang === 'bn'
+                        ? 'নিষ্ক্রিয় থাকলে HSC বোর্ড মানদণ্ড অনুযায়ী ভুল উত্তরে নম্বর কর্তন হবে না'
+                        : 'Unchecked = HSC Board Standard (no deduction for wrong answers)'
+                      : lang === 'bn'
+                      ? 'প্যাটার্ন বদলালে নম্বর-কর্তনের নিয়মও স্বয়ংক্রিয়ভাবে বদলে যায়'
+                      : 'Switch pattern and the marking rule follows the real paper'}
                   </div>
                 </div>
               </div>
@@ -548,19 +863,47 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             <button
               type="button"
               onClick={startExam}
-              className="w-full py-3.5 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer bg-indigo-600 text-white hover:bg-indigo-500 shadow-xs"
+              disabled={bankLoading || bank.length === 0}
+              className={`w-full py-3.5 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-colors shadow-xs ${
+                bankLoading || bank.length === 0
+                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-wait'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer'
+              }`}
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>
-                {lang === 'bn'
-                  ? `পরীক্ষা শুরু করুন (${formatNum(
-                      Math.min(questionCount, availablePoolCount),
-                      lang
-                    )}টি প্রশ্ন)`
-                  : `Begin Examination (${Math.min(
-                      questionCount,
-                      availablePoolCount
-                    )} Questions)`}
+              {bankLoading && (
+                <span className="text-[11px] font-mono opacity-80">
+                  {lang === 'bn' ? 'প্রশ্ন লোড হচ্ছে…' : 'loading questions…'}
+                </span>
+              )}
+              <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+                <span>
+                  {lang === 'bn'
+                    ? `পরীক্ষা শুরু করুন (${formatNum(
+                        Math.min(questionCount, availablePoolCount),
+                        lang
+                      )}টি প্রশ্ন)`
+                    : `Begin Examination (${Math.min(
+                        questionCount,
+                        availablePoolCount
+                      )} questions)`}
+                </span>
+                <span className="text-[11px] font-mono opacity-85">
+                  {lang === 'bn'
+                    ? `• ${formatNum(
+                        patternTimeFor(
+                          scoringPattern,
+                          Math.min(questionCount, availablePoolCount)
+                        ) / 60,
+                        lang
+                      )} মিনিট`
+                    : `• ${Math.round(
+                        patternTimeFor(
+                          scoringPattern,
+                          Math.min(questionCount, availablePoolCount)
+                        ) / 60
+                      )} min`}
+                </span>
               </span>
             </button>
           </div>
@@ -870,6 +1213,10 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   // STAGE 3: RESULT & DETAILED SOLUTION SHEET
   const labels = lang === 'bn' ? OPTION_LABELS_BN : OPTION_LABELS_EN;
+  const wrongQuestionIds = examQuestions
+    .filter((q) => answers[q.id] !== q.correctIndex)
+    .map((q) => q.id);
+  const reasonSummary = mistakeSummary(wrongQuestionIds, reasonStore);
 
   return (
     <div className="space-y-6">
@@ -896,6 +1243,37 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             </span>
           </div>
 
+          <div className="space-y-1.5">
+            <div className="text-xs sm:text-sm font-extrabold">
+              {lastResult.pattern.kind === 'custom'
+                ? lang === 'bn'
+                  ? 'নিজের সেট'
+                  : 'Custom set'
+                : lastResult.pattern.name[lang]}
+            </div>
+            <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {lastResult.pattern.breakdown[lang]}
+            </div>
+            {lastResult.penalty > 0 && (
+              <div
+                className={`inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded border ${
+                  isDark
+                    ? 'bg-rose-500/12 border-rose-400/25 text-rose-300'
+                    : 'bg-rose-50 border-rose-200 text-rose-700'
+                }`}
+              >
+                {lang === 'bn'
+                  ? `নেগেটিভ কর্তন −${formatNum(lastResult.penalty, lang)}`
+                  : `Negative deduction −${lastResult.penalty}`}
+              </div>
+            )}
+            {writtenSectionLabel(lastResult.pattern) && (
+              <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                {writtenSectionLabel(lastResult.pattern)![lang]}
+              </div>
+            )}
+          </div>
+
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             {lastResult.accuracy >= 80
               ? lang === 'bn'
@@ -914,7 +1292,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             {[
               {
                 val: `${formatNum(lastResult.score, lang)}/${formatNum(
-                  examQuestions.length,
+                  lastResult.total || examQuestions.length,
                   lang
                 )}`,
                 bn: 'প্রাপ্ত স্কোর',
@@ -973,6 +1351,78 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               {lang === 'bn' ? 'বিষয় পরিবর্তন করুন' : 'Change Parameters'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Error-reason analysis — what to practise next, not just what was wrong */}
+      {lastResult && wrongQuestionIds.length > 0 && (
+        <div
+          className={`p-5 sm:p-6 rounded-2xl border space-y-3 ${
+            isDark
+              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
+              : 'bg-white/95 border-slate-200/80 card-soft-light'
+          }`}
+        >
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <span>{lang === 'bn' ? 'ভুলের কারণ বিশ্লেষণ' : 'Why the answers went wrong'}</span>
+          </h2>
+
+          {reasonSummary.total === 0 ? (
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {lang === 'bn'
+                ? 'প্রতিটি ভুল প্রশ্নের নিচে কারণ বেছে নিন (ধারণা / হিসাব / পড়া হয়নি / তাড়াহুড়া) — তখন এখানে তোমার জন্য পরের ধাপের পরামর্শ আসবে।'
+                : 'Tag each wrong answer below (concept / calculation / unread / rushed) and this panel will suggest the next step.'}
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {MISTAKE_REASONS.map((r) => {
+                  const count = reasonSummary.counts[r.id];
+                  const share = reasonSummary.total > 0 ? (count / reasonSummary.total) * 100 : 0;
+                  return (
+                    <div
+                      key={r.id}
+                      className={`p-3 rounded-xl border ${
+                        isDark ? 'bg-slate-900/55 border-slate-700/80' : 'bg-slate-50/75 border-slate-200/85'
+                      }`}
+                    >
+                      <div className="text-lg font-extrabold font-mono tabular-nums">
+                        {formatNum(count, lang)}
+                      </div>
+                      <div className="text-[10px] font-mono uppercase opacity-60 mt-0.5">
+                        {r.label[lang]}
+                      </div>
+                      <div
+                        className={`mt-2 h-1 rounded-full overflow-hidden ${
+                          isDark ? 'bg-slate-700' : 'bg-slate-200'
+                        }`}
+                      >
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${share}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {reasonSummary.advice && (
+                <p
+                  className={`text-xs leading-relaxed p-3 rounded-xl border ${
+                    isDark
+                      ? 'bg-indigo-500/12 border-indigo-400/25 text-indigo-200'
+                      : 'bg-indigo-50/80 border-indigo-200 text-indigo-900'
+                  }`}
+                >
+                  <strong>
+                    {lang === 'bn' ? 'পরের ধাপ: ' : 'Next step: '}
+                  </strong>
+                  {reasonSummary.advice[lang]}
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -1081,6 +1531,42 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 </strong>
                 {q.explanation[lang]}
               </div>
+
+              <SelfExplainBox questionId={q.id} lang={lang} theme={theme} />
+
+              {!isCorrect && (
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider font-bold opacity-60 mb-1.5">
+                    {lang === 'bn' ? 'কেন ভুল হলো?' : 'WHY WAS IT WRONG?'}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MISTAKE_REASONS.map((r) => {
+                      const active = reasonStore[q.id] === r.id;
+                      return (
+                        <button
+                          type="button"
+                          key={r.id}
+                          onClick={() =>
+                            setReasonStore(saveMistakeReason(q.id, active ? null : r.id))
+                          }
+                          aria-pressed={active}
+                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
+                            active
+                              ? isDark
+                                ? 'bg-amber-500/25 border-amber-400/50 text-amber-100'
+                                : 'bg-amber-100 border-amber-300 text-amber-900'
+                              : isDark
+                              ? 'bg-slate-900/50 border-slate-700 text-slate-400 hover:border-slate-500'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'
+                          }`}
+                        >
+                          {r.label[lang]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

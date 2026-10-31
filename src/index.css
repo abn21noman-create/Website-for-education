@@ -92,3 +92,64 @@
     color: #0f172a !important;
   }
 }
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Momentum scrolling for the inner panels that overflow */
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Opacity only: a persisted transform would create a containing block and
+   break any `position: fixed` element inside a module (focus shield, sheets). */
+@keyframes viewIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.18s ease-out both;
+}
+
+.animate-sheet-up {
+  animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Applied to the lazy-loaded view container so switching modules feels soft */
+.animate-view-in {
+  animation: viewIn 0.2s ease-out both;
+}
+
+@media print {
+  .no-scrollbar {
+    scrollbar-width: auto;
+  }
+}

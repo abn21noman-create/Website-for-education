@@ -13,7 +13,8 @@ export type ActiveTab =
   | 'admission'
   | 'practical'
   | 'gpa'
-  | 'leaderboard';
+  | 'leaderboard'
+  | 'life';
 
 export type SubjectKey =
   | 'physics1'
