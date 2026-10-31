@@ -107,16 +107,31 @@ export function isRevisionDay(dayNumber: number): boolean {
   return weekdayIndexForDay(dayNumber) === 6;
 }
 
+/**
+ * Subjects for every day of the plan, built once in a single pass.
+ *
+ * The dashboard asks for today's classes on first paint, so this must never be
+ * an O(n²) walk: one loop over 391 days fills the whole table.
+ */
+const DAY_SUBJECTS: SubjectKey[][] = (() => {
+  const table: SubjectKey[][] = [];
+  let classDayIndex = 0;
+  for (let day = 1; day <= TOTAL_PLAN_DAYS; day += 1) {
+    if (isRevisionDay(day)) {
+      table.push([]);
+      continue;
+    }
+    const pairs = pairsForDay(day);
+    table.push(pairs[classDayIndex % pairs.length]);
+    classDayIndex += 1;
+  }
+  return table;
+})();
+
 /** Subjects scheduled on a day; empty array means a Friday revision day. */
 export function subjectsForDay(dayNumber: number): SubjectKey[] {
-  if (isRevisionDay(dayNumber)) return [];
-  const pairs = pairsForDay(dayNumber);
-  // Count class days (Friday excluded) before this one to pick the pair.
-  let classDaysBefore = 0;
-  for (let d = 1; d < dayNumber; d += 1) {
-    if (!isRevisionDay(d)) classDaysBefore += 1;
-  }
-  return pairs[classDaysBefore % pairs.length];
+  if (dayNumber < 1 || dayNumber > TOTAL_PLAN_DAYS) return [];
+  return DAY_SUBJECTS[dayNumber - 1];
 }
 
 const chaptersBySubject = new Map<SubjectKey, { id: string; bn: string; en: string }[]>();
@@ -138,6 +153,7 @@ for (let day = 1; day <= TOTAL_PLAN_DAYS; day += 1) {
 
 export interface ClassSlot {
   subjectKey: SubjectKey;
+  chapterId: string;
   subjectBn: string;
   subjectEn: string;
   chapterBn: string;
@@ -156,6 +172,7 @@ export function classSlotsForDay(dayNumber: number): ClassSlot[] {
     const index = chapter ? chapters.findIndex((item) => item.id === chapter.id) : 0;
     return {
       subjectKey: subject,
+      chapterId: chapter?.id ?? '',
       subjectBn: subjectInfo?.name.bn ?? subject,
       subjectEn: subjectInfo?.name.en ?? subject,
       chapterBn: chapter?.bn ?? '—',

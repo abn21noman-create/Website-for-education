@@ -16,6 +16,8 @@ import {
   FlaskConical,
   MessageSquareText,
   HeartPulse,
+  CalendarClock,
+  BookOpen,
 } from 'lucide-react';
 import {
   ActiveTab,
@@ -28,6 +30,13 @@ import {
   Theme,
 } from '../types';
 import { CHAPTERS, SUBJECTS, getSubjectByKey } from '../data/syllabusData';
+import {
+  classSlotsForDay,
+  dayNumberForDate,
+  isRevisionDay,
+  toDateKey,
+} from '../lib/masterRoutine';
+import { loadRoutineState } from '../lib/routineStore';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
@@ -58,6 +67,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const [now, setNow] = useState(() => Date.now());
+
+  // Today's slice of the 391-day master routine (read on mount, no props needed).
+  const [routineToday] = useState(() => {
+    const todayKey = toDateKey(new Date());
+    const { startDate } = loadRoutineState();
+    const dayNumber = dayNumberForDate(startDate, todayKey);
+    return {
+      dayNumber,
+      slots: dayNumber ? classSlotsForDay(dayNumber) : [],
+      revision: dayNumber ? isRevisionDay(dayNumber) : false,
+    };
+  });
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30000);
@@ -309,6 +330,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Today's slice of the 391-day master routine */}
+      <section
+        className={`rounded-2xl border p-4 sm:p-5 ${
+          isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="w-4 h-4 text-indigo-500" />
+            <h2 className="text-sm font-extrabold">{lang === 'bn' ? 'আজকের রুটিন' : "Today's routine"}</h2>
+            {routineToday.dayNumber && (
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                Day {routineToday.dayNumber} / 391
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => onNavigate('routine')}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            {lang === 'bn' ? 'পুরো রুটিন' : 'Full routine'}
+            <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
+
+        {routineToday.dayNumber === null ? (
+          <p className={`mt-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            {lang === 'bn'
+              ? 'মাস্টার রুটিনে Day 1-এর তারিখ বসাও — তারপর প্রতিদিনের দুই ক্লাস এখানে দেখাবে।'
+              : 'Set the Day 1 date in the master routine and your two daily classes show up here.'}
+          </p>
+        ) : routineToday.revision ? (
+          <p className={`mt-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            {lang === 'bn'
+              ? 'শুক্রবার — বিশ্রাম, রিভিশন ও সাপ্তাহিক এক্সাম।'
+              : 'Friday — rest, revision and the weekly exam.'}
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {routineToday.slots.map((slot, index) => (
+              <li key={`${slot.subjectKey}-${index}`} className="flex items-start gap-2 text-xs">
+                <BookOpen className="w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0" />
+                <span>
+                  <span className="font-bold">{lang === 'bn' ? slot.subjectBn : slot.subjectEn}</span>
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
+                    {' — '}
+                    {lang === 'bn' ? slot.chapterBn : slot.chapterEn}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* 4 Soft Pastel KPI Metrics */}

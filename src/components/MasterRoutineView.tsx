@@ -11,7 +11,7 @@ import {
   Plus,
   Target,
 } from 'lucide-react';
-import { Lang, Theme } from '../types';
+import { ChapterProgressState, Lang, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
 import {
   CLASS_TASKS,
@@ -48,6 +48,9 @@ import type { RoutineState } from '../lib/routineStore';
 interface MasterRoutineViewProps {
   lang: Lang;
   theme: Theme;
+  progressMap?: Record<string, ChapterProgressState>;
+  /** Marking a class chapter done writes straight into the syllabus tracker. */
+  onToggleStage?: (chapterId: string, stage: keyof ChapterProgressState) => void;
 }
 
 type Tab = 'today' | 'week' | 'time';
@@ -61,7 +64,12 @@ const bn = (value: number) => formatNum(value, 'bn');
  * seven-day view, and a time planner that turns the hours a student really has
  * into a timetable. Everything is stored on the device.
  */
-export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({ lang, theme }) => {
+export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
+  lang,
+  theme,
+  progressMap = {},
+  onToggleStage,
+}) => {
   const isDark = theme === 'dark';
   const useBn = lang === 'bn';
 
@@ -296,9 +304,33 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({ lang, them
                       <span className="opacity-70"> · {useBn ? `চ্যাপ্টার ${bn(slot.chapterNumber)}` : `chapter ${slot.chapterNumber}`}</span>
                     </p>
                   </div>
-                  <span className={`text-[10px] font-mono px-2 py-1 rounded-lg border ${chip}`}>
-                    {useBn ? '২ ঘণ্টা' : '2 h'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`text-[10px] font-mono px-2 py-1 rounded-lg border ${chip}`}>
+                      {useBn ? '২ ঘণ্টা' : '2 h'}
+                    </span>
+                    {onToggleStage && slot.chapterId && (
+                      <button
+                        onClick={() => onToggleStage(slot.chapterId, 'theoryDone')}
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
+                          progressMap[slot.chapterId]?.theoryDone
+                            ? isDark
+                              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
+                              : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                            : isDark
+                              ? 'border-slate-700 text-slate-300 hover:border-slate-500'
+                              : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                        }`}
+                      >
+                        {progressMap[slot.chapterId]?.theoryDone
+                          ? useBn
+                            ? '✓ সিলেবাসে সম্পন্ন'
+                            : '✓ Done in syllabus'
+                          : useBn
+                            ? 'সিলেবাসে টিক দাও'
+                            : 'Mark in syllabus'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">

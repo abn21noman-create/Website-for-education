@@ -315,6 +315,42 @@ console.log(
 );
 failures += gkRoundOk ? 0 : 1;
 
+// The dashboard carries today's routine, and the routine screen can mark a
+// class chapter as done inside the syllabus tracker.
+window.history.replaceState(null, '', '/#/');
+window.location.hash = '#/';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+const dashboardRoutine = (container.textContent || '').includes('\u0986\u099c\u0995\u09c7\u09b0 \u09b0\u09c1\u099f\u09bf\u09a8');
+console.log(
+  dashboardRoutine
+    ? '\u2713 the dashboard shows today\u2019s routine slice'
+    : '\u2717 dashboard routine card missing'
+);
+failures += dashboardRoutine ? 0 : 1;
+
+window.history.replaceState(null, '', '/#/routine');
+window.location.hash = '#/routine';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+const tickedInRoutine = clickByText('\u09b8\u09bf\u09b2\u09c7\u09ac\u09be\u09b8\u09c7 \u099f\u09bf\u0995 \u09a6\u09be\u0993');
+await new Promise((resolve) => setTimeout(resolve, 400));
+const syllabusSynced = (container.textContent || '').includes(
+  '\u09b8\u09bf\u09b2\u09c7\u09ac\u09be\u09b8\u09c7 \u09b8\u09ae\u09cd\u09aa\u09a8\u09cd\u09a8'
+);
+console.log(
+  tickedInRoutine && syllabusSynced
+    ? '\u2713 a class chapter tick writes into the syllabus tracker'
+    : `\u2717 routine\u2192syllabus sync failed (clicked=${tickedInRoutine}, done=${syllabusSynced})`
+);
+failures += tickedInRoutine && syllabusSynced ? 0 : 1;
+
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
 // earlier interaction test left a round running.

@@ -1288,7 +1288,14 @@ export function App() {
 
           {activeTab === 'gk' && <LazyGkDrillView lang={lang} theme={theme} />}
 
-          {activeTab === 'routine' && <LazyMasterRoutineView lang={lang} theme={theme} />}
+          {activeTab === 'routine' && (
+            <LazyMasterRoutineView
+              lang={lang}
+              theme={theme}
+              progressMap={progressMap}
+              onToggleStage={handleToggleStage}
+            />
+          )}
 
           {activeTab === 'lab' && <LazyVirtualLabView lang={lang} theme={theme} />}
 
