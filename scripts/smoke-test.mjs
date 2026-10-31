@@ -351,6 +351,24 @@ console.log(
 );
 failures += tickedInRoutine && syllabusSynced ? 0 : 1;
 
+// The study-time tab must show the chronotype picker, the sleep verdict and
+// the evidence list behind the plan.
+const openedTimeTab = clickByText('পড়ার সময়');
+await new Promise((resolve) => setTimeout(resolve, 400));
+const timeTabText = container.textContent || '';
+const hasChronotype =
+  timeTabText.includes('তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?') &&
+  timeTabText.includes('সকালে') &&
+  timeTabText.includes('রাতে');
+const hasEvidence = timeTabText.includes('এই রুটিনের পেছনের প্রমাণ');
+const hasSleep = timeTabText.includes('ঘুম:');
+console.log(
+  openedTimeTab && hasChronotype && hasEvidence && hasSleep
+    ? '\u2713 the study-time tab shows chronotype, sleep verdict and evidence'
+    : `\u2717 study-time tab incomplete (tab=${openedTimeTab}, chrono=${hasChronotype}, evidence=${hasEvidence}, sleep=${hasSleep})`
+);
+failures += openedTimeTab && hasChronotype && hasEvidence && hasSleep ? 0 : 1;
+
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
 // earlier interaction test left a round running.
@@ -602,6 +620,74 @@ check(
   'a fully booked day invents no study block'
 );
 
+const science = await vite.ssrLoadModule('/src/lib/studyScience.ts');
+check(
+  Array.isArray(science.SPACED_INTERVALS) && science.SPACED_INTERVALS.join(',') === '1,3,7,21',
+  'the revision schedule uses the 1/3/7/21-day intervals'
+);
+
+const learnedSample = {
+  learnedOn: '2026-01-01',
+  chapterId: 'phy1-ch1',
+  chapterBn: '\u09ad\u09cc\u09a4 \u099c\u0997\u09ce',
+  chapterEn: 'Physical World',
+  subjectBn: '\u09aa\u09a6\u09be\u09b0\u09cd\u09a5',
+  subjectEn: 'Physics',
+};
+const dueNextDay = science.revisionQueue([learnedSample], '2026-01-02');
+const dueDayThree = science.revisionQueue([learnedSample], '2026-01-04');
+const dueDayEight = science.revisionQueue([learnedSample], '2026-01-09');
+check(
+  dueNextDay.length === 1 && dueNextDay[0].interval === 1,
+  'a chapter learned yesterday is due for its day-1 review'
+);
+check(
+  dueDayThree.length === 1 && dueDayThree[0].interval === 3 && dueDayThree[0].daysOverdue === 0,
+  'the same chapter returns on day 3'
+);
+check(
+  dueDayEight.length === 1 && dueDayEight[0].interval === 7,
+  'on day 8 only the seven-day review is due, not a pile-up'
+);
+const dueDone = science.revisionQueue([learnedSample], '2026-01-02', {
+  '2026-01-02|due|phy1-ch1|1': true,
+});
+check(dueDone.length === 0, 'ticking a spaced review removes it from today\u2019s queue');
+
+const morningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'morning');
+const eveningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'evening');
+check(
+  morningDay.blocks[1].kind === 'class' && eveningDay.blocks[1].kind === 'revision',
+  'attention order follows the chosen chronotype',
+  `${morningDay.blocks[1].kind} vs ${eveningDay.blocks[1].kind}`
+);
+check(
+  morningDay.blocks.some((b) => b.kind === 'break') &&
+    morningDay.blocks[morningDay.blocks.length - 1].kind === 'winddown',
+  'the day carries real breaks and ends with a wind-down'
+);
+const toMin = (t) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+const last = morningDay.blocks[morningDay.blocks.length - 1];
+const endsAt = toMin(last.start) + last.minutes;
+check(
+  endsAt <= toMin(routine.DEFAULT_TIME_SETTINGS.sleep) + 1,
+  'the timetable never runs past bedtime',
+  `${last.start} + ${last.minutes}m`
+);
+check(
+  science.sleepFeedback({ wake: '06:00', sleep: '13:00' }).verdict === 'short' &&
+    science.sleepFeedback({ wake: '06:00', sleep: '14:30' }).verdict === 'good' &&
+    science.sleepFeedback({ wake: '06:00', sleep: '18:00' }).verdict === 'long',
+  'the sleep check separates short, healthy and excessive sleep'
+);
+check(
+  science.EVIDENCE.length >= 4 && science.EVIDENCE.every((item) => item.claimBn && item.sourceBn),
+  'every timetable rule shows its research claim and source'
+);
+
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');
 let routineState = routineStore.emptyRoutineState('2026-01-01');
 routineState = routineStore.toggleRoutineTask(routineState, routineStore.taskKey('2026-01-01', 0, 1));
@@ -615,6 +701,21 @@ check(
   routineState.tasks['2026-01-01|0|1'] === undefined,
   'unticking removes the routine task'
 );
+routineState = routineStore.toggleRoutineTask(
+  routineState,
+  routineStore.taskKey('2026-01-01', 0, 0)
+);
+const learned = routineStore.learnedChapters(routineState);
+check(
+  learned.length === 1 && learned[0].chapterId.length > 0,
+  'a ticked class marks its chapter as learned for spacing',
+  learned[0] ? learned[0].chapterId : 'none'
+);
+routineState = routineStore.toggleRoutineTask(
+  routineState,
+  routineStore.taskKey('2026-01-01', 0, 0)
+);
+
 routineState = routineStore.logStudyMinutes(routineState, '2026-01-01', 90);
 check(
   routineState.minutes['2026-01-01'] === 90,

@@ -1,4 +1,6 @@
 import { CHAPTERS, getSubjectByKey } from '../data/syllabusData';
+import { buildStudyDay } from './studyScience';
+import type { Chronotype } from './studyScience';
 import type { BilingualText, SubjectKey } from '../types';
 
 /**
@@ -239,19 +241,27 @@ export function daysToHsc(todayKey: string): number {
   return daysBetween(todayKey, HSC_EXAM_START);
 }
 
-// ── Time plan ────────────────────────────────────────────────────────────
+// ── Time plan (research-backed, lives in studyScience) ───────────────────
 
-export interface TimeSettings {
-  wake: string;
-  sleep: string;
-  /** School / college / coaching hours per day. */
-  instituteHours: number;
-  commuteHours: number;
-  /** Meals, prayer, family, rest. */
-  lifeHours: number;
-}
+export type {
+  StudyBlock as TimeBlock,
+  StudySettings as TimeSettings,
+  Chronotype,
+} from './studyScience';
 
-export const DEFAULT_TIME_SETTINGS: TimeSettings = {
+export {
+  buildStudyDay,
+  sleepFeedback,
+  revisionQueue,
+  plannedStudyMinutesOf as plannedStudyMinutes,
+  availableStudyMinutesOf as availableStudyMinutes,
+  EVIDENCE,
+  SPACED_INTERVALS,
+} from './studyScience';
+
+export type { LearnedItem, RevisionDue, EvidenceNote } from './studyScience';
+
+export const DEFAULT_TIME_SETTINGS = {
   wake: '06:00',
   sleep: '23:00',
   instituteHours: 3,
@@ -259,77 +269,9 @@ export const DEFAULT_TIME_SETTINGS: TimeSettings = {
   lifeHours: 3,
 };
 
-export interface TimeBlock {
-  id: string;
-  titleBn: string;
-  titleEn: string;
-  start: string;
-  minutes: number;
-  kind: 'class' | 'practice' | 'revision' | 'life' | 'institute';
-}
-
-function minutesOf(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return 0;
-  return h * 60 + m;
-}
-
-function clockText(totalMinutes: number): string {
-  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
-  const h = Math.floor(wrapped / 60);
-  const m = wrapped % 60;
-  return `${`${h}`.padStart(2, '0')}:${`${m}`.padStart(2, '0')}`;
-}
-
-/** Minutes available for study once sleep, institute, commute and life are out. */
-export function availableStudyMinutes(settings: TimeSettings): number {
-  const awake = minutesOf(settings.sleep) - minutesOf(settings.wake);
-  const span = awake > 0 ? awake : awake + 1440;
-  const blocked =
-    (settings.instituteHours + settings.commuteHours + settings.lifeHours) * 60;
-  return Math.max(0, span - blocked);
-}
-
-/**
- * A usable day, built from the hours the student actually has.
- *
- * Two classes in the morning, one long solving block, and a short revision block
- * at night — the same shape the printed routine asks for, scaled to the hours
- * the student really has left after school and life.
- */
-export function buildTimePlan(settings: TimeSettings): TimeBlock[] {
-  const study = availableStudyMinutes(settings);
-  if (study <= 0) return [];
-
-  const classMinutes = Math.min(180, Math.round(study * 0.4));
-  const practiceMinutes = Math.min(180, Math.round(study * 0.4));
-  const revisionMinutes = Math.max(20, Math.round(study * 0.2));
-
-  const blocks: TimeBlock[] = [];
-  let cursor = minutesOf(settings.wake);
-
-  const push = (id: string, titleBn: string, titleEn: string, minutes: number, kind: TimeBlock['kind']) => {
-    blocks.push({ id, titleBn, titleEn, start: clockText(cursor), minutes, kind });
-    cursor += minutes;
-  };
-
-  push('wake', 'ঘুম থেকে উঠে হালকা প্রস্তুতি', 'Wake up and get ready', 30, 'life');
-  push('class-1', 'ক্লাস ১ (রুটিনের প্রথম বিষয়)', 'Class 1 (first routine subject)', Math.round(classMinutes / 2), 'class');
-  push('break-1', 'নাস্তা ও বিশ্রাম', 'Breakfast and short break', 30, 'life');
-  push('class-2', 'ক্লাস ২ (রুটিনের দ্বিতীয় বিষয়)', 'Class 2 (second routine subject)', Math.round(classMinutes / 2), 'class');
-  push('institute', 'স্কুল / কলেজ / কোচিং', 'School, college or coaching', Math.round(settings.instituteHours * 60), 'institute');
-  push('commute', 'যাতায়াত', 'Commute', Math.round(settings.commuteHours * 60), 'life');
-  push('life', 'খাওয়া, নামাজ ও বিশ্রাম', 'Meals, prayer and rest', Math.round(settings.lifeHours * 60), 'life');
-  push('practice', 'সলভিং ব্লক (MCQ + গাণিতিক)', 'Solving block (MCQ + maths)', practiceMinutes, 'practice');
-  push('revision', 'রিভিশন ও নিজের ভাষায় ব্যাখ্যা', 'Revision and self-explanation', revisionMinutes, 'revision');
-
-  return blocks;
-}
-
-export function plannedStudyMinutes(blocks: TimeBlock[]): number {
-  return blocks
-    .filter((block) => block.kind === 'class' || block.kind === 'practice' || block.kind === 'revision')
-    .reduce((sum, block) => sum + block.minutes, 0);
+/** Blocks only — used by the routine screen and the smoke test. */
+export function buildTimePlan(settings: typeof DEFAULT_TIME_SETTINGS, chronotype: Chronotype = 'neutral') {
+  return buildStudyDay(settings, chronotype).blocks;
 }
 
 /** Monday-first free weekly target, shown next to the logged hours. */

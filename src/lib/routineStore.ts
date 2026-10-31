@@ -1,4 +1,6 @@
 import { DEFAULT_TIME_SETTINGS, TimeSettings, toDateKey } from './masterRoutine';
+import type { Chronotype, LearnedItem } from './studyScience';
+import { classSlotsForDay, dayNumberForDate } from './masterRoutine';
 
 /**
  * Local state for the master routine.
@@ -14,6 +16,8 @@ export const ROUTINE_KEY = 'hsc28_master_routine_v1';
 export interface RoutineState {
   /** Calendar date that counts as Day 1 of the 391-day plan. */
   startDate: string;
+  /** When this student's attention is sharpest — shifts the timetable order. */
+  chronotype: Chronotype;
   /** `${dateKey}|${slotIndex}|${taskIndex}` → ticked. Revision tasks use `rev`. */
   tasks: Record<string, boolean>;
   /** dateKey → minutes studied that day. */
@@ -22,7 +26,13 @@ export interface RoutineState {
 }
 
 export function emptyRoutineState(startDate = toDateKey(new Date())): RoutineState {
-  return { startDate, tasks: {}, minutes: {}, settings: { ...DEFAULT_TIME_SETTINGS } };
+  return {
+    startDate,
+    chronotype: 'neutral',
+    tasks: {},
+    minutes: {},
+    settings: { ...DEFAULT_TIME_SETTINGS },
+  };
 }
 
 export function loadRoutineState(): RoutineState {
@@ -32,6 +42,10 @@ export function loadRoutineState(): RoutineState {
     const parsed = JSON.parse(raw) as Partial<RoutineState>;
     return {
       startDate: typeof parsed.startDate === 'string' ? parsed.startDate : toDateKey(new Date()),
+      chronotype:
+        parsed.chronotype === 'morning' || parsed.chronotype === 'evening'
+          ? parsed.chronotype
+          : 'neutral',
       tasks: parsed.tasks && typeof parsed.tasks === 'object' ? parsed.tasks : {},
       minutes: parsed.minutes && typeof parsed.minutes === 'object' ? parsed.minutes : {},
       settings: { ...DEFAULT_TIME_SETTINGS, ...(parsed.settings || {}) },
@@ -86,4 +100,46 @@ export function completedTasksForDate(state: RoutineState, dateKey: string): num
   return Object.keys(state.tasks).filter(
     (key) => key.startsWith(`${dateKey}|`) && state.tasks[key]
   ).length;
+}
+
+export function setChronotype(state: RoutineState, chronotype: Chronotype): RoutineState {
+  return saveRoutineState({ ...state, chronotype });
+}
+
+/**
+ * Chapters already studied, derived from the ticked routine tasks.
+ *
+ * Ticking "watch the class" is what marks a chapter as learned; the spaced
+ * schedule then brings it back on day 1, 3, 7 and 21.
+ */
+export function learnedChapters(state: RoutineState): LearnedItem[] {
+  const out: LearnedItem[] = [];
+  const seen = new Set<string>();
+  Object.keys(state.tasks).forEach((key) => {
+    if (!state.tasks[key]) return;
+    const [dateKey, slotRaw, taskRaw] = key.split('|');
+    if (slotRaw === 'rev' || slotRaw === 'due') return;
+    if (taskRaw !== '0') return; // only the first task marks the chapter as learned
+    const dayNumber = dayNumberForDate(state.startDate, dateKey);
+    if (!dayNumber) return;
+    const slotIndex = Number(slotRaw);
+    const slot = classSlotsForDay(dayNumber)[slotIndex];
+    if (!slot || !slot.chapterId) return;
+    const unique = `${dateKey}|${slot.chapterId}`;
+    if (seen.has(unique)) return;
+    seen.add(unique);
+    out.push({
+      learnedOn: dateKey,
+      chapterId: slot.chapterId,
+      chapterBn: slot.chapterBn,
+      chapterEn: slot.chapterEn,
+      subjectBn: slot.subjectBn,
+      subjectEn: slot.subjectEn,
+    });
+  });
+  return out.sort((a, b) => a.learnedOn.localeCompare(b.learnedOn));
+}
+
+export function dueTaskKey(dateKey: string, chapterId: string, interval: number): string {
+  return `${dateKey}|due|${chapterId}|${interval}`;
 }

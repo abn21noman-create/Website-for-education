@@ -35,8 +35,9 @@ import {
   dayNumberForDate,
   isRevisionDay,
   toDateKey,
+  revisionQueue,
 } from '../lib/masterRoutine';
-import { loadRoutineState } from '../lib/routineStore';
+import { learnedChapters, loadRoutineState } from '../lib/routineStore';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
@@ -71,12 +72,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Today's slice of the 391-day master routine (read on mount, no props needed).
   const [routineToday] = useState(() => {
     const todayKey = toDateKey(new Date());
-    const { startDate } = loadRoutineState();
-    const dayNumber = dayNumberForDate(startDate, todayKey);
+    const routine = loadRoutineState();
+    const dayNumber = dayNumberForDate(routine.startDate, todayKey);
+    // Spaced reviews (1/3/7/21 days) that are waiting for the student today.
+    const due = revisionQueue(learnedChapters(routine), todayKey, routine.tasks);
     return {
       dayNumber,
       slots: dayNumber ? classSlotsForDay(dayNumber) : [],
       revision: dayNumber ? isRevisionDay(dayNumber) : false,
+      dueReviews: due.length,
     };
   });
 
@@ -345,6 +349,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {routineToday.dayNumber && (
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
                 Day {routineToday.dayNumber} / 391
+              </span>
+            )}
+            {routineToday.dueReviews > 0 && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isDark ? 'bg-amber-500/20 text-amber-200' : 'bg-amber-100 text-amber-800'}`}>
+                {lang === 'bn'
+                  ? `${formatNum(routineToday.dueReviews, lang)} রিভিউ বাকি`
+                  : `${routineToday.dueReviews} reviews due`}
               </span>
             )}
           </div>

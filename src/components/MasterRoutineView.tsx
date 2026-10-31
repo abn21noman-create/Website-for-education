@@ -22,20 +22,26 @@ import {
   WEEKDAYS_EN,
   WEEKLY_HOUR_TARGET,
   availableStudyMinutes,
-  buildTimePlan,
+  buildStudyDay,
   classSlotsForDay,
+  EVIDENCE,
+  revisionQueue,
   dateForDayNumber,
   dayNumberForDate,
   daysToHsc,
   isRevisionDay,
   phaseForDay,
-  plannedStudyMinutes,
   toDateKey,
   weekdayIndexForDay,
 } from '../lib/masterRoutine';
+import type { Chronotype } from '../lib/studyScience';
+import { sleepFeedback } from '../lib/studyScience';
 import {
   completedTasksForDate,
+  dueTaskKey,
+  learnedChapters,
   loadRoutineState,
+  setChronotype,
   logStudyMinutes,
   revisionTaskKey,
   setStartDate,
@@ -84,10 +90,20 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const slots = useMemo(() => (dayNumber ? classSlotsForDay(dayNumber) : []), [dayNumber, state.startDate]);
   const revisionDay = dayNumber ? isRevisionDay(dayNumber) : weekday === 6;
   const phase = dayNumber ? phaseForDay(dayNumber) : null;
-  const plan = useMemo(() => buildTimePlan(state.settings), [state.settings]);
-
-  const studyMinutes = plannedStudyMinutes(plan);
+  const studyDay = useMemo(
+    () => buildStudyDay(state.settings, state.chronotype),
+    [state.settings, state.chronotype]
+  );
+  const plan = studyDay.blocks;
+  const studyMinutes = studyDay.studyMinutes;
   const available = availableStudyMinutes(state.settings);
+  const sleep = useMemo(() => sleepFeedback(state.settings), [state.settings]);
+
+  // Chapters studied earlier that are due for a 1/3/7/21-day review today.
+  const dueReviews = useMemo(
+    () => revisionQueue(learnedChapters(state), dateKey, state.tasks),
+    [state, dateKey]
+  );
   const minutesToday = state.minutes[dateKey] || 0;
   const tickedToday = completedTasksForDate(state, dateKey);
 
@@ -364,6 +380,62 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             ))
           )}
 
+          {/* Spaced reviews due today */}
+          {dueReviews.length > 0 && (
+            <div className={`rounded-2xl border p-4 ${card}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-extrabold">
+                  {useBn ? 'আজকের স্পেসড রিভিউ' : 'Spaced reviews due today'}
+                </p>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${chip}`}>
+                  {bn(dueReviews.length)}
+                </span>
+              </div>
+              <p className={`text-[11px] mt-1 ${muted}`}>
+                {useBn
+                  ? '১, ৩, ৭ ও ২১ দিন আগে পড়া অধ্যায়গুলো আজ ফিরে আসছে — এটাই ভুলে যাওয়া ঠেকানোর প্রধান উপায়।'
+                  : 'Chapters from 1, 3, 7 and 21 days ago come back today — the main defence against forgetting.'}
+              </p>
+              <ul className="mt-3 space-y-2">
+                {dueReviews.map((item) => {
+                  const key = dueTaskKey(dateKey, item.chapterId, item.interval);
+                  const done = Boolean(state.tasks[key]);
+                  return (
+                    <li key={key}>
+                      <button
+                        onClick={() => toggleTask(key)}
+                        className={`w-full flex items-start gap-2.5 text-left px-3 py-2.5 rounded-xl border text-xs transition-colors ${
+                          done
+                            ? isDark
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                              : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                            : isDark
+                              ? 'border-slate-800 hover:border-slate-600'
+                              : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <CheckCircle2 className={`w-4 h-4 shrink-0 mt-0.5 ${done ? 'text-emerald-500' : 'opacity-40'}`} />
+                        <span className="flex-1">
+                          <span className={done ? 'line-through opacity-80' : 'font-bold'}>
+                            {useBn ? item.chapterBn : item.chapterEn}
+                          </span>
+                          <span className={`block text-[10px] ${muted}`}>
+                            {useBn ? item.subjectBn : item.subjectEn} · D+{item.interval}
+                            {item.daysOverdue > 0
+                              ? useBn
+                                ? ` · ${bn(item.daysOverdue)} দিন দেরি`
+                                : ` · ${item.daysOverdue}d late`
+                              : ''}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
           {/* Hours log */}
           <div className={`rounded-2xl border p-4 ${card}`}>
             <div className="flex items-center justify-between gap-3">
@@ -537,6 +609,66 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             </div>
           </div>
 
+          {/* Chronotype + sleep check */}
+          <div className={`rounded-2xl border p-4 ${card}`}>
+            <p className="text-sm font-extrabold">
+              {useBn ? 'তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?' : 'When is your head sharpest?'}
+            </p>
+            <p className={`text-[11px] mt-1 ${muted}`}>
+              {useBn
+                ? 'যে সময়ে মনোযোগ সবচেয়ে ভালো, নতুন অধ্যায় সেখানে বসবে — বাকিটা সলভিং ও রিভিশন।'
+                : 'New chapters go where your attention peaks; the rest becomes solving and revision.'}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(
+                [
+                  { key: 'morning' as Chronotype, bn: 'সকালে', en: 'Morning' },
+                  { key: 'neutral' as Chronotype, bn: 'মাঝারি', en: 'Midday' },
+                  { key: 'evening' as Chronotype, bn: 'রাতে', en: 'Evening' },
+                ] as { key: Chronotype; bn: string; en: string }[]
+              ).map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setState((prev) => setChronotype(prev, item.key))}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                    state.chronotype === item.key
+                      ? isDark
+                        ? 'border-indigo-400/50 bg-indigo-500/20 text-indigo-200'
+                        : 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                      : isDark
+                        ? 'border-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                  }`}
+                >
+                  {useBn ? item.bn : item.en}
+                </button>
+              ))}
+            </div>
+
+            <div
+              className={`mt-4 rounded-xl border p-3 text-xs ${
+                sleep.verdict === 'good'
+                  ? isDark
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                  : sleep.verdict === 'short'
+                    ? isDark
+                      ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                      : 'border-rose-300 bg-rose-50 text-rose-900'
+                    : isDark
+                      ? 'border-slate-700 bg-slate-800/50 text-slate-200'
+                      : 'border-slate-200 bg-slate-50 text-slate-700'
+              }`}
+            >
+              <p className="font-bold">
+                {useBn
+                  ? `ঘুম: ${bn(Math.round(sleep.hours * 10) / 10)} ঘণ্টা`
+                  : `Sleep: ${Math.round(sleep.hours * 10) / 10} h`}
+              </p>
+              <p className="mt-1 leading-relaxed">{useBn ? sleep.messageBn : sleep.messageEn}</p>
+            </div>
+          </div>
+
           <div className={`rounded-2xl border overflow-hidden ${card}`}>
             <div className={`px-4 py-3 text-xs font-extrabold border-b flex items-center gap-2 ${isDark ? 'border-slate-800' : 'border-slate-200/80'}`}>
               <AlarmClock className="w-3.5 h-3.5" />
@@ -559,6 +691,11 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                       </span>
                       <span className={`flex-1 ${isStudy ? 'font-bold' : muted}`}>
                         {useBn ? block.titleBn : block.titleEn}
+                        {(useBn ? block.whyBn : block.whyEn) && (
+                          <span className={`block text-[10px] font-normal mt-0.5 ${muted}`}>
+                            {useBn ? block.whyBn : block.whyEn}
+                          </span>
+                        )}
                       </span>
                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${chip}`}>
                         {bn(block.minutes)} {useBn ? 'মিনিট' : 'min'}
@@ -622,6 +759,35 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                 ? `Day ১ = ${dateForDayNumber(state.startDate, 1)} · Day ৩৯১ = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)} · HSC শুরু ${HSC_EXAM_START}`
                 : `Day 1 = ${dateForDayNumber(state.startDate, 1)} · Day 391 = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)} · HSC starts ${HSC_EXAM_START}`}
             </p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${card}`}>
+            <p className="text-sm font-extrabold">
+              {useBn ? 'এই রুটিনের পেছনের প্রমাণ' : 'The evidence behind this routine'}
+            </p>
+            <ul className="mt-3 space-y-3">
+              {EVIDENCE.map((note) => (
+                <li key={note.id} className="text-xs">
+                  <div className="flex items-start gap-2">
+                    <span
+                      className={`mt-0.5 shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                        note.strength === 'strong'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : note.strength === 'moderate'
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                            : 'bg-slate-500/15 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {note.strength === 'strong' ? 'STRONG' : note.strength === 'moderate' ? 'MODERATE' : 'HEURISTIC'}
+                    </span>
+                    <div>
+                      <p className="font-bold leading-relaxed">{useBn ? note.claimBn : note.claimEn}</p>
+                      <p className={`text-[10px] mt-0.5 ${muted}`}>{useBn ? note.sourceBn : note.sourceEn}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
