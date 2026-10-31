@@ -184,6 +184,24 @@ export const EXAM_PATTERNS: ExamPattern[] = [
     officialUrl: 'https://admission.eis.du.ac.bd/',
   },
   {
+    id: 'full-mock',
+    kind: 'mixed',
+    name: { bn: 'সমন্বিত মডেল টেস্ট (৩০ প্রশ্ন)', en: 'Combined Model Test (30 questions)' },
+    breakdown: {
+      bn: 'সব পত্র থেকে ৩০ প্রশ্ন • ৩০ মিনিট • নেগেটিভ নেই',
+      en: '30 questions across all papers • 30 minutes • no negative marking',
+    },
+    paperQuestions: 30,
+    paperMinutes: 30,
+    negativeMarking: false,
+    markPerQuestion: 1,
+    subjectMode: 'interleaved',
+    note: {
+      bn: 'এটি বোর্ডের হুবহু কাগজ নয় — পুরো সিলেবাসের সমন্বিত রিভিশন টেস্ট।',
+      en: 'Not an exact board paper — a combined revision test across the whole syllabus.',
+    },
+  },
+  {
     id: 'mixed-interleaved',
     kind: 'mixed',
     name: { bn: 'মিশ্র প্র্যাকটিস (Interleaved)', en: 'Mixed Practice (Interleaved)' },

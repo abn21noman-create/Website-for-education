@@ -391,6 +391,17 @@ check(
   `${medicalPick.length} questions / ${pickedSubjects.size} subjects`
 );
 
+const fullMock = patterns.pickPatternQuestions(
+  allQuestions,
+  patterns.getPatternById('full-mock'),
+  30
+);
+check(
+  fullMock.length === 30 && new Set(fullMock.map((q) => q.subjectKey)).size >= 6,
+  'the combined 30-question mock spans the syllabus',
+  `${fullMock.length} questions / ${new Set(fullMock.map((q) => q.subjectKey)).size} papers`
+);
+
 const mixedPick = patterns.pickPatternQuestions(
   allQuestions,
   patterns.getPatternById('mixed-interleaved'),
