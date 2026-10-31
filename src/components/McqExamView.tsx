@@ -38,6 +38,7 @@ import {
   writtenSectionLabel,
 } from '../lib/examPatterns';
 import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
+import { SelfExplainBox } from './SelfExplainBox';
 
 interface McqExamViewProps {
   lang: Lang;
@@ -1530,6 +1531,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 </strong>
                 {q.explanation[lang]}
               </div>
+
+              <SelfExplainBox questionId={q.id} lang={lang} theme={theme} />
 
               {!isCorrect && (
                 <div>

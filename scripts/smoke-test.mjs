@@ -437,6 +437,19 @@ check(
   combinedRule.missing.map((m) => m.bn).join(' | ')
 );
 
+const selfNotes = await vite.ssrLoadModule('/src/lib/selfNotes.ts');
+selfNotes.saveSelfNote('q-phy1-c1', 'বলের মাত্রা MLT⁻², কারণ F = ma');
+const savedNote = selfNotes.loadSelfNotes()['q-phy1-c1'] || '';
+check(
+  savedNote.includes('MLT') && selfNotes.selfNoteCount() >= 1,
+  'self-explanation notes save per question'
+);
+selfNotes.saveSelfNote('q-phy1-c1', '   ');
+check(
+  selfNotes.loadSelfNotes()['q-phy1-c1'] === undefined,
+  'an emptied explanation is removed'
+);
+
 const summary = mistakeTags.mistakeSummary(
   ['q1', 'q2', 'q3'],
   { q1: 'concept', q2: 'concept', q3: 'rushed' }
