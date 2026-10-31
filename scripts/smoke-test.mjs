@@ -346,6 +346,20 @@ check(
   `${bankIds.length - new Set(bankIds).size} duplicates`
 );
 
+const cqBank = await vite.ssrLoadModule('/src/data/cqData.ts');
+const cqIds = cqBank.CQ_QUESTIONS.map((q) => q.id);
+check(
+  cqBank.CQ_QUESTIONS.length >= 18 && new Set(cqIds).size === cqIds.length,
+  'CQ bank has 18+ unique creative questions',
+  `${cqBank.CQ_QUESTIONS.length} total / ${new Set(cqIds).size} unique`
+);
+check(
+  cqBank.CQ_QUESTIONS.every(
+    (q) => q.stem?.bn && q.qA?.bn && q.qB?.bn && q.qC?.bn && q.qD?.bn && q.ansA?.bn && q.ansD?.bn
+  ),
+  'every CQ carries a stem plus ক-ঘ and answers'
+);
+
 const medical = patterns.getPatternById('medical-mbbs');
 check(
   patterns.patternTimeFor(medical, 10) === 360,
