@@ -524,6 +524,21 @@ check(
   'an emptied explanation is removed'
 );
 
+// The setup screen should tell the student how much they have already written.
+selfNotes.saveSelfNote('q-bio2-1', '\u09b9\u09c3\u09a6\u09aa\u09bf\u09a3\u09cd\u09a1\u09c7\u09b0 \u09ac\u09be\u09ae \u09a8\u09bf\u09b2\u09df \u09b8\u09ac\u099a\u09c7\u09df\u09c7 \u09ae\u09cb\u099f\u09be');
+window.history.replaceState(null, '', '/#/mcq');
+window.location.hash = '#/mcq';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 900));
+const noteChip = (container.textContent || '').includes(
+  '\u09a8\u09bf\u099c\u09c7\u09b0 \u09ad\u09be\u09b7\u09be\u09df \u09b2\u09c7\u0996\u09be \u09ac\u09cd\u09af\u09be\u0996\u09cd\u09af\u09be'
+);
+check(noteChip, 'the MCQ setup screen counts the explanations you have written');
+selfNotes.saveSelfNote('q-bio2-1', '');
+
 const summary = mistakeTags.mistakeSummary(
   ['q1', 'q2', 'q3'],
   { q1: 'concept', q2: 'concept', q3: 'rushed' }

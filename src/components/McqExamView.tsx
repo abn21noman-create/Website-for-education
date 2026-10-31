@@ -39,6 +39,7 @@ import {
 } from '../lib/examPatterns';
 import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
 import { SelfExplainBox } from './SelfExplainBox';
+import { selfNoteCount } from '../lib/selfNotes';
 
 interface McqExamViewProps {
   lang: Lang;
@@ -67,6 +68,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   const isDark = theme === 'dark';
 
   const [stage, setStage] = useState<'setup' | 'running' | 'result'>('setup');
+  // Notes written during earlier sessions; refreshed whenever the setup screen mounts.
+  const [writtenNotes] = useState(() => selfNoteCount());
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>('all');
   const [patternId, setPatternId] = useState<string>('custom');
   const [difficultyFilter, setDifficultyFilter] = useState<
@@ -406,6 +409,19 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               ? 'বোর্ড পরীক্ষা এবং বিশ্ববিদ্যালয় ভর্তি মানের প্রশ্নে নিজেকে যাচাই করুন — প্রতিটি সঠিক উত্তরে +১০ XP।'
               : 'Evaluate your preparation on HSC Board and Admission-grade questions — earn +10 XP per correct answer.'}
           </p>
+          {writtenNotes > 0 && (
+            <p
+              className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${
+                isDark
+                  ? 'bg-indigo-500/12 border-indigo-400/25 text-indigo-300'
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+              }`}
+            >
+              ✍️ {lang === 'bn'
+                ? `নিজের ভাষায় লেখা ব্যাখ্যা: ${writtenNotes}টি`
+                : `Self-explanations written: ${writtenNotes}`}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
