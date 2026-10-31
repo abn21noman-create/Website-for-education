@@ -718,9 +718,9 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
 
       {/* Modal to Add Personal Note */}
       {showNoteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
           <div
-            className={`w-full max-w-lg rounded-2xl border p-6 shadow-2xl relative ${
+            className={`w-full max-w-lg rounded-t-3xl sm:rounded-2xl border p-5 sm:p-6 shadow-2xl relative max-h-[92dvh] overflow-y-auto overscroll-contain ${
               isDark
                 ? 'bg-slate-800 border-slate-700 text-slate-100'
                 : 'bg-white border-slate-200 text-slate-800'

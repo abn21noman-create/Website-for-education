@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Check } from 'lucide-react';
 import {
   ActiveTab,
@@ -12,7 +18,7 @@ import {
   SubjectKey,
   Theme,
 } from './types';
-import { supabase } from './lib/supabase';
+import { getSupabase } from './lib/supabase';
 import {
   clearSyncQueueForCurrentUser,
   initSyncNetworkWatcher,
@@ -24,21 +30,34 @@ import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
-import { SyllabusTrackerView } from './components/SyllabusTrackerView';
-import { FormulaVaultView } from './components/FormulaVaultView';
-import { CqBankView } from './components/CqBankView';
-import { McqExamView } from './components/McqExamView';
-import { StudyPlannerView } from './components/StudyPlannerView';
-import { GpaCalculatorView } from './components/GpaCalculatorView';
-import { LeaderboardView } from './components/LeaderboardView';
-import { VirtualLabView } from './components/VirtualLabView';
-import { AnalyticsView } from './components/AnalyticsView';
-import { StudentHubView } from './components/StudentHubView';
-import { AdmissionView } from './components/AdmissionView';
-import { PracticalWritingView } from './components/PracticalWritingView';
-import { AuthModal } from './components/AuthModal';
-import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { Footer } from './components/Footer';
+import { MobileTabBar } from './components/MobileTabBar';
+import { ViewSkeleton } from './components/ViewSkeleton';
+import { InstallPrompt } from './components/InstallPrompt';
+// Every secondary screen is its own lazy chunk; the dashboard ships eagerly so
+// the first paint is never blocked by a spinner.
+import {
+  LazyAdmissionView,
+  LazyAnalyticsView,
+  LazyAuthModal,
+  LazyCommandPaletteModal,
+  LazyCqBankView,
+  LazyFormulaVaultView,
+  LazyGpaCalculatorView,
+  LazyLeaderboardView,
+  LazyLifeHubView,
+  LazyMcqExamView,
+  LazyPracticalWritingView,
+  LazyStudentHubView,
+  LazyStudyPlannerView,
+  LazySyllabusTrackerView,
+  LazyVirtualLabView,
+  preloadAuthModal,
+  preloadCommandPalette,
+  prefetchAllRoutes,
+  preloadLikelyRoutes,
+  preloadRoute,
+} from './lib/lazyViews';
 
 const STORAGE_KEYS = {
   lang: 'hsc28_lang',
@@ -165,6 +184,15 @@ export function App() {
 
   useEffect(() => {
     initSyncNetworkWatcher();
+  }, []);
+
+  // Warm the chunks a student is most likely to tap next, once the browser is
+  // idle — keeps the split invisible on a slow connection.
+  useEffect(() => {
+    preloadLikelyRoutes();
+    // After the dashboard has settled, fill the cache in the background so the
+    // whole app (and its service-worker copy) is available offline.
+    prefetchAllRoutes();
   }, []);
 
   useEffect(() => {
@@ -306,6 +334,8 @@ export function App() {
     ) => {
       setAuthUserId(userId);
       try {
+        // Pulled in on demand: the dashboard has already painted by now.
+        const supabase = await getSupabase();
         const { data: existingProfile } = await supabase
           .from('hsc28_profiles')
           .select('*')
@@ -565,11 +595,21 @@ export function App() {
   );
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        hydrateFromCloud(data.session.user.id, data.session.user.email);
-      }
-    });
+    let cancelled = false;
+    getSupabase()
+      .then((client) => client.auth.getSession())
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data.session?.user) {
+          hydrateFromCloud(data.session.user.id, data.session.user.email);
+        }
+      })
+      .catch(() => {
+        /* Offline or blocked: the app keeps working from localStorage. */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [hydrateFromCloud]);
 
   const handleToggleStage = useCallback(
@@ -757,6 +797,10 @@ export function App() {
       tasks,
       sessions,
       personalNotes,
+      // Life Hub keeps its own key outside React state (habits, deadlines,
+      // exams, checklist). Read it straight from storage so a backup really is
+      // a complete snapshot of the student's work.
+      lifeHub: readLocal<unknown>('hsc28_life_v1', null),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: 'application/json',
@@ -789,6 +833,11 @@ export function App() {
           if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
           if (Array.isArray(parsed.personalNotes))
             setPersonalNotes(parsed.personalNotes);
+          if (parsed.lifeHub && typeof parsed.lifeHub === 'object') {
+            localStorage.setItem('hsc28_life_v1', JSON.stringify(parsed.lifeHub));
+            // The Life Hub owns this data, so tell it to re-read storage.
+            window.dispatchEvent(new Event('hsc28:life-data-changed'));
+          }
           showToast(
             lang === 'bn'
               ? 'সকল নোটস ও অগ্রগতি সফলভাবে রিস্টোর হয়েছে!'
@@ -1112,7 +1161,8 @@ export function App() {
   const handleSignOut = async () => {
     // Anything still queued belongs to the account that is leaving.
     clearSyncQueueForCurrentUser();
-    await supabase.auth.signOut();
+    const client = await getSupabase();
+    await client.auth.signOut();
     setAuthUserId(null);
     setProfile(DEFAULT_GUEST_PROFILE);
   };
@@ -1129,7 +1179,7 @@ export function App() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col justify-between transition-colors duration-300 ${
+      className={`min-h-dvh flex flex-col justify-between transition-colors duration-300 ${
         isDark
           ? 'bg-[#0f172a] text-slate-100'
           : 'bg-[#f4f7fb] text-slate-800'
@@ -1145,15 +1195,15 @@ export function App() {
           setTheme={setTheme}
           profile={profile}
           isAuthenticated={!!authUserId}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenAuth={() => { preloadAuthModal(); setIsAuthModalOpen(true); }}
+          onOpenSearch={() => { preloadCommandPalette(); setIsSearchOpen(true); }}
           syncStatus={syncStatus}
         />
 
         {/* Soft Eye-Friendly Toast Notification */}
         {toastMsg && (
           <div
-            className={`fixed bottom-6 right-5 z-50 px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2.5 shadow-lg animate-toast backdrop-blur-md ${
+            className={`fixed bottom-24 md:bottom-6 right-3 sm:right-5 max-w-[calc(100vw-1.5rem)] z-50 px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2.5 shadow-lg animate-toast backdrop-blur-md ${
               isDark
                 ? 'bg-slate-800/95 text-emerald-300 border-emerald-500/30'
                 : 'bg-white/95 text-emerald-800 border-emerald-200'
@@ -1170,7 +1220,9 @@ export function App() {
           </div>
         )}
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-7">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-28 md:pb-8">
+          <Suspense fallback={<ViewSkeleton lang={lang} theme={theme} />}>
+          <div key={activeTab} className="animate-view-in">
           {activeTab === 'dashboard' && (
             <DashboardView
               lang={lang}
@@ -1181,12 +1233,12 @@ export function App() {
               quizHistory={quizHistory}
               tasks={tasks}
               onNavigate={handleNavigate}
-              onOpenAuth={() => setIsAuthModalOpen(true)}
+              onOpenAuth={() => { preloadAuthModal(); setIsAuthModalOpen(true); }}
             />
           )}
 
           {activeTab === 'syllabus' && (
-            <SyllabusTrackerView
+            <LazySyllabusTrackerView
               lang={lang}
               theme={theme}
               initialSubject={syllabusSubject}
@@ -1197,7 +1249,7 @@ export function App() {
           )}
 
           {activeTab === 'formulas' && (
-            <FormulaVaultView
+            <LazyFormulaVaultView
               lang={lang}
               theme={theme}
               bookmarks={profile.bookmarks}
@@ -1211,7 +1263,7 @@ export function App() {
           )}
 
           {activeTab === 'cq' && (
-            <CqBankView
+            <LazyCqBankView
               lang={lang}
               theme={theme}
               solvedCqs={profile.solvedCqs || []}
@@ -1220,7 +1272,7 @@ export function App() {
           )}
 
           {activeTab === 'mcq' && (
-            <McqExamView
+            <LazyMcqExamView
               lang={lang}
               theme={theme}
               quizHistory={quizHistory}
@@ -1232,10 +1284,10 @@ export function App() {
             />
           )}
 
-          {activeTab === 'lab' && <VirtualLabView lang={lang} theme={theme} />}
+          {activeTab === 'lab' && <LazyVirtualLabView lang={lang} theme={theme} />}
 
           {activeTab === 'planner' && (
-            <StudyPlannerView
+            <LazyStudyPlannerView
               lang={lang}
               theme={theme}
               tasks={tasks}
@@ -1249,7 +1301,7 @@ export function App() {
           )}
 
           {activeTab === 'analytics' && (
-            <AnalyticsView
+            <LazyAnalyticsView
               lang={lang}
               theme={theme}
               profile={profile}
@@ -1267,7 +1319,7 @@ export function App() {
           )}
 
           {activeTab === 'hub' && (
-            <StudentHubView
+            <LazyStudentHubView
               lang={lang}
               theme={theme}
               profile={profile}
@@ -1278,7 +1330,7 @@ export function App() {
           )}
 
           {activeTab === 'admission' && (
-            <AdmissionView
+            <LazyAdmissionView
               lang={lang}
               theme={theme}
               profile={profile}
@@ -1289,7 +1341,7 @@ export function App() {
           )}
 
           {activeTab === 'practical' && (
-            <PracticalWritingView
+            <LazyPracticalWritingView
               lang={lang}
               theme={theme}
               completedPracticals={profile.completedPracticals || []}
@@ -1298,18 +1350,31 @@ export function App() {
           )}
 
           {activeTab === 'gpa' && (
-            <GpaCalculatorView lang={lang} theme={theme} />
+            <LazyGpaCalculatorView lang={lang} theme={theme} />
           )}
 
           {activeTab === 'leaderboard' && (
-            <LeaderboardView
+            <LazyLeaderboardView
               lang={lang}
               theme={theme}
               currentProfile={profile}
               isAuthenticated={!!authUserId}
-              onOpenAuth={() => setIsAuthModalOpen(true)}
+              onOpenAuth={() => { preloadAuthModal(); setIsAuthModalOpen(true); }}
             />
           )}
+
+          {activeTab === 'life' && (
+            <LazyLifeHubView
+              lang={lang}
+              theme={theme}
+              profile={profile}
+              authUserId={authUserId}
+              onNavigate={handleNavigate}
+              onAwardXp={handleAwardStudentXp}
+            />
+          )}
+          </div>
+          </Suspense>
         </main>
       </div>
 
@@ -1320,7 +1385,21 @@ export function App() {
         onNavigate={(t) => handleNavigate(t)}
       />
 
-      <AuthModal
+      <InstallPrompt lang={lang} theme={theme} />
+
+      {/* Thumb-reachable navigation for phones; hidden from md upwards. */}
+      <MobileTabBar
+        activeTab={activeTab}
+        onNavigate={handleNavigate}
+        onPreload={preloadRoute}
+        onOpenSearch={() => { preloadCommandPalette(); setIsSearchOpen(true); }}
+        lang={lang}
+        theme={theme}
+      />
+
+      {isAuthModalOpen && (
+      <Suspense fallback={null}>
+      <LazyAuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         lang={lang}
@@ -1331,14 +1410,20 @@ export function App() {
         onSignOut={handleSignOut}
         onUpdateProfileMeta={handleUpdateProfileMeta}
       />
+      </Suspense>
+      )}
 
-      <CommandPaletteModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        lang={lang}
-        theme={theme}
-        onSelectDestination={handleNavigate}
-      />
+      {isSearchOpen && (
+        <Suspense fallback={null}>
+          <LazyCommandPaletteModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            lang={lang}
+            theme={theme}
+            onSelectDestination={handleNavigate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

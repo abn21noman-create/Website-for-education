@@ -10,6 +10,9 @@ import {
   Calculator,
   ArrowRight,
   Sparkles,
+  ShieldCheck,
+  AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 import {
   ActiveTab,
@@ -20,6 +23,7 @@ import {
   Theme,
 } from '../types';
 import { CHAPTERS } from '../data/syllabusData';
+import { ADMISSION_TRACK_INFO, ADMIN_VERIFIED_ON } from '../data/admissionTracks';
 import { formatNum } from '../lib/i18n';
 
 interface AdmissionViewProps {
@@ -317,11 +321,107 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
                   active ? 'opacity-90' : 'opacity-65'
                 }`}
               >
-                {lang === 'bn' ? item.subBn : item.subEn}
+                {ADMISSION_TRACK_INFO[item.id].structure[lang]}
               </p>
             </button>
           );
         })}
+      </div>
+
+      {/* What the test actually is — with a check date and a source link */}
+      <div className={cardClass}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-base flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span>
+                {lang === 'bn' ? 'পরীক্ষার কাঠামো ও যোগ্যতা' : 'Exam structure & eligibility'}
+              </span>
+            </h2>
+            <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {lang === 'bn'
+                ? `যাচাই করা হয়েছে: ${ADMIN_VERIFIED_ON} • নিয়ম প্রতি বছর বদলাতে পারে`
+                : `Verified on ${ADMIN_VERIFIED_ON} • rules can change every year`}
+            </p>
+          </div>
+          <a
+            href={ADMISSION_TRACK_INFO[track].officialUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold ${
+              isDark
+                ? 'border-slate-600 text-slate-300 hover:border-slate-400'
+                : 'border-slate-200 text-slate-700 hover:border-indigo-300 bg-white'
+            }`}
+          >
+            <ExternalLink className="w-3 h-3" />
+            <span>{ADMISSION_TRACK_INFO[track].officialLabel[lang]}</span>
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+          {ADMISSION_TRACK_INFO[track].facts.map((fact, idx) => (
+            <div
+              key={idx}
+              className={`p-3 rounded-xl border ${
+                isDark ? 'bg-slate-900/55 border-slate-700/80' : 'bg-slate-50/75 border-slate-200/85'
+              }`}
+            >
+              <div className="text-[10px] font-mono uppercase tracking-wider opacity-60">
+                {fact.label[lang]}
+              </div>
+              <div className="text-xs font-bold mt-0.5 leading-relaxed">{fact.value[lang]}</div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className={`mt-3 p-3 rounded-xl border text-xs font-semibold flex items-start gap-2 ${
+            isDark
+              ? 'bg-emerald-500/10 border-emerald-400/25 text-emerald-200'
+              : 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{ADMISSION_TRACK_INFO[track].eligibility[lang]}</span>
+        </div>
+
+        <ul className="mt-3 space-y-2">
+          {ADMISSION_TRACK_INFO[track].pitfalls.map((pitfall, idx) => (
+            <li
+              key={idx}
+              className={`flex items-start gap-2 text-[11px] leading-relaxed ${
+                isDark ? 'text-slate-400' : 'text-slate-600'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+              <span>{pitfall[lang]}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => onNavigate('mcq')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>{lang === 'bn' ? 'এই প্যাটার্নে মক দাও' : 'Mock this pattern'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('gpa')}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
+              isDark
+                ? 'border-slate-600 text-slate-300 hover:border-slate-400'
+                : 'border-slate-200 text-slate-700 hover:border-indigo-300 bg-white'
+            }`}
+          >
+            <Calculator className="w-3.5 h-3.5" />
+            <span>{lang === 'bn' ? 'আমার GPA দিয়ে যোগ্যতা' : 'Check my GPA eligibility'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

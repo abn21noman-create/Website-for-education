@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calculator, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import { Lang, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
+import { ELIGIBILITY_VERIFIED_ON, evaluateEligibility } from '../lib/eligibility';
 
 interface GpaCalculatorViewProps {
   lang: Lang;
@@ -43,6 +44,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
   const isDark = theme === 'dark';
   const [rows, setRows] = useState<SubjectMarkRow[]>(INITIAL_ROWS);
   const [fourthSubjectId, setFourthSubjectId] = useState<'biology' | 'math'>('biology');
+  const [sscGpa, setSscGpa] = useState<number>(5);
 
   const updateMarks = (id: string, val: number) => {
     const clamped = Math.max(0, Math.min(100, isNaN(val) ? 0 : val));
@@ -75,22 +77,19 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
     ? 0
     : Number(Math.min(5.0, (compulsoryGpSum + fourthBonus) / 6).toFixed(2));
 
-  const phyMarks = rows.find((r) => r.id === 'physics')?.marks ?? 0;
-  const chemMarks = rows.find((r) => r.id === 'chemistry')?.marks ?? 0;
-  const mathMarks = rows.find((r) => r.id === 'math')?.marks ?? 0;
-  const bioMarks = rows.find((r) => r.id === 'biology')?.marks ?? 0;
+  const gpOf = (id: string) => getGradeFromMarks(rows.find((r) => r.id === id)?.marks ?? 0).gp;
 
-  const buetEligible =
-    !compulsoryFail &&
-    finalGpa === 5.0 &&
-    phyMarks >= 85 &&
-    chemMarks >= 85 &&
-    mathMarks >= 85;
-  const medicalEligible =
-    !compulsoryFail &&
-    finalGpa >= 4.5 &&
-    getGradeFromMarks(bioMarks).gp >= 4.0;
-  const duKaEligible = !compulsoryFail && finalGpa >= 4.0;
+  const eligibility = evaluateEligibility({
+    sscGpa,
+    hscGpa: compulsoryFail ? 0 : finalGpa,
+    subjectGps: {
+      physics: gpOf('physics'),
+      chemistry: gpOf('chemistry'),
+      math: gpOf('math'),
+      biology: gpOf('biology'),
+    },
+    group: 'science',
+  });
 
   return (
     <div className="space-y-6">
@@ -121,7 +120,10 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
         </div>
 
         <button
-          onClick={() => setRows(INITIAL_ROWS)}
+          onClick={() => {
+            setRows(INITIAL_ROWS);
+            setSscGpa(5);
+          }}
           className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer self-start sm:self-auto transition-colors ${
             isDark
               ? 'bg-slate-800/70 border-slate-700 hover:border-slate-500 text-slate-300'
@@ -356,43 +358,94 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
                 : 'ADMISSION BENCHMARK CHECK'}
             </h3>
 
-            {[
-              {
-                ok: buetEligible,
-                titleBn: 'বুয়েট ও ইঞ্জিনিয়ারিং (PCM ৮৫%+ ও GPA 5.00)',
-                titleEn: 'BUET / Engineering Tier (PCM 85%+ & GPA 5.00)',
-              },
-              {
-                ok: medicalEligible,
-                titleBn: 'সরকারি মেডিকেল ভর্তি পরীক্ষা (জীববিজ্ঞান A ও GPA 4.5+)',
-                titleEn: 'Medical Admission (Biology GP 4.0+ & GPA 4.5+)',
-              },
-              {
-                ok: duKaEligible,
-                titleBn: 'ঢাকা বিশ্ববিদ্যালয় ‘ক’ ইউনিট (বিজ্ঞান)',
-                titleEn: 'Dhaka University A-Unit (Science)',
-              },
-            ].map((item, idx) => (
+            {/* Eligibility is combined SSC + HSC, so SSC has to be an input */}
+            <div
+              className={`p-3 rounded-xl border ${
+                isDark ? 'bg-slate-900/55 border-slate-700/80' : 'bg-slate-50/75 border-slate-200/85'
+              }`}
+            >
+              <label className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                <span>{lang === 'bn' ? 'SSC-র মোট GPA (৫.০০-এর মধ্যে)' : 'SSC combined GPA (out of 5.00)'}</span>
+                <span className="font-mono text-sm tabular-nums">
+                  {formatNum(sscGpa.toFixed(2), lang)}
+                </span>
+              </label>
+              <input
+                type="range"
+                min={3}
+                max={5}
+                step={0.01}
+                value={sscGpa}
+                aria-label={lang === 'bn' ? 'SSC GPA' : 'SSC GPA'}
+                onChange={(e) =>
+                  setSscGpa(Math.max(3, Math.min(5, Number(e.target.value) || 0)))
+                }
+                className="w-full mt-2 accent-indigo-600 cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] font-mono opacity-55 mt-1">
+                <span>3.00</span>
+                <span>4.00</span>
+                <span>5.00</span>
+              </div>
+            </div>
+
+            {eligibility.map((item) => (
               <div
-                key={idx}
-                className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs font-semibold ${
+                key={item.id}
+                className={`p-3 rounded-xl border text-xs ${
                   item.ok
                     ? isDark
-                      ? 'bg-emerald-500/12 border-emerald-400/25 text-emerald-200'
-                      : 'bg-emerald-50/80 border-emerald-200/90 text-emerald-900'
+                      ? 'bg-emerald-500/12 border-emerald-400/25 text-emerald-100'
+                      : 'bg-emerald-50/80 border-emerald-200/90 text-emerald-950'
                     : isDark
-                    ? 'bg-slate-900/40 border-dashed border-slate-700 text-slate-400'
-                    : 'bg-slate-50/70 border-dashed border-slate-200 text-slate-500'
+                    ? 'bg-slate-900/40 border-dashed border-slate-700 text-slate-300'
+                    : 'bg-slate-50/70 border-dashed border-slate-200 text-slate-600'
                 }`}
               >
-                <span>{lang === 'bn' ? item.titleBn : item.titleEn}</span>
-                {item.ok ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0 opacity-60" />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold">{item.name[lang]}</div>
+                    <div className="text-[10px] font-mono opacity-60 mt-0.5">
+                      {item.exam[lang]}
+                    </div>
+                  </div>
+                  {item.ok ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 opacity-60" />
+                  )}
+                </div>
+
+                {!item.ok && item.missing.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-[11px] font-medium">
+                    {item.missing.slice(0, 3).map((m, mIdx) => (
+                      <li key={mIdx} className="flex gap-1.5">
+                        <span className="opacity-50">•</span>
+                        <span>{m[lang]}</span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
+
+                <div className="mt-2 text-[10px] leading-relaxed opacity-65">
+                  {item.note[lang]}{' '}
+                  <a
+                    href={item.officialUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="underline underline-offset-2 hover:opacity-80"
+                  >
+                    {lang === 'bn' ? 'বিজ্ঞপ্তি ↗' : 'circular ↗'}
+                  </a>
+                </div>
               </div>
             ))}
+
+            <p className="text-[10px] leading-relaxed opacity-55">
+              {lang === 'bn'
+                ? `শর্তগুলো প্রকাশিত ২০২৬ সালের বিজ্ঞপ্তি অনুযায়ী (${ELIGIBILITY_VERIFIED_ON}); চূড়ান্ত যোগ্যতা অবশ্যই সংশ্লিষ্ট ওয়েবসাইটে যাচাই করুন।`
+                : `Rules follow the published 2026 circulars (${ELIGIBILITY_VERIFIED_ON}); always confirm the final criteria on the official site.`}
+            </p>
           </div>
         </div>
       </div>

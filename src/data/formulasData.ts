@@ -386,7 +386,7 @@ export const FORMULAS: FormulaCard[] = [
   },
   // EXPANDED HSC 2028 SCIENCE FORMULA & REVISION DECK
   {
-    id: 'f-phy1-5',
+    id: 'f-phy1-7',
     subjectKey: 'physics1',
     chapterTitle: { bn: 'অধ্যায় ৬: মহাকর্ষ ও অভিকর্ষ', en: 'Ch 6: Gravitation & Gravity' },
     title: { bn: 'মুক্তিবেগ ও কৃত্রিম উপগ্রহের কক্ষীয় বেগ', en: 'Escape Velocity & Orbital Speed of Satellite' },
@@ -402,7 +402,7 @@ export const FORMULAS: FormulaCard[] = [
     boardTag: 'সকল বোর্ড / BUET',
   },
   {
-    id: 'f-phy2-3',
+    id: 'f-phy2-4',
     subjectKey: 'physics2',
     chapterTitle: { bn: 'অধ্যায় ৮: আধুনিক পদার্থবিজ্ঞানের সূচনা', en: 'Ch 8: Modern Physics' },
     title: { bn: 'আইনস্টাইনের আলোক-তড়িৎ সমীকরণ ও আপেক্ষিকতা', en: 'Photoelectric Equation & Relativistic Dilation' },
