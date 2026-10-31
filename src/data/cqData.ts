@@ -296,7 +296,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     },
   },
   {
-    id: 'cq-phy2-1',
+    id: 'cq-phy2-2',
     subjectKey: 'physics2',
     chapter: { bn: 'অধ্যায় ১: তাপগতিবিদ্যা', en: 'Ch 1: Thermodynamics' },
     boardTag: { bn: 'ঢাকা ও যশোর বোর্ড সৃজনশীল', en: 'Dhaka & Jashore Board Standard' },
@@ -386,7 +386,7 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
     },
   },
   {
-    id: 'cq-bio1-1',
+    id: 'cq-bio1-2',
     subjectKey: 'biology1',
     chapter: { bn: 'অধ্যায় ৯: উদ্ভিদ শারীরতত্ত্ব', en: 'Ch 9: Plant Physiology' },
     boardTag: { bn: 'যশোর ও রাজশাহী বোর্ড সৃজনশীল', en: 'Jashore & Rajshahi Board Standard' },

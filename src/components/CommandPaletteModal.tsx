@@ -76,7 +76,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-4 sm:pt-24 px-3 pb-4 sm:p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -112,7 +112,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           </button>
         </div>
 
-        <div className="max-h-[65vh] overflow-y-auto p-3 space-y-4">
+        <div className="max-h-[68dvh] overflow-y-auto overscroll-contain p-3 space-y-4">
           {!q && (
             <div>
               <div className="px-2 pb-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-violet-500">
@@ -146,6 +146,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                     tab: 'hub' as ActiveTab,
                     bn: 'স্টুডেন্ট Q&A হাব',
                     en: 'Student Q&A Hub',
+                  },
+                  {
+                    tab: 'life' as ActiveTab,
+                    bn: 'লাইফ হাব ও ডেডলাইন',
+                    en: 'Life Hub & Deadlines',
                   },
                 ].map((tool) => (
                   <button

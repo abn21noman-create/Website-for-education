@@ -25,6 +25,7 @@ import {
   Loader2,
   HardDrive,
   AlertTriangle,
+  HeartPulse,
 } from 'lucide-react';
 import { ActiveTab, Lang, StudentProfile, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
@@ -141,13 +142,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       labelEn: 'Merit',
       icon: <Trophy className="w-3.5 h-3.5" />,
     },
+    {
+      id: 'life',
+      labelBn: 'লাইফ হাব',
+      labelEn: 'Life Hub',
+      icon: <HeartPulse className="w-3.5 h-3.5" />,
+    },
   ];
 
   const isDark = theme === 'dark';
 
   return (
     <header
-      className={`no-print sticky top-0 z-40 border-b backdrop-blur-xl transition-colors duration-300 ${
+      className={`no-print sticky top-0 z-40 border-b backdrop-blur-md lg:backdrop-blur-xl transition-colors duration-300 ${
         isDark
           ? 'bg-[#0f172a]/85 border-slate-800/90 text-slate-100'
           : 'bg-[#f4f7fb]/90 border-slate-200/80 text-slate-800'
@@ -157,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Soft Brand Identity */}
         <button
           onClick={() => setActiveTab('dashboard')}
-          className="flex items-center gap-2.5 text-left group shrink-0 cursor-pointer"
+          className="flex items-center gap-2.5 text-left group min-w-0 cursor-pointer"
         >
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 group-hover:scale-105 shadow-xs ${
@@ -168,9 +175,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <GraduationCap className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-base tracking-tight leading-none">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-extrabold text-base tracking-tight leading-none truncate max-w-[74px] min-[400px]:max-w-none">
                 {lang === 'bn' ? 'নক্ষত্র' : 'NOKKHOTRO'}
               </span>
               <span
@@ -197,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Ultra-wide Smooth Pill Navigation */}
         <nav
-          className={`hidden 2xl:flex items-center gap-0.5 p-1 rounded-xl border ${
+          className={`hidden 2xl:flex min-w-0 overflow-x-auto no-scrollbar items-center gap-0.5 p-1 rounded-xl border ${
             isDark
               ? 'bg-slate-800/60 border-slate-700/60'
               : 'bg-white/80 border-slate-200/80 shadow-2xs'
@@ -209,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   active
                     ? isDark
                       ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 shadow-xs'
@@ -328,7 +335,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Smooth Horizontal Module Sub-Nav */}
       <div
-        className={`2xl:hidden border-t px-4 py-1.5 flex items-center gap-1.5 overflow-x-auto ${
+        className={`hidden md:flex 2xl:hidden border-t px-4 py-1.5 items-center gap-1.5 overflow-x-auto no-scrollbar ${
           isDark
             ? 'border-slate-800/80 bg-[#0f172a]/95'
             : 'border-slate-200/70 bg-white/80'

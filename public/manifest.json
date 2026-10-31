@@ -9,7 +9,10 @@
   "theme_color": "#4f46e5",
   "lang": "bn",
   "dir": "ltr",
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon.svg",
@@ -41,5 +44,26 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "MCQ পরীক্ষা",
+      "short_name": "MCQ",
+      "url": "/#/mcq"
+    },
+    {
+      "name": "সিলেবাস ট্র্যাকার",
+      "short_name": "সিলেবাস",
+      "url": "/#/syllabus"
+    },
+    {
+      "name": "লাইফ হাব",
+      "short_name": "লাইফ",
+      "url": "/#/life"
+    }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }
