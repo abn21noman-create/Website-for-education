@@ -39,7 +39,7 @@ import {
   upcomingMocks,
 } from '../lib/masterRoutine';
 import { learnedChapters, loadRoutineState } from '../lib/routineStore';
-import { allTrackReadiness } from '../lib/trackProgress';
+import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
@@ -69,7 +69,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
-  const admissionTracks = allTrackReadiness(progressMap);
+  const [primaryTrack] = useState(() => loadRoutineState().primaryTrack);
+  // Main track first (Medical by default), so the dashboard leads with it.
+  const admissionTracks = (() => {
+    const byKey = new Map(allTrackReadiness(progressMap).map((track) => [track.track.key, track]));
+    return tracksByPriority(primaryTrack)
+      .map((track) => byKey.get(track.key))
+      .filter((track): track is NonNullable<typeof track> => Boolean(track));
+  })();
   const [now, setNow] = useState(() => Date.now());
 
   // Today's slice of the 391-day master routine (read on mount, no props needed).
@@ -413,7 +420,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   isDark ? 'bg-slate-700/60 text-slate-200' : 'bg-slate-100 text-slate-700'
                 }`}
               >
-                {lang === 'bn' ? track.track.nameBn : track.track.nameEn}{' '}
+                <span className={track.track.key === primaryTrack ? 'font-extrabold' : ''}>
+                  {lang !== 'bn' && track.track.key === primaryTrack ? '★ ' : ''}
+                  {lang === 'bn' ? track.track.nameBn : track.track.nameEn}
+                </span>{' '}
                 <span
                   className={
                     track.percent >= 65

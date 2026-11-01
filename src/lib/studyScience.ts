@@ -130,6 +130,8 @@ export interface LearnedItem {
   /** Date the chapter was first studied (YYYY-MM-DD). */
   learnedOn: string;
   chapterId: string;
+  /** Lets the main track's papers jump the revision queue. */
+  subjectKey?: string;
   chapterBn: string;
   chapterEn: string;
   subjectBn: string;
@@ -141,6 +143,7 @@ export interface RevisionDue {
   interval: number;
   daysOverdue: number;
   chapterId: string;
+  subjectKey?: string;
   chapterBn: string;
   chapterEn: string;
   subjectBn: string;
@@ -163,7 +166,8 @@ function dayDiff(fromKey: string, toKey: string): number {
 export function revisionQueue(
   items: LearnedItem[],
   todayKey: string,
-  doneKeys: Record<string, boolean> = {}
+  doneKeys: Record<string, boolean> = {},
+  prioritySubjectKeys: string[] = []
 ): RevisionDue[] {
   const due: RevisionDue[] = [];
   items.forEach((item) => {
@@ -179,6 +183,7 @@ export function revisionQueue(
         interval,
         daysOverdue: gap - interval,
         chapterId: item.chapterId,
+        subjectKey: item.subjectKey,
         chapterBn: item.chapterBn,
         chapterEn: item.chapterEn,
         subjectBn: item.subjectBn,
@@ -186,7 +191,14 @@ export function revisionQueue(
       });
     });
   });
-  return due.sort((a, b) => b.daysOverdue - a.daysOverdue);
+  // The main track's papers come first, then whatever is most overdue.
+  const priority = new Set(prioritySubjectKeys);
+  return due.sort((a, b) => {
+    const aPriority = a.subjectKey ? priority.has(a.subjectKey) : false;
+    const bPriority = b.subjectKey ? priority.has(b.subjectKey) : false;
+    if (aPriority !== bPriority) return aPriority ? -1 : 1;
+    return b.daysOverdue - a.daysOverdue;
+  });
 }
 
 // ── The day itself ───────────────────────────────────────────────────────

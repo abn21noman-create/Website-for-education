@@ -103,7 +103,11 @@ export interface MockTest {
 /** No new mock is scheduled inside the last two weeks — that time is revision. */
 export const FINAL_REVISION_FROM_DAY = TOTAL_PLAN_DAYS - 13;
 
-const ADMISSION_ROTATION: MockKind[] = ['varsity', 'engineering', 'medical'];
+/**
+ * Medical is the default main track, so it gets two of every four admission
+ * mocks; engineering and varsity take one each.
+ */
+const ADMISSION_ROTATION: MockKind[] = ['medical', 'engineering', 'medical', 'varsity'];
 
 function phaseOf(dayNumber: number): PhaseKey {
   if (dayNumber <= 239) return 'academic';

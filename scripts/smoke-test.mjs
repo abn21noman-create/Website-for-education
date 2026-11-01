@@ -340,6 +340,19 @@ console.log(
 );
 failures += dashboardTracks ? 0 : 1;
 
+const dashboardText = container.textContent || '';
+const stripStart = dashboardText.indexOf('ভর্তি প্রস্তুতি:');
+const medAt = dashboardText.indexOf('Medical', stripStart >= 0 ? stripStart : 0);
+const engAt = dashboardText.indexOf('Engineering', stripStart >= 0 ? stripStart : 0);
+const dashboardMedicalFirst =
+  stripStart > -1 && medAt > -1 && (engAt === -1 || medAt < engAt);
+console.log(
+  dashboardMedicalFirst
+    ? '\u2713 the dashboard strip leads with Medical'
+    : '\u2717 dashboard strip does not lead with Medical'
+);
+failures += dashboardMedicalFirst ? 0 : 1;
+
 window.history.replaceState(null, '', '/#/routine');
 window.location.hash = '#/routine';
 if (root) root.unmount();
@@ -405,6 +418,18 @@ console.log(
     : `\u2717 admission tracks missing (tab=${openedTracksTab}, tracks=${hasThreeTracks})`
 );
 failures += openedTracksTab && hasThreeTracks ? 0 : 1;
+
+const medicalFirst =
+  tracksTabText.indexOf('Medical') > -1 &&
+  tracksTabText.indexOf('Medical') < tracksTabText.indexOf('Engineering');
+const mainBadge = tracksTabText.includes('প্রধান ট্র্যাক');
+const splitShown = tracksTabText.includes('সময় ভাগ');
+console.log(
+  medicalFirst && mainBadge && splitShown
+    ? '\u2713 medical leads the tracks with its main-track badge and the weekly time split'
+    : `\u2717 medical priority missing (first=${medicalFirst}, badge=${mainBadge}, split=${splitShown})`
+);
+failures += medicalFirst && mainBadge && splitShown ? 0 : 1;
 
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
@@ -691,6 +716,23 @@ const dueDone = science.revisionQueue([learnedSample], '2026-01-02', {
 });
 check(dueDone.length === 0, 'ticking a spaced review removes it from today\u2019s queue');
 
+const mixedReviews = science.revisionQueue(
+  [
+    { ...learnedSample, learnedOn: '2026-01-01', chapterId: 'phy1-ch1', subjectKey: 'physics1', subjectBn: 'Physics' },
+    { ...learnedSample, learnedOn: '2026-01-06', chapterId: 'bio1-ch1', subjectKey: 'biology1', subjectBn: 'Biology' },
+  ],
+  '2026-01-13',
+  {},
+  ['biology1', 'chemistry1', 'chemistry2', 'biology2']
+);
+check(
+  mixedReviews.length === 2 &&
+    mixedReviews[0].subjectKey === 'biology1' &&
+    mixedReviews[1].subjectKey === 'physics1',
+  'the main track\u2019s papers come first in the revision queue',
+  mixedReviews.map((item) => item.subjectKey).join(',')
+);
+
 const morningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'morning');
 const eveningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'evening');
 check(
@@ -887,8 +929,50 @@ check(
   'the track percentage is the weighted sum of its subjects'
 );
 
+check(
+  trackProgress.DEFAULT_PRIMARY_TRACK === 'medical' &&
+    trackProgress.tracksByPriority(trackProgress.DEFAULT_PRIMARY_TRACK)[0].key === 'medical',
+  'medical is the default main track and leads the list'
+);
+const medicalSplit = trackProgress.trackTimeSplit('medical', 25 * 60);
+check(
+  medicalSplit[0].track.key === 'medical' &&
+    medicalSplit[0].isPrimary &&
+    medicalSplit[0].minutes === 750 &&
+    medicalSplit.reduce((sum, item) => sum + item.minutes, 0) === 25 * 60,
+  'the main track takes half of the weekly hours, the rest split evenly'
+);
+const varsityFirst = trackProgress.trackTimeSplit('varsity', 25 * 60);
+check(
+  varsityFirst[0].track.key === 'varsity' &&
+    varsityFirst[0].minutes === 750 &&
+    varsityFirst[1].minutes === 375,
+  'switching the main track moves the extra hours with it'
+);
+const admissionMockCounts = { medical: 0, engineering: 0, varsity: 0 };
+for (const test of mockPlan.mockTestsBetween(240, 340)) {
+  const kind = test.track.key;
+  if (kind in admissionMockCounts) admissionMockCounts[kind] += 1;
+}
+check(
+  admissionMockCounts.medical > admissionMockCounts.engineering &&
+    admissionMockCounts.medical > admissionMockCounts.varsity,
+  'the admission phase schedules more medical mocks than any other track',
+  JSON.stringify(admissionMockCounts)
+);
+
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');
 let routineState = routineStore.emptyRoutineState('2026-01-01');
+check(
+  routineState.primaryTrack === 'medical',
+  'a fresh routine starts with medical as the main track'
+);
+routineState = routineStore.setPrimaryTrack(routineState, 'engineering');
+check(
+  routineState.primaryTrack === 'engineering' &&
+    routineStore.setPrimaryTrack(routineState, 'medical').primaryTrack === 'medical',
+  'the main track can be changed and saved'
+);
 routineState = routineStore.toggleRoutineTask(routineState, routineStore.taskKey('2026-01-01', 0, 1));
 check(
   routineState.tasks['2026-01-01|0|1'] === true &&

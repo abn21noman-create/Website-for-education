@@ -238,3 +238,47 @@ export function allTrackReadiness(
 ): TrackReadiness[] {
   return ADMISSION_TRACKS.map((track) => trackReadiness(track, progressMap));
 }
+
+/**
+ * Which track gets the extra time.
+ *
+ * The student's main goal is Medical, so that track is the default: it sits
+ * first everywhere, it carries the "main track" badge, and it takes half of the
+ * weekly study budget (the other two split the rest). The choice is stored, so
+ * an engineering-first student can flip it without losing anything.
+ */
+export const DEFAULT_PRIMARY_TRACK: TrackKey = 'medical';
+
+/** Share of the weekly study budget the main track takes. */
+export const PRIMARY_TRACK_SHARE = 0.5;
+
+export function tracksByPriority(primary: TrackKey): AdmissionTrack[] {
+  return [...ADMISSION_TRACKS].sort((a, b) => {
+    if (a.key === primary) return -1;
+    if (b.key === primary) return 1;
+    return ADMISSION_TRACKS.indexOf(a) - ADMISSION_TRACKS.indexOf(b);
+  });
+}
+
+export interface TrackTimeShare {
+  track: AdmissionTrack;
+  isPrimary: boolean;
+  share: number;
+  minutes: number;
+}
+
+/** Weekly minutes per track: the main track takes half, the others split the rest. */
+export function trackTimeSplit(primary: TrackKey, weeklyMinutes: number): TrackTimeShare[] {
+  const others = ADMISSION_TRACKS.length - 1;
+  const restShare = others > 0 ? (1 - PRIMARY_TRACK_SHARE) / others : 0;
+  return tracksByPriority(primary).map((track) => {
+    const isPrimary = track.key === primary;
+    const share = isPrimary ? PRIMARY_TRACK_SHARE : restShare;
+    return {
+      track,
+      isPrimary,
+      share,
+      minutes: Math.round(weeklyMinutes * share),
+    };
+  });
+}

@@ -35,7 +35,8 @@ import {
   toDateKey,
   weekdayIndexForDay,
 } from '../lib/masterRoutine';
-import { allTrackReadiness } from '../lib/trackProgress';
+import { ADMISSION_TRACKS, allTrackReadiness, tracksByPriority, trackTimeSplit } from '../lib/trackProgress';
+import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
   MOCK_TRACKS,
@@ -51,6 +52,7 @@ import {
   learnedChapters,
   loadRoutineState,
   setChronotype,
+  setPrimaryTrack,
   logStudyMinutes,
   revisionTaskKey,
   setStartDate,
@@ -111,10 +113,15 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const available = availableStudyMinutes(state.settings);
   const sleep = useMemo(() => sleepFeedback(state.settings), [state.settings]);
 
+  // Papers of the main track jump the revision queue (Medical = biology + chemistry).
+  const prioritySubjectKeys = useMemo(() => {
+    const primary = ADMISSION_TRACKS.find((track) => track.key === state.primaryTrack);
+    return primary ? primary.subjects.map((subject) => subject.subjectKey as string) : [];
+  }, [state.primaryTrack]);
   // Chapters studied earlier that are due for a 1/3/7/21-day review today.
   const dueReviews = useMemo(
-    () => revisionQueue(learnedChapters(state), dateKey, state.tasks),
-    [state, dateKey]
+    () => revisionQueue(learnedChapters(state), dateKey, state.tasks, prioritySubjectKeys),
+    [state, dateKey, prioritySubjectKeys]
   );
   const minutesToday = state.minutes[dateKey] || 0;
 
@@ -142,7 +149,17 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   }, [dayNumber, dateKey, state.startDate]);
   const mockTotals = useMemo(() => mockCounts(), []);
   const todayTarget = studyMinutes + (pacing ? pacing.perDayExtra : 0);
-  const trackReadiness = useMemo(() => allTrackReadiness(progressMap), [progressMap]);
+  // Main track first — Medical unless the student switched it.
+  const trackReadiness = useMemo(() => {
+    const byKey = new Map(allTrackReadiness(progressMap).map((track) => [track.track.key, track]));
+    return tracksByPriority(state.primaryTrack)
+      .map((track) => byKey.get(track.key))
+      .filter((track): track is NonNullable<typeof track> => Boolean(track));
+  }, [progressMap, state.primaryTrack]);
+  const trackSplit = useMemo(
+    () => trackTimeSplit(state.primaryTrack, WEEKLY_HOUR_TARGET * 60),
+    [state.primaryTrack]
+  );
   const tickedToday = completedTasksForDate(state, dateKey);
 
   // Last seven days of logged minutes, oldest first.
@@ -1062,14 +1079,82 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                 ? 'নিচের শতকরা হিসাব তোমার নিজের সিলেবাস ট্র্যাকার থেকে — প্রতিটি অধ্যায়ের চারটি ধাপ (তত্ত্ব, নোট, MCQ, CQ) গড়ে। ওজন পরীক্ষার নম্বর-বণ্টনের আনুমানিক রূপ, অফিসিয়াল নয়।'
                 : 'These percentages come from your own syllabus tracker — the four stages of every chapter, averaged. The weights approximate each exam’s marks distribution; they are a guide, not official.'}
             </p>
+
+            <p className="text-[11px] font-extrabold mt-3">
+              {useBn ? 'মূল ট্র্যাক (সবচেয়ে বেশি সময় এখানে)' : 'Main track (most time here)'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(
+                [
+                  { key: 'medical' as TrackKey, bn: 'মেডিকেল', en: 'Medical' },
+                  { key: 'engineering' as TrackKey, bn: 'ইঞ্জিনিয়ারিং', en: 'Engineering' },
+                  { key: 'varsity' as TrackKey, bn: 'ভার্সিটি ‘ক’', en: 'Varsity Ka' },
+                ] as { key: TrackKey; bn: string; en: string }[]
+              ).map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setState((prev) => setPrimaryTrack(prev, item.key))}
+                  className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-colors ${
+                    state.primaryTrack === item.key
+                      ? isDark
+                        ? 'border-rose-400/50 bg-rose-500/20 text-rose-200'
+                        : 'border-rose-300 bg-rose-50 text-rose-800'
+                      : isDark
+                        ? 'border-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                  }`}
+                >
+                  {state.primaryTrack === item.key ? '★ ' : ''}
+                  {useBn ? item.bn : item.en}
+                </button>
+              ))}
+            </div>
+
+            <div className={`mt-3 pt-3 border-t space-y-1.5 ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>
+              <p className="text-[10px] font-bold">
+                {useBn
+                  ? `সপ্তাহে ${bn(WEEKLY_HOUR_TARGET)} ঘণ্টার সময় ভাগ`
+                  : `Weekly ${WEEKLY_HOUR_TARGET} h split`}
+              </p>
+              {trackSplit.map((item) => (
+                <div key={item.track.key} className="flex items-center gap-2 text-[10px]">
+                  <span className={`w-24 shrink-0 truncate ${item.isPrimary ? 'font-extrabold' : ''}`}>
+                    {useBn ? item.track.nameBn : item.track.nameEn}
+                  </span>
+                  <span className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                    <span
+                      className={`block h-full ${item.isPrimary ? 'bg-rose-500' : 'bg-slate-400 dark:bg-slate-500'}`}
+                      style={{ width: `${Math.round(item.share * 100)}%` }}
+                    />
+                  </span>
+                  <span className={`w-16 text-right shrink-0 tabular-nums ${muted}`}>
+                    {bn(Math.round((item.minutes / 60) * 10) / 10)} {useBn ? 'ঘ' : 'h'}
+                  </span>
+                </div>
+              ))}
+              <p className={`text-[10px] ${muted}`}>
+                {useBn
+                  ? 'মূল ট্র্যাক পায় অর্ধেক সময়, বাকি দুই ট্র্যাক ভাগ করে নেয়। জীববিজ্ঞান-রসায়নে বেশি ব্লক সেখান থেকেই আসে।'
+                  : 'The main track takes half the week; the other two split the rest. That is where the extra biology and chemistry blocks come from.'}
+              </p>
+            </div>
           </div>
 
           {trackReadiness.map((track) => (
             <div key={track.track.key} className={`rounded-2xl border p-4 ${card}`}>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-extrabold">
+                  <p className="text-sm font-extrabold flex items-center gap-1.5">
                     {useBn ? track.track.nameBn : track.track.nameEn}
+                    {track.track.key === state.primaryTrack && (
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          isDark ? 'bg-rose-500/20 text-rose-200' : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {useBn ? 'প্রধান ট্র্যাক' : 'MAIN'}
+                      </span>
+                    )}
                   </p>
                   <p className={`text-[10px] mt-0.5 ${muted}`}>
                     {useBn ? track.track.examBn : track.track.examEn}

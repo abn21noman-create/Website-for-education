@@ -1,6 +1,8 @@
 import { DEFAULT_TIME_SETTINGS, TimeSettings, toDateKey } from './masterRoutine';
 import type { Chronotype, LearnedItem } from './studyScience';
 import { classSlotsForDay, dayNumberForDate } from './masterRoutine';
+import { DEFAULT_PRIMARY_TRACK } from './trackProgress';
+import type { TrackKey } from './trackProgress';
 
 /**
  * Local state for the master routine.
@@ -18,6 +20,8 @@ export interface RoutineState {
   startDate: string;
   /** When this student's attention is sharpest — shifts the timetable order. */
   chronotype: Chronotype;
+  /** The track that gets the most time — Medical unless the student changes it. */
+  primaryTrack: TrackKey;
   /** `${dateKey}|${slotIndex}|${taskIndex}` → ticked. Revision tasks use `rev`. */
   tasks: Record<string, boolean>;
   /** dateKey → minutes studied that day. */
@@ -29,6 +33,7 @@ export function emptyRoutineState(startDate = toDateKey(new Date())): RoutineSta
   return {
     startDate,
     chronotype: 'neutral',
+    primaryTrack: DEFAULT_PRIMARY_TRACK,
     tasks: {},
     minutes: {},
     settings: { ...DEFAULT_TIME_SETTINGS },
@@ -46,6 +51,12 @@ export function loadRoutineState(): RoutineState {
         parsed.chronotype === 'morning' || parsed.chronotype === 'evening'
           ? parsed.chronotype
           : 'neutral',
+      primaryTrack:
+        parsed.primaryTrack === 'engineering' ||
+        parsed.primaryTrack === 'medical' ||
+        parsed.primaryTrack === 'varsity'
+          ? parsed.primaryTrack
+          : DEFAULT_PRIMARY_TRACK,
       tasks: parsed.tasks && typeof parsed.tasks === 'object' ? parsed.tasks : {},
       minutes: parsed.minutes && typeof parsed.minutes === 'object' ? parsed.minutes : {},
       settings: { ...DEFAULT_TIME_SETTINGS, ...(parsed.settings || {}) },
@@ -106,6 +117,11 @@ export function setChronotype(state: RoutineState, chronotype: Chronotype): Rout
   return saveRoutineState({ ...state, chronotype });
 }
 
+/** The track the student wants to carry first — Medical by default. */
+export function setPrimaryTrack(state: RoutineState, primaryTrack: TrackKey): RoutineState {
+  return saveRoutineState({ ...state, primaryTrack });
+}
+
 /**
  * Chapters already studied, derived from the ticked routine tasks.
  *
@@ -131,6 +147,7 @@ export function learnedChapters(state: RoutineState): LearnedItem[] {
     out.push({
       learnedOn: dateKey,
       chapterId: slot.chapterId,
+      subjectKey: slot.subjectKey,
       chapterBn: slot.chapterBn,
       chapterEn: slot.chapterEn,
       subjectBn: slot.subjectBn,
