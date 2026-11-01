@@ -353,6 +353,16 @@ console.log(
 );
 failures += dashboardMedicalFirst ? 0 : 1;
 
+const dashboardCalibration =
+  (container.textContent || '').includes('নিশ্চয়তা বনাম বাস্তবতা') &&
+  (container.textContent || '').includes('গড় অনুমান');
+console.log(
+  dashboardCalibration
+    ? '\u2713 the dashboard shows the calibration card'
+    : '\u2717 dashboard calibration card missing'
+);
+failures += dashboardCalibration ? 0 : 1;
+
 window.localStorage.setItem(
   'hsc28_quizzes',
   JSON.stringify([
@@ -485,6 +495,61 @@ console.log(
     : `\u2717 chapter drill did not start (mqc screen text ${drillText.length} chars)`
 );
 failures += drillStarted ? 0 : 1;
+
+// The MCQ setup screen asks for a prediction before the paper starts.
+window.localStorage.removeItem('hsc28_chapter_drill_v1');
+window.history.replaceState(null, '', '/#/mcq');
+window.location.hash = '#/mcq';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 1600));
+const setupText = container.textContent || '';
+const asksPrediction = setupText.includes('শুরুর আগে: এই মকে কত% পাবে বলে মনে হয়?');
+console.log(
+  asksPrediction
+    ? '\u2713 the exam setup asks for a score prediction first'
+    : '\u2717 prediction prompt missing on the setup screen'
+);
+failures += asksPrediction ? 0 : 1;
+
+// Confidently-wrong answers can be drilled on their own, from storage.
+window.localStorage.setItem(
+  'hsc28_confidence_v1',
+  JSON.stringify({
+    'q-bio1-1': { tag: 'sure', correct: false, at: new Date().toISOString() },
+    'q-bio1-2': { tag: 'sure', correct: false, at: new Date().toISOString() },
+  })
+);
+window.localStorage.setItem(
+  'hsc28_chapter_drill_v1',
+  JSON.stringify({
+    chapterBn: 'নিশ্চিত-ভুল',
+    chapterEn: 'Confidently wrong',
+    titleBn: 'নিশ্চিত-ভুল',
+    titleEn: 'Confidently wrong',
+    count: 2,
+    questionIds: ['q-bio1-1', 'q-bio1-2'],
+    createdAt: new Date().toISOString(),
+  })
+);
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 2000));
+const blindText = container.textContent || '';
+const blindStarted =
+  blindText.includes('প্রোটিন ফ্যাক্টরি') &&
+  blindText.includes('জমা দিন') &&
+  !blindText.includes('পরীক্ষা শুরু করুন');
+console.log(
+  blindStarted
+    ? '\u2713 a confidently-wrong drill opens with exactly those questions'
+    : '\u2717 confidently-wrong drill did not start'
+);
+failures += blindStarted ? 0 : 1;
 
 
 // Switching banks must swap the whole screen, not just the label.
@@ -1312,6 +1377,92 @@ check(
   untouched.hasResults === false &&
     untouched.papers.every((paper) => paper.weight === 1 && paper.score === null),
   'without results every paper keeps its normal quota'
+);
+
+const calibration = await vite.ssrLoadModule('/src/lib/calibration.ts');
+
+const sureRight = Object.fromEntries(
+  ['q1', 'q2', 'q3', 'q4'].map((id) => [id, { tag: 'sure', correct: true, at: '2026-01-01T00:00:00.000Z' }])
+);
+const sureWrong = Object.fromEntries(
+  ['q5', 'q6', 'q7'].map((id) => [id, { tag: 'sure', correct: false, at: '2026-01-01T00:00:00.000Z' }])
+);
+const guessRight = { q8: { tag: 'guess', correct: true, at: '2026-01-01T00:00:00.000Z' } };
+const guessWrong = { q9: { tag: 'guess', correct: false, at: '2026-01-01T00:00:00.000Z' } };
+const confidenceMatrix = calibration.confidenceSummary({ ...sureRight, ...sureWrong, ...guessRight, ...guessWrong });
+check(
+  confidenceMatrix.solid === 4 &&
+    confidenceMatrix.blindSpots === 3 &&
+    confidenceMatrix.fragile === 1 &&
+    confidenceMatrix.knownGaps === 1 &&
+    confidenceMatrix.total === 9 &&
+    confidenceMatrix.confidentAccuracy === 57,
+  'the confidence matrix sorts every tagged answer into its own cell',
+  `${confidenceMatrix.solid}/${confidenceMatrix.blindSpots}/${confidenceMatrix.fragile}/${confidenceMatrix.knownGaps}`
+);
+check(
+  confidenceMatrix.verdict === 'overconfident' && confidenceMatrix.blindSpotIds.length === 3,
+  'confidence outrunning accuracy reads as overconfidence, with the ids to drill'
+);
+check(
+  calibration.confidenceSummary({}).verdict === 'unknown' &&
+    calibration.confidenceSummary({ q1: { tag: 'sure', correct: true, at: '' } }).verdict === 'unknown',
+  'one or two tags are not enough to judge calibration'
+);
+
+calibration.saveConfidence('q-x', 'sure', false);
+check(
+  calibration.loadConfidence()['q-x'].tag === 'sure' &&
+    calibration.loadConfidence()['q-x'].correct === false,
+  'a confidence tag is saved on the device'
+);
+calibration.saveConfidence('q-x', null, false);
+check(
+  calibration.loadConfidence()['q-x'] === undefined,
+  'tapping the same tag again clears it'
+);
+
+const predictionHistory = [
+  { predicted: 80, actual: 60, at: '2026-01-01T00:00:00.000Z' },
+  { predicted: 85, actual: 62, at: '2026-01-02T00:00:00.000Z' },
+  { predicted: 75, actual: 58, at: '2026-01-03T00:00:00.000Z' },
+];
+const predSummary = calibration.predictionSummary(predictionHistory);
+check(
+  predSummary.attempts === 3 &&
+    predSummary.averagePredicted === 80 &&
+    predSummary.averageActual === 60 &&
+    predSummary.bias === 20 &&
+    predSummary.verdict === 'overconfident',
+  'predictions are compared with results and the bias is named',
+  `${predSummary.averagePredicted} vs ${predSummary.averageActual}`
+);
+check(
+  calibration.predictionSummary([]).verdict === 'unknown' &&
+    calibration.predictionSummary([predictionHistory[0]]).verdict === 'unknown',
+  'a single prediction is not treated as a pattern'
+);
+const storedPredictions = calibration.recordPrediction(120, -5);
+check(
+  storedPredictions.length === 1 &&
+    storedPredictions[0].predicted === 100 &&
+    storedPredictions[0].actual === 0,
+  'a recorded prediction is clamped to 0–100'
+);
+
+const idDrill = {
+  chapterBn: 'নিশ্চিত-ভুল',
+  chapterEn: 'Confidently wrong',
+  count: 2,
+  questionIds: [bioBank[1].id, physicsBank[1].id],
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+const idPicked = chapterDrill.pickChapterQuestions([...bioBank, ...physicsBank], idDrill);
+check(
+  idPicked.length === 2 &&
+    idPicked[0].id === bioBank[1].id &&
+    idPicked[1].id === physicsBank[1].id,
+  'a hand-picked drill follows the requested order across papers'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

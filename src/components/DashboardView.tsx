@@ -40,6 +40,8 @@ import {
 } from '../lib/masterRoutine';
 import { learnedChapters, loadRoutineState } from '../lib/routineStore';
 import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
+import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';
+import { requestChapterDrill } from '../lib/chapterDrill';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
@@ -78,6 +80,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .filter((track): track is NonNullable<typeof track> => Boolean(track));
   })();
   const [now, setNow] = useState(() => Date.now());
+  // Metacognition lives on the dashboard: does confidence match results?
+  const [calibration] = useState(() => {
+    const prediction = predictionSummary(loadPredictions());
+    const confidence = confidenceSummary(loadConfidence());
+    return { prediction, confidence };
+  });
 
   // Today's slice of the 391-day master routine (read on mount, no props needed).
   const [routineToday] = useState(() => {
@@ -464,6 +472,82 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 : `${routineToday.nextMock.track.minutes} min · ${routineToday.nextMock.track.marks} marks`}
             </span>
           </div>
+        )}
+      </section>
+
+      {/* Calibration: prediction vs reality, confident-but-wrong */}
+      <section
+        className={`rounded-2xl border p-4 sm:p-5 ${
+          isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-extrabold flex items-center gap-2">
+            <span>🎯</span>
+            {lang === 'bn' ? 'নিশ্চয়তা বনাম বাস্তবতা' : 'Confidence vs reality'}
+          </h2>
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+            {lang === 'bn'
+              ? `${formatNum(calibration.prediction.attempts, lang)}টি অনুমান · ${formatNum(calibration.confidence.total, lang)}টি ট্যাগ`
+              : `${calibration.prediction.attempts} predictions · ${calibration.confidence.total} tags`}
+          </span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'গড় অনুমান' : 'avg predicted'}
+            </p>
+            <p className="text-lg font-extrabold font-mono tabular-nums">
+              {formatNum(calibration.prediction.averagePredicted, lang)}%
+            </p>
+          </div>
+          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'গড় ফল' : 'avg actual'}
+            </p>
+            <p className="text-lg font-extrabold font-mono tabular-nums">
+              {formatNum(calibration.prediction.averageActual, lang)}%
+            </p>
+          </div>
+          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'নিশ্চিত হয়ে ভুল' : 'sure & wrong'}
+            </p>
+            <p className={`text-lg font-extrabold font-mono tabular-nums ${calibration.confidence.blindSpots > 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+              {formatNum(calibration.confidence.blindSpots, lang)}
+            </p>
+          </div>
+        </div>
+
+        <p className={`text-[11px] mt-2 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+          {lang === 'bn' ? calibration.prediction.messageBn : calibration.prediction.messageEn}
+        </p>
+        {calibration.confidence.total > 0 && (
+          <p className={`text-[11px] mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            {lang === 'bn' ? calibration.confidence.messageBn : calibration.confidence.messageEn}
+          </p>
+        )}
+
+        {calibration.confidence.blindSpotIds.length > 0 && (
+          <button
+            onClick={() => {
+              requestChapterDrill({
+                chapterBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
+                chapterEn: 'Confidently wrong',
+                titleBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
+                titleEn: 'Confidently wrong',
+                count: Math.min(20, calibration.confidence.blindSpotIds.length),
+                questionIds: calibration.confidence.blindSpotIds,
+              });
+              onNavigate('mcq');
+            }}
+            className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-500"
+          >
+            {lang === 'bn'
+              ? `নিশ্চিত-ভুল ${formatNum(calibration.confidence.blindSpots, lang)}টি ড্রিল করো`
+              : `Drill the ${calibration.confidence.blindSpots} confidently wrong`}
+          </button>
         )}
       </section>
 

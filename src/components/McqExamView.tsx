@@ -42,6 +42,13 @@ import { SelfExplainBox } from './SelfExplainBox';
 import { selfNoteCount } from '../lib/selfNotes';
 import { pickChapterQuestions, takeChapterDrill } from '../lib/chapterDrill';
 import type { ChapterDrillRequest } from '../lib/chapterDrill';
+import {
+  confidenceSummary,
+  loadConfidence,
+  recordPrediction,
+  saveConfidence,
+} from '../lib/calibration';
+import type { ConfidenceEntry } from '../lib/calibration';
 
 interface McqExamViewProps {
   lang: Lang;
@@ -81,6 +88,15 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   // A chapter drill requested from the routine screen, consumed exactly once.
   const [chapterDrill] = useState<ChapterDrillRequest | null>(() => takeChapterDrill());
   const [isChapterRun, setIsChapterRun] = useState(false);
+  // Metacognition: one prediction before the paper, one tag per wrong answer.
+  const [predicted, setPredicted] = useState<number | null>(null);
+  const [confidenceStore, setConfidenceStore] = useState<Record<string, ConfidenceEntry>>(
+    () => loadConfidence()
+  );
+  const confidence = React.useMemo(
+    () => confidenceSummary(confidenceStore),
+    [confidenceStore]
+  );
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [examMode, setExamMode] = useState<'timed' | 'practice'>('timed');
   const [negativeMarking, setNegativeMarking] = useState<boolean>(false);
@@ -207,7 +223,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     if (!chapterDrill || stage !== 'setup' || bank.length === 0) return;
     const picked = pickChapterQuestions(bank, chapterDrill);
     if (picked.length === 0) return;
-    setSelectedSubject(chapterDrill.subjectKey);
+    setSelectedSubject(chapterDrill.subjectKey ?? 'all');
     setExamQuestions(picked);
     setIsMistakeRun(false);
     setIsChapterRun(true);
@@ -278,6 +294,24 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     return () => document.removeEventListener('visibilitychange', onVisChange);
   }, [stage, examMode]);
 
+  /** Re-test only the answers that were confidently wrong (hypercorrection). */
+  const startBlindSpotDrill = () => {
+    const ids = new Set(confidence.blindSpotIds);
+    const pool = bank.filter((question) => ids.has(question.id));
+    if (pool.length === 0) return;
+    setExamQuestions(pool);
+    setIsMistakeRun(false);
+    setIsChapterRun(false);
+    setAnswers({});
+    setFlagged({});
+    setFocusTabSwitches(0);
+    setSecondsLeft(pool.length * 60);
+    setStartedAt(Date.now());
+    setLastResult(null);
+    setStage('running');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const startExam = () => {
     const basePool = patternPool.length > 0 ? patternPool : bank;
     const picked = pickPatternQuestions(basePool, activePattern, questionCount);
@@ -333,8 +367,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
     const subjTitle = isChapterRun && chapterDrill
       ? lang === 'bn'
-        ? `${chapterDrill.chapterBn} — ১০টি প্রশ্নের ড্রিল`
-        : `${chapterDrill.chapterEn} — 10-question drill`
+        ? `${chapterDrill.titleBn || chapterDrill.chapterBn} — ১০টি প্রশ্নের ড্রিল`
+        : `${chapterDrill.titleEn || chapterDrill.chapterEn} — 10-question drill`
       : isMistakeRun
       ? lang === 'bn'
         ? 'ভুল প্রশ্নের রিভিশন পরীক্ষা (Mistake Bank)'
@@ -350,6 +384,10 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
         ? 'সমন্বিত HSC বিজ্ঞান মডেল টেস্ট'
         : 'Combined HSC Science Assessment'
       : `${getSubjectByKey(selectedSubject).name[lang]} Assessment`;
+
+    if (predicted !== null) {
+      recordPrediction(predicted, accuracy);
+    }
 
     setLastResult({
       correct,
@@ -383,6 +421,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     isMistakeRun,
     isChapterRun,
     chapterDrill,
+    predicted,
     mistakeIds,
     scoringPattern,
     startedAt,
@@ -903,6 +942,55 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 }`}
               >
                 {negativeMarking && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+              </div>
+            </div>
+
+            <div
+              className={`p-3.5 rounded-xl border ${
+                isDark ? 'bg-slate-900/50 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/90'
+              }`}
+            >
+              <p className="text-[11px] font-extrabold">
+                {lang === 'bn' ? 'শুরুর আগে: এই মকে কত% পাবে বলে মনে হয়?' : 'Before you start: what score do you expect?'}
+              </p>
+              <p className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                {lang === 'bn'
+                  ? 'অনুমান করলে ফল মিলিয়ে দেখা যায় তুমি নিজের প্রস্তুতি কতটা ঠিক বুঝতে পারছ (calibration)।'
+                  : 'Predicting first shows how accurately you read your own preparation (calibration).'}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {[40, 50, 60, 70, 80, 90].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPredicted(predicted === value ? null : value)}
+                    aria-pressed={predicted === value}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                      predicted === value
+                        ? 'border-indigo-400 bg-indigo-500/20 text-indigo-700 dark:text-indigo-200'
+                        : isDark
+                          ? 'border-slate-700 text-slate-300 hover:border-slate-500'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                    }`}
+                  >
+                    {formatNum(value, lang)}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPredicted(null)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${
+                    predicted === null
+                      ? isDark
+                        ? 'bg-slate-700 text-slate-200'
+                        : 'bg-slate-200 text-slate-700'
+                      : isDark
+                        ? 'text-slate-400 hover:text-slate-200'
+                        : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {lang === 'bn' ? 'শুরু করি' : 'skip'}
+                </button>
               </div>
             </div>
 
@@ -1472,6 +1560,81 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
         </div>
       )}
 
+      {/* Calibration: confidence versus reality */}
+      {lastResult && confidence.total > 0 && (
+        <div
+          className={`p-5 sm:p-6 rounded-2xl border space-y-3 ${
+            isDark
+              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
+              : 'bg-white/95 border-slate-200/80 card-soft-light'
+          }`}
+        >
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <span className="text-lg">🎯</span>
+            <span>{lang === 'bn' ? 'নিশ্চয়তা বনাম বাস্তবতা' : 'Confidence versus reality'}</span>
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              {
+                value: confidence.solid,
+                bn: 'নিশ্চিত ও সঠিক',
+                en: 'sure & right',
+                good: true,
+              },
+              {
+                value: confidence.blindSpots,
+                bn: 'নিশ্চিত ও ভুল',
+                en: 'sure & wrong',
+                good: false,
+              },
+              {
+                value: confidence.fragile,
+                bn: 'অনুমানে সঠিক',
+                en: 'guessed & right',
+                good: true,
+              },
+              {
+                value: confidence.knownGaps,
+                bn: 'অনুমানে ভুল',
+                en: 'guessed & wrong',
+                good: false,
+              },
+            ].map((cell) => (
+              <div
+                key={cell.en}
+                className={`p-3 rounded-xl border ${
+                  isDark ? 'bg-slate-900/55 border-slate-700/80' : 'bg-slate-50/75 border-slate-200/85'
+                }`}
+              >
+                <div
+                  className={`text-lg font-extrabold font-mono tabular-nums ${
+                    cell.good ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  {formatNum(cell.value, lang)}
+                </div>
+                <div className="text-[10px] font-mono uppercase opacity-60 mt-0.5">
+                  {lang === 'bn' ? cell.bn : cell.en}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            {lang === 'bn' ? confidence.messageBn : confidence.messageEn}
+          </p>
+          {confidence.blindSpots > 0 && (
+            <button
+              onClick={startBlindSpotDrill}
+              className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 cursor-pointer"
+            >
+              {lang === 'bn'
+                ? `নিশ্চিত-ভুল ${formatNum(confidence.blindSpots, lang)}টি আবার পরীক্ষা করো`
+                : `Re-test the ${confidence.blindSpots} confidently wrong answer(s)`}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Detailed Answer Key & Explanations */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold">
@@ -1610,6 +1773,52 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                         </button>
                       );
                     })}
+                  </div>
+
+                  <div className="mt-2">
+                    <div className="text-[10px] font-mono uppercase tracking-wider font-bold opacity-60 mb-1.5">
+                      {lang === 'bn' ? 'উত্তরটা কতটা নিশ্চিত ছিলে?' : 'HOW SURE WERE YOU?'}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { tag: 'sure' as const, bn: 'পুরোপুরি নিশ্চিত', en: 'I was sure' },
+                          { tag: 'guess' as const, bn: 'অনুমান করেছিলাম', en: 'I guessed' },
+                        ]
+                      ).map((option) => {
+                        const active = confidenceStore[q.id]?.tag === option.tag;
+                        return (
+                          <button
+                            type="button"
+                            key={option.tag}
+                            onClick={() =>
+                              setConfidenceStore(
+                                saveConfidence(q.id, active ? null : option.tag, false)
+                              )
+                            }
+                            aria-pressed={active}
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
+                              active
+                                ? option.tag === 'sure'
+                                  ? 'bg-rose-500/20 border-rose-400/50 text-rose-700 dark:text-rose-200'
+                                  : 'bg-sky-500/20 border-sky-400/50 text-sky-700 dark:text-sky-200'
+                                : isDark
+                                  ? 'border-slate-700 text-slate-300 hover:border-slate-500'
+                                  : 'border-slate-200 text-slate-600 hover:border-slate-400'
+                            }`}
+                          >
+                            {option[lang]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {confidenceStore[q.id]?.tag === 'sure' && (
+                      <p className="text-[10px] mt-1 text-rose-600 dark:text-rose-300">
+                        {lang === 'bn'
+                          ? 'নিশ্চিত হয়ে ভুল — গবেষণায় এগুলোই সবচেয়ে দ্রুত ঠিক হয়, তাই এগুলো আলাদা ড্রিলে রাখা হলো।'
+                          : 'Confidently wrong — research says these corrections stick best, so they go into their own drill.'}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
