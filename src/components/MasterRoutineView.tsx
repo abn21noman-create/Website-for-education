@@ -35,6 +35,7 @@ import {
   toDateKey,
   weekdayIndexForDay,
 } from '../lib/masterRoutine';
+import { allTrackReadiness } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
   MOCK_TRACKS,
@@ -69,7 +70,7 @@ interface MasterRoutineViewProps {
   onOpenMock?: () => void;
 }
 
-type Tab = 'today' | 'week' | 'time';
+type Tab = 'today' | 'week' | 'time' | 'tracks';
 
 const bn = (value: number) => formatNum(value, 'bn');
 
@@ -141,6 +142,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   }, [dayNumber, dateKey, state.startDate]);
   const mockTotals = useMemo(() => mockCounts(), []);
   const todayTarget = studyMinutes + (pacing ? pacing.perDayExtra : 0);
+  const trackReadiness = useMemo(() => allTrackReadiness(progressMap), [progressMap]);
   const tickedToday = completedTasksForDate(state, dateKey);
 
   // Last seven days of logged minutes, oldest first.
@@ -232,6 +234,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             { key: 'today', bn: 'আজ', en: 'Today' },
             { key: 'week', bn: 'এই সপ্তাহ', en: 'This week' },
             { key: 'time', bn: 'পড়ার সময়', en: 'Study time' },
+            { key: 'tracks', bn: 'ভর্তি ট্র্যাক', en: 'Admission tracks' },
           ] as { key: Tab; bn: string; en: string }[]
         ).map((item) => (
           <button
@@ -1044,6 +1047,135 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               ))}
             </ul>
           </div>
+        </div>
+      )}
+
+      {/* ── Admission tracks ──────────────────────────────────────────── */}
+      {tab === 'tracks' && (
+        <div className="space-y-4">
+          <div className={`rounded-2xl border p-4 ${card}`}>
+            <p className="text-sm font-extrabold">
+              {useBn ? 'কোন ট্র্যাকে কতটা এগিয়েছ?' : 'How far along each track?'}
+            </p>
+            <p className={`text-[11px] mt-1 leading-relaxed ${muted}`}>
+              {useBn
+                ? 'নিচের শতকরা হিসাব তোমার নিজের সিলেবাস ট্র্যাকার থেকে — প্রতিটি অধ্যায়ের চারটি ধাপ (তত্ত্ব, নোট, MCQ, CQ) গড়ে। ওজন পরীক্ষার নম্বর-বণ্টনের আনুমানিক রূপ, অফিসিয়াল নয়।'
+                : 'These percentages come from your own syllabus tracker — the four stages of every chapter, averaged. The weights approximate each exam’s marks distribution; they are a guide, not official.'}
+            </p>
+          </div>
+
+          {trackReadiness.map((track) => (
+            <div key={track.track.key} className={`rounded-2xl border p-4 ${card}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-extrabold">
+                    {useBn ? track.track.nameBn : track.track.nameEn}
+                  </p>
+                  <p className={`text-[10px] mt-0.5 ${muted}`}>
+                    {useBn ? track.track.examBn : track.track.examEn}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 text-xs font-extrabold font-mono px-2 py-1 rounded-lg ${
+                    track.verdict === 'ready'
+                      ? isDark
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-emerald-100 text-emerald-800'
+                      : track.verdict === 'almost'
+                        ? isDark
+                          ? 'bg-sky-500/20 text-sky-300'
+                          : 'bg-sky-100 text-sky-800'
+                        : track.verdict === 'building'
+                          ? isDark
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-amber-100 text-amber-800'
+                          : isDark
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {bn(track.percent)}%
+                </span>
+              </div>
+
+              <div className={`mt-2 h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                <div
+                  className={`h-full transition-all ${
+                    track.verdict === 'ready'
+                      ? 'bg-emerald-500'
+                      : track.verdict === 'almost'
+                        ? 'bg-sky-500'
+                        : track.verdict === 'building'
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${track.percent}%` }}
+                />
+              </div>
+
+              <p className={`text-[11px] mt-2 leading-relaxed ${muted}`}>
+                {useBn ? track.messageBn : track.messageEn}
+              </p>
+              <p className={`text-[10px] mt-1 ${muted}`}>
+                {useBn
+                  ? `${bn(track.finishedChapters)} / ${bn(track.totalChapters)} অধ্যায় পুরো শেষ`
+                  : `${track.finishedChapters} / ${track.totalChapters} chapters fully done`}
+              </p>
+
+              <ul className="mt-3 space-y-1.5">
+                {track.subjects.map((subject) => (
+                  <li key={subject.subjectKey} className="flex items-center gap-2 text-[10px]">
+                    <span className="w-24 shrink-0 truncate font-semibold">
+                      {useBn ? subject.shortBn : subject.shortEn}
+                    </span>
+                    <span className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                      <span
+                        className={`block h-full ${
+                          subject.percent >= 65
+                            ? 'bg-emerald-500'
+                            : subject.percent >= 35
+                              ? 'bg-amber-500'
+                              : 'bg-rose-400'
+                        }`}
+                        style={{ width: `${subject.percent}%` }}
+                      />
+                    </span>
+                    <span className={`w-16 text-right shrink-0 tabular-nums ${muted}`}>
+                      {bn(subject.percent)}% · {bn(subject.finishedChapters)}/{bn(subject.totalChapters)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className={`mt-3 pt-3 border-t text-[10px] space-y-1 ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>
+                <p className={muted}>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {useBn ? 'টিপস: ' : 'Tip: '}
+                  </span>
+                  {useBn ? track.track.tipBn : track.track.tipEn}
+                </p>
+                <p className={muted}>
+                  <span className="font-bold">{useBn ? 'যোগ্যতা: ' : 'Eligibility: '}</span>
+                  {useBn ? track.track.requiresBn : track.track.requiresEn}
+                </p>
+              </div>
+
+              {onOpenMock && (
+                <button
+                  onClick={onOpenMock}
+                  className={`mt-3 w-full py-2 rounded-xl border text-[11px] font-bold transition-colors ${
+                    isDark
+                      ? 'border-indigo-400/30 bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/25'
+                      : 'border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                  }`}
+                >
+                  {useBn
+                    ? `${MOCK_TRACKS[track.track.mockKind].nameBn} — এখনই দাও`
+                    : `${MOCK_TRACKS[track.track.mockKind].nameEn} — start now`}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

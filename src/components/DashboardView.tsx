@@ -39,6 +39,7 @@ import {
   upcomingMocks,
 } from '../lib/masterRoutine';
 import { learnedChapters, loadRoutineState } from '../lib/routineStore';
+import { allTrackReadiness } from '../lib/trackProgress';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
@@ -68,6 +69,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
+  const admissionTracks = allTrackReadiness(progressMap);
   const [now, setNow] = useState(() => Date.now());
 
   // Today's slice of the 391-day master routine (read on mount, no props needed).
@@ -398,6 +400,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             ))}
           </ul>
         )}
+
+        <div className="mt-3 pt-3 border-t">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {lang === 'bn' ? 'ভর্তি প্রস্তুতি:' : 'Admission prep:'}
+            </span>
+            {admissionTracks.map((track) => (
+              <span
+                key={track.track.key}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                  isDark ? 'bg-slate-700/60 text-slate-200' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {lang === 'bn' ? track.track.nameBn : track.track.nameEn}{' '}
+                <span
+                  className={
+                    track.percent >= 65
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : track.percent >= 35
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-rose-500 dark:text-rose-400'
+                  }
+                >
+                  {formatNum(track.percent, lang)}%
+                </span>
+              </span>
+            ))}
+            <button
+              onClick={() => onNavigate('routine')}
+              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {lang === 'bn' ? 'ট্র্যাক দেখো' : 'Open tracks'}
+            </button>
+          </div>
+        </div>
 
         {routineToday.nextMock && (
           <div className={`mt-3 pt-3 border-t flex items-center justify-between gap-2 ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>

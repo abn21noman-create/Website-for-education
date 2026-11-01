@@ -332,6 +332,14 @@ console.log(
 );
 failures += dashboardRoutine ? 0 : 1;
 
+const dashboardTracks = (container.textContent || '').includes('ভর্তি প্রস্তুতি:');
+console.log(
+  dashboardTracks
+    ? '\u2713 the dashboard shows the three admission tracks'
+    : '\u2717 dashboard admission strip missing'
+);
+failures += dashboardTracks ? 0 : 1;
+
 window.history.replaceState(null, '', '/#/routine');
 window.location.hash = '#/routine';
 if (root) root.unmount();
@@ -383,6 +391,20 @@ console.log(
     : `weekly mock card missing (tab=${openedWeekTab}, card=${hasWeekMockCard})`
 );
 failures += openedWeekTab && hasWeekMockCard ? 0 : 1;
+
+const openedTracksTab = clickByText('ভর্তি ট্র্যাক');
+await new Promise((resolve) => setTimeout(resolve, 400));
+const tracksTabText = container.textContent || '';
+const hasThreeTracks =
+  tracksTabText.includes('Engineering') &&
+  tracksTabText.includes('Medical') &&
+  tracksTabText.includes('যোগ্যতা: ');
+console.log(
+  openedTracksTab && hasThreeTracks
+    ? '\u2713 the admission-track tab renders all three tracks with their eligibility'
+    : `\u2717 admission tracks missing (tab=${openedTracksTab}, tracks=${hasThreeTracks})`
+);
+failures += openedTracksTab && hasThreeTracks ? 0 : 1;
 
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
@@ -796,6 +818,73 @@ check(
 check(
   routine.weekPacing('2026-01-01', '2025-12-31', {}) === null,
   'week pacing stays silent outside the plan'
+);
+
+const trackProgress = await vite.ssrLoadModule('/src/lib/trackProgress.ts');
+const syllabus = await vite.ssrLoadModule('/src/data/syllabusData.ts');
+
+check(
+  trackProgress.ADMISSION_TRACKS.length === 3 &&
+    trackProgress.ADMISSION_TRACKS.every(
+      (track) => Math.abs(track.subjects.reduce((sum, s) => sum + s.weight, 0) - 1) < 1e-6
+    ),
+  'each admission track weights exactly 100% of its syllabus'
+);
+check(
+  trackProgress.ADMISSION_TRACKS.every(
+    (track) =>
+      patterns.EXAM_PATTERNS.some((pattern) => pattern.id === track.patternId) &&
+      Boolean(mockPlan.MOCK_TRACKS[track.mockKind]) &&
+      track.subjects.every((item) =>
+        syllabus.CHAPTERS.some((chapter) => chapter.subjectKey === item.subjectKey)
+      )
+  ),
+  'every track points at a real exam pattern, a real mock and real chapters'
+);
+const emptyTracks = trackProgress.allTrackReadiness({});
+check(
+  emptyTracks.every((track) => track.percent === 0 && track.verdict === 'early') &&
+    emptyTracks.every((track) => track.weakest && track.weakest.percent === 0),
+  'with nothing ticked every track reads 0% and names its weakest subject'
+);
+
+const engineeringTrack = trackProgress.ADMISSION_TRACKS.find((t) => t.key === 'engineering');
+const engineeringDone = {};
+for (const chapter of syllabus.CHAPTERS) {
+  if (!engineeringTrack.subjects.some((item) => item.subjectKey === chapter.subjectKey)) continue;
+  engineeringDone[chapter.id] = { theoryDone: true, notesDone: true, mcqDone: true, cqDone: true };
+}
+const engineeringReady = trackProgress.trackReadiness(engineeringTrack, engineeringDone);
+const medicalAfterEngineering = trackProgress.trackReadiness(
+  trackProgress.ADMISSION_TRACKS.find((t) => t.key === 'medical'),
+  engineeringDone
+);
+check(
+  engineeringReady.percent === 100 &&
+    engineeringReady.verdict === 'ready' &&
+    engineeringReady.finishedChapters === engineeringReady.totalChapters,
+  'a fully ticked track reads 100% and ready'
+);
+check(
+  medicalAfterEngineering.percent > 0 && medicalAfterEngineering.percent < 100,
+  'finishing one track lifts the shared subjects but not the whole of another'
+);
+
+const theoryOnly = {};
+const physics1Chapters = syllabus.CHAPTERS.filter((chapter) => chapter.subjectKey === 'physics1');
+for (const chapter of physics1Chapters) {
+  theoryOnly[chapter.id] = { theoryDone: true, notesDone: false, mcqDone: false, cqDone: false };
+}
+const physics1 = trackProgress.subjectReadiness('physics1', theoryOnly, 0.18);
+check(
+  physics1.percent === 25 && physics1.finishedChapters === 0,
+  'one of the four stages reads as a quarter — a chapter is only finished at four'
+);
+check(
+  Math.abs(
+    engineeringReady.subjects.reduce((sum, s) => sum + s.weightedPercent, 0) - engineeringReady.percent
+  ) <= 1,
+  'the track percentage is the weighted sum of its subjects'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');
