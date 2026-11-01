@@ -27,6 +27,7 @@
 | স্টুডেন্ট হাব → আপভোট | `hsc28_doubt_votes` | কে কোন প্রশ্নে ভোট দিয়েছে (এক ইউজার এক ভোট) |
 | মেধাতালিকা | `hsc28_profiles` (xp desc) | সবার XP র‍্যাংকিং |
 | লাইফ হাব | `hsc28_life_data` | অভ্যাস, **কলেজ উপস্থিতি**, ডেডলাইন, পরীক্ষা, **ফলাফল**, চেকলিস্ট, **ক্লাস রুটিন** — এক JSONB ডকুমেন্টে |
+| **ক্লাউড ভল্ট** (বাকি সব) | `hsc28_kv` | মাস্টার রুটিন, নিশ্চয়তা-ট্যাগ ও অনুমান, মক-প্ল্যান, ভুলের খাতা, সাপ্তাহিক টার্গেট, চ্যাপ্টার ড্রিল, ভাষা/থিম, ব্যক্তিগত নোট-ক্যাশ — `hsc28_*` দিয়ে শুরু হওয়া প্রতিটি লোকাল কি |
 
 বাকি সব (সূত্র, MCQ প্রশ্ন, CQ ব্যাংক, ল্যাব, GPA ক্যালকুলেটর) **স্ট্যাটিক ডেটা** —
 `src/data/` ফোল্ডারে থাকে, ক্লাউডে যায় না।
@@ -80,6 +81,8 @@ syncWrite()  ── সফল ──→  নেভবারে "ক্লাউ�
 1. Supabase-এ প্রজেক্ট খুলুন → SQL Editor।
 2. `supabase/migrations/2026-10-29-persist-all-data.sql` চালান।
    তারপর `supabase/migrations/2026-10-30-life-hub.sql` (লাইফ হাব ক্লাউড সিঙ্ক)।
+   সর্বশেষে `supabase/migrations/2026-11-01-life-hub-and-cloud-vault.sql`
+   (লাইফ হাব + **ক্লাউড ভল্ট** — আগের দুটি ফাইল চালানো থাকলেও নিরাপদে আবার চলে)।
 3. আগের ৮টি `hsc28_*` টেবিল আগে থেকেই থাকতে হবে (RLS সহ)।
 4. Vercel-এ এনভায়রনমেন্ট ভেরিয়েবল দিন:
    - `VITE_SUPABASE_URL`
@@ -103,6 +106,10 @@ select
   (select count(*) from hsc28_chapter_progress) as progress,
   (select count(*) from hsc28_personal_notes)   as notes,
   (select count(*) from hsc28_doubt_votes)      as votes;
+
+-- ক্লাউড ভল্টে কোন কী কত বড় হয়ে জমেছে
+select key, length(value) as chars, updated_at
+from hsc28_kv order by updated_at desc limit 10;
 
 -- RLS চালু আছে কি না (সবগুলো true হওয়া উচিত)
 select tablename, rowsecurity from pg_tables

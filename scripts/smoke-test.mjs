@@ -1673,6 +1673,40 @@ check(
   'with nothing due, the nudge is a gentle 10-minute study prompt'
 );
 
+// ---------------------------------------------------------------- cloud vault
+const vault = await vite.ssrLoadModule('/src/lib/cloudVault.ts');
+check(
+  typeof vault.startCloudVault === 'function' &&
+    typeof vault.pullFromCloud === 'function' &&
+    typeof vault.flushVault === 'function' &&
+    typeof vault.takeRestoreNotice === 'function',
+  'the cloud vault exposes start, pull, flush and restore-notice'
+);
+
+try {
+  localStorage.removeItem('hsc28_sync_queue');
+} catch {
+  /* ignore */
+}
+vault.startCloudVault(null);
+localStorage.setItem('hsc28_master_routine_v1', JSON.stringify({ phase: 1, day: 1 }));
+await vault.flushVault();
+check(
+  !localStorage.getItem('hsc28_sync_queue'),
+  'a signed-out student never queues a cloud write'
+);
+check(
+  localStorage.getItem('hsc28_master_routine_v1') === JSON.stringify({ phase: 1, day: 1 }),
+  'guest study data stays on the device and is never dropped'
+);
+
+localStorage.setItem(
+  'hsc28_vault_notice',
+  JSON.stringify(['hsc28_lang', 'hsc28_profile', 'hsc28_prediction_v1'])
+);
+check(vault.takeRestoreNotice() === 3, 'restored sections from the cloud are counted once');
+check(vault.takeRestoreNotice() === 0, 'the restore notice self-clears so the toast never repeats');
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

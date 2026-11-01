@@ -26,6 +26,7 @@ import {
   syncWrite,
   useSyncStatus,
 } from './lib/sync';
+import { startCloudVault, takeRestoreNotice } from './lib/cloudVault';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -200,6 +201,25 @@ export function App() {
   useEffect(() => {
     setSyncUser(authUserId);
   }, [authUserId]);
+
+  // ক্লাউড ভল্ট: লগইন করা থাকলে প্রতিটি `store`-বদল Supabase-এর hsc28_kv-তে যায়,
+  // আর নতুন ডিভাইসে লগইন করলে পুরো অগ্রগতি ফিরে আসে।
+  useEffect(() => {
+    startCloudVault(authUserId);
+  }, [authUserId]);
+
+  // অন্য ডিভাইস থেকে ফিরে আসা ডেটার সংখ্যা একবার জানিয়ে দিই।
+  useEffect(() => {
+    const restored = takeRestoreNotice();
+    if (restored > 0) {
+      showToast(
+        lang === 'bn'
+          ? `ক্লাউড থেকে ${restored}টি অংশ ফিরিয়ে আনা হয়েছে`
+          : `Restored ${restored} saved part(s) from the cloud`
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // `hydrateFromCloud` is a stable callback (deps never change), so it would
   // otherwise close over the state as it was on the very first render. The
