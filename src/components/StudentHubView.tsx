@@ -37,61 +37,6 @@ interface StudentHubViewProps {
   onAwardXp: (amount: number, msgBn: string, msgEn: string) => void;
 }
 
-const FALLBACK_DOUBTS: StudentDoubtPost[] = [
-  {
-    id: '00000000-0000-4000-8000-000000000501',
-    authorName: 'তানভীর আহমেদ',
-    collegeName: 'নটর ডেম কলেজ, ঢাকা',
-    board: 'Dhaka',
-    subjectKey: 'physics1',
-    title:
-      'নদী-নৌকার অংকে ন্যূনতম সময় আর ন্যূনতম দূরত্বের কোণ নিয়ে কনফিউশন কীভাবে দূর করব?',
-    details:
-      'ন্যূনতম সময়ে পার হতে α = 90° ধরব নাকি cos⁻¹(-u/v)? বোর্ড CQ আর MCQ-তে প্রায়ই গুলিয়ে যায়।',
-    upvotes: 14,
-    solved: true,
-    createdAt: new Date().toISOString(),
-    replies: [
-      {
-        id: 'r-501',
-        doubtId: '00000000-0000-4000-8000-000000000501',
-        authorName: 'মালিহা তাবাসসুম',
-        collegeName: 'হলি ক্রস কলেজ, ঢাকা',
-        content:
-          'মনে রাখার সহজ টেকনিক: ১) ন্যূনতম সময়ে নদী পার হতে নৌকা স্রোতের সাথে লম্বভাবে অর্থাৎ α = 90° কোণে চালাতে হয় (t_min = d/v)। ২) আর ন্যূনতম দূরত্ব বা সোজাসুজি পার হতে স্রোতের বিপরীত দিকে হেলিয়ে α = cos⁻¹(-u/v) কোণে চালাতে হয় (যেখানে v > u)।',
-        isHelpful: true,
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000502',
-    authorName: 'নুসরাত জাহান',
-    collegeName: 'সরকারি এম. এম. সিটি কলেজ, খুলনা',
-    board: 'Jashore',
-    subjectKey: 'chemistry1',
-    title:
-      'ক্রোমিয়াম (Cr-24) ও কপার (Cu-29) আউফবাউ নীতির ব্যতিক্রম কেন — খ নম্বরে কীভাবে লিখলে পূর্ণ নম্বর পাওয়া যায়?',
-    details:
-      'একাদশ শ্রেণির গুণগত রসায়ন অধ্যায়ে অনুধাবনমূলক প্রশ্নের আদর্শ পয়েন্টগুলো জানালে উপকার হতো।',
-    upvotes: 11,
-    solved: true,
-    createdAt: new Date().toISOString(),
-    replies: [
-      {
-        id: 'r-502',
-        doubtId: '00000000-0000-4000-8000-000000000502',
-        authorName: 'রাহাতুল ইসলাম',
-        collegeName: 'সরকারি বি. এল. কলেজ, খুলনা',
-        content:
-          'সমশক্তিসম্পন্ন অরবিটাল অর্ধপূর্ণ (d⁵) অথবা পূর্ণ (d¹⁰) থাকলে বিনিময় শক্তি বেশি হওয়ায় ইলেকট্রন বিন্যাস অধিক স্থিতিশীল হয়। এজন্য Cr(24)-এ [Ar] 3d⁵ 4s¹ এবং Cu(29)-এ [Ar] 3d¹⁰ 4s¹ হয় — এই দুটি পয়েন্ট ও বিন্যাস লিখলেই ২-এ ২ পাওয়া যায়।',
-        isHelpful: true,
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  },
-];
-
 export const StudentHubView: React.FC<StudentHubViewProps> = ({
   lang,
   theme,
@@ -110,9 +55,9 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   const [doubts, setDoubts] = useState<StudentDoubtPost[]>(() => {
     try {
       const saved = localStorage.getItem('hsc28_peer_doubts');
-      return saved ? JSON.parse(saved) : FALLBACK_DOUBTS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return FALLBACK_DOUBTS;
+      return [];
     }
   });
   const [showAskBox, setShowAskBox] = useState(false);
@@ -181,12 +126,11 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
           // two things: questions the student posted while offline (the local
           // insert only happens when authenticated and reachable), and any
           // upvote they had cast, since upvote counts are never written back to
-          // the cloud. Seed/demo posts are dropped once real cloud data exists.
-          const seedIds = new Set(FALLBACK_DOUBTS.map((d) => d.id));
+          // the cloud. Preserve cached posts, including any offline replies.
           setDoubts((prevLocal) => {
             const cloudIds = new Set(mapped.map((d) => d.id));
             const localOnly = prevLocal.filter(
-              (d) => !cloudIds.has(d.id) && !seedIds.has(d.id)
+              (d) => !cloudIds.has(d.id)
             );
             const merged = mapped.map((cloud) => {
               const local = prevLocal.find((d) => d.id === cloud.id);

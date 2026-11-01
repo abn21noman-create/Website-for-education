@@ -19,89 +19,6 @@ interface LeaderboardViewProps {
   onOpenAuth: () => void;
 }
 
-const FALLBACK_PEERS: StudentProfile[] = [
-  {
-    id: '00000000-0000-4000-8000-000000000101',
-    fullName: 'তানভীর আহমেদ (Tanvir Ahmed)',
-    collegeName: 'নটর ডেম কলেজ, ঢাকা',
-    board: 'Dhaka',
-    targetGoal: 'BUET CSE',
-    avatarColor: '#4f46e5',
-    xp: 1420,
-    chaptersMastered: 14,
-    quizzesTaken: 18,
-    bestAccuracy: 95,
-    studyMinutes: 840,
-    streakDays: 12,
-    bookmarks: [],
-    isDemo: true,
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000102',
-    fullName: 'নুসরাত জাহান (Nusrat Jahan)',
-    collegeName: 'সরকারি এম. এম. সিটি কলেজ, খুলনা',
-    board: 'Jashore',
-    targetGoal: 'DMC (Medical)',
-    avatarColor: '#0d9488',
-    xp: 1290,
-    chaptersMastered: 12,
-    quizzesTaken: 16,
-    bestAccuracy: 92.5,
-    studyMinutes: 760,
-    streakDays: 9,
-    bookmarks: [],
-    isDemo: true,
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000103',
-    fullName: 'ফারহান সাদিক (Farhan Sadik)',
-    collegeName: 'রাজশাহী কলেজ, রাজশাহী',
-    board: 'Rajshahi',
-    targetGoal: 'BUET EEE',
-    avatarColor: '#0284c7',
-    xp: 1150,
-    chaptersMastered: 11,
-    quizzesTaken: 14,
-    bestAccuracy: 90,
-    studyMinutes: 680,
-    streakDays: 8,
-    bookmarks: [],
-    isDemo: true,
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000104',
-    fullName: 'মালিহা তাবাসসুম (Maliha Tabassum)',
-    collegeName: 'হলি ক্রস কলেজ, ঢাকা',
-    board: 'Dhaka',
-    targetGoal: 'DMC (Medical)',
-    avatarColor: '#059669',
-    xp: 980,
-    chaptersMastered: 9,
-    quizzesTaken: 12,
-    bestAccuracy: 88,
-    studyMinutes: 590,
-    streakDays: 7,
-    bookmarks: [],
-    isDemo: true,
-  },
-  {
-    id: '00000000-0000-4000-8000-000000000105',
-    fullName: 'রাহাতুল ইসলাম (Rahatul Islam)',
-    collegeName: 'সরকারি বি. এল. কলেজ, খুলনা',
-    board: 'Jashore',
-    targetGoal: 'KUET / BUET',
-    avatarColor: '#6366f1',
-    xp: 860,
-    chaptersMastered: 8,
-    quizzesTaken: 11,
-    bestAccuracy: 86.5,
-    studyMinutes: 510,
-    streakDays: 6,
-    bookmarks: [],
-    isDemo: true,
-  },
-];
-
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   lang,
   theme,
@@ -110,7 +27,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
-  const [entries, setEntries] = useState<StudentProfile[]>(FALLBACK_PEERS);
+  const [entries, setEntries] = useState<StudentProfile[]>([]);
   const [boardFilter, setBoardFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -119,12 +36,12 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     try {
       const supabase = await getSupabase();
       const { data, error } = await supabase
-        .from('hsc28_profiles')
+        .from('hsc28_leaderboard')
         .select('*')
         .order('xp', { ascending: false })
         .limit(50);
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         const mapped: StudentProfile[] = data.map((row: any) => ({
           id: row.id,
           fullName: row.full_name,
@@ -144,7 +61,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
         setEntries(mapped);
       }
     } catch {
-      // Keep fallback peers if offline
+      // Keep the last successfully loaded entries if offline
     } finally {
       setLoading(false);
     }

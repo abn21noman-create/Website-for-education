@@ -56,7 +56,6 @@ const PERMANENT_CODES = new Set([
 ]);
 
 const QUEUE_KEY = 'hsc28_sync_queue';
-const MAX_QUEUE = 250;
 
 function loadQueue(): QueuedOp[] {
   try {
@@ -88,8 +87,8 @@ let snapshot: SyncSnapshot = {
 function computePhase(): SyncPhase {
   if (!currentUserId) return 'guest';
   if (pending > 0) return 'saving';
-  if (queue.some((q) => q.userId === currentUserId)) return 'offline';
   if (lastError) return 'error';
+  if (queue.some((q) => q.userId === currentUserId)) return 'offline';
   return 'idle';
 }
 
@@ -115,9 +114,10 @@ function publish(): void {
 function persistQueue(): void {
   try {
     if (queue.length === 0) localStorage.removeItem(QUEUE_KEY);
-    else localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-MAX_QUEUE)));
+    else localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch {
-    // Storage full/blocked: the queue is best-effort, never fatal.
+    lastError = "Could not save the sync queue on this device.";
+    publish();
   }
 }
 
@@ -125,9 +125,8 @@ function errorInfo(error: unknown): { permanent: boolean; message: string } {
   const err = error as { code?: string; message?: string } | null;
   const message = err?.message || String(error || 'unknown error');
   const code = err?.code || '';
-  // 23505 = duplicate key. For inserts/upserts the row is already there, so
-  // the desired end state holds and this is not a failure.
-  if (code === '23505') return { permanent: false, message };
+  // A collision is only harmless for inserts that explicitly ignore duplicates.
+  if (code === '23505') return { permanent: true, message };
   return { permanent: PERMANENT_CODES.has(code), message };
 }
 
@@ -141,9 +140,6 @@ async function runOp(op: SyncOp): Promise<{ ok: boolean; permanent: boolean; mes
       const { error } = await supabase.rpc(op.fn, op.args);
       if (!error) return { ok: true, permanent: false, message: '' };
       const info = errorInfo(error);
-      if (info.permanent === false && (error as { code?: string }).code === '23505') {
-        return { ok: true, permanent: false, message: '' };
-      }
       return { ok: false, ...info };
     }
 
@@ -159,7 +155,7 @@ async function runOp(op: SyncOp): Promise<{ ok: boolean; permanent: boolean; mes
       const { error } = await supabase.from(op.table).insert(op.payload);
       if (!error) return { ok: true, permanent: false, message: '' };
       const info = errorInfo(error);
-      if ((error as { code?: string }).code === '23505') {
+      if (op.ignoreDuplicates && (error as { code?: string }).code === '23505') {
         return { ok: true, permanent: false, message: '' };
       }
       return { ok: false, ...info };
@@ -202,8 +198,15 @@ function enqueue(op: SyncOp, userId: string): void {
 export async function syncWrite(op: SyncOp, userId: string | null): Promise<boolean> {
   if (!userId) return false;
 
+  // Preserve ordering: an older queued or in-flight mutation must never be
+  // replayed after a newer write to the same record.
+  if (pending > 0 || flushing || queue.some((item) => item.userId === userId)) {
+    enqueue(op, userId);
+    publish();
+    if (!pending && !flushing && userId === currentUserId) void flushSyncQueue();
+    return false;
+  }
   pending += 1;
-  lastError = null;
   publish();
 
   const result = await runOp(op);
@@ -212,15 +215,12 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
   if (result.ok) {
     lastSavedAt = new Date().toISOString();
     publish();
+    if (queue.some((item) => item.userId === userId) && currentUserId === userId) void flushSyncQueue();
     return true;
   }
 
-  if (result.permanent) {
-    lastError = result.message;
-    publish();
-    return false;
-  }
-
+  // Even permanent errors must not discard the student's work.
+  if (result.permanent) lastError = result.message;
   enqueue(op, userId);
   publish();
   return false;
@@ -228,10 +228,11 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
 
 /** Replays queued writes for the active user, oldest first. */
 export async function flushSyncQueue(): Promise<void> {
-  if (flushing || !currentUserId) return;
+  if (flushing || pending > 0 || !currentUserId) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
   flushing = true;
+  let failed = false;
   try {
     const userId = currentUserId;
     const mine = queue.filter((q) => q.userId === userId);
@@ -243,11 +244,15 @@ export async function flushSyncQueue(): Promise<void> {
         lastSavedAt = new Date().toISOString();
         lastError = null;
       } else if (result.permanent) {
-        // Stop retrying something that can never succeed; keep a visible trace.
-        queue = queue.filter((q) => q.key !== item.key);
+        // Keep the failed operation until it can be fixed and retried.
         lastError = result.message;
+        failed = true;
+        persistQueue();
+        publish();
+        break;
       } else {
         item.attempts += 1;
+        failed = true;
         persistQueue();
         // Still offline: stop here rather than burning the whole queue.
         break;
@@ -258,6 +263,7 @@ export async function flushSyncQueue(): Promise<void> {
   } finally {
     flushing = false;
     publish();
+    if (!failed && currentUserId && queue.some((item) => item.userId === currentUserId)) void flushSyncQueue();
   }
 }
 
@@ -304,4 +310,15 @@ export function initSyncNetworkWatcher(): void {
   window.setInterval(() => {
     if (navigator.onLine !== false && currentUserId) void flushSyncQueue();
   }, 30000);
+}
+
+/** Wait for outstanding writes and retry queued work before a sign-out. */
+export async function ensureSyncSaved(): Promise<boolean> {
+  const deadline = Date.now() + 15000;
+  while ((pending > 0 || flushing) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  if (pending > 0 || flushing) return false;
+  await Promise.race([flushSyncQueue(), new Promise<void>((resolve) => setTimeout(resolve, 15000))]);
+  return !flushing && pending === 0 && !lastError && !queue.some((q) => q.userId === currentUserId);
 }

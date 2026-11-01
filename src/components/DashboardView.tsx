@@ -36,8 +36,8 @@ import {
   isRevisionDay,
   toDateKey,
   revisionQueue,
-  upcomingMocks,
 } from '../lib/masterRoutine';
+import { upcomingMocks } from '../lib/mockPlan';
 import { learnedChapters, loadRoutineState } from '../lib/routineStore';
 import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
 import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';

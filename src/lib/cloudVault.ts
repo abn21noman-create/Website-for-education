@@ -93,25 +93,37 @@ function listLocalKeys(): string[] {
 }
 
 let activeUser: string | null = null;
+let reconciled = false;
 let hooked = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let vaultFlush: Promise<void> | null = null;
 const dirty = new Set<string>();
 const initialised = new Set<string>();
+let initialSyncPromise: Promise<void> | null = null;
+let initialSyncError: unknown = null;
 
 function schedule(key: string): void {
   if (!activeUser || !isVaultKey(key)) return;
   dirty.add(key);
+  if (!reconciled) return;
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
-    void flushVault();
+    void flushVault().catch(() => { /* kept dirty for a later retry */ });
   }, DEBOUNCE_MS);
 }
 
 /** জমে থাকা বদল ক্লাউডে পাঠায় (আপসert / ডিলিট)। */
 export async function flushVault(): Promise<void> {
+  if (timer) { clearTimeout(timer); timer = null; }
+  if (vaultFlush) await vaultFlush;
+  vaultFlush = flushVaultNow();
+  try { await vaultFlush; } finally { vaultFlush = null; }
+}
+
+async function flushVaultNow(): Promise<void> {
   const userId = activeUser;
-  if (!userId || dirty.size === 0) return;
+  if (!userId || !reconciled || dirty.size === 0) return;
 
   const keys = Array.from(dirty);
   dirty.clear();
@@ -119,7 +131,9 @@ export async function flushVault(): Promise<void> {
   const meta = readMeta();
   const now = new Date().toISOString();
 
+  let oversized = false;
   for (const key of keys) {
+    if (activeUser !== userId) return;
     let value: string | null = null;
     try {
       value = localStorage.getItem(key);
@@ -128,7 +142,7 @@ export async function flushVault(): Promise<void> {
     }
 
     if (value === null) {
-      void syncWrite(
+      await syncWrite(
         { op: 'delete', table: 'hsc28_kv', eq: { user_id: userId, key } },
         userId
       );
@@ -136,9 +150,13 @@ export async function flushVault(): Promise<void> {
       continue;
     }
 
-    if (value.length > MAX_VALUE_CHARS) continue;
+    if (value.length > MAX_VALUE_CHARS) {
+      dirty.add(key);
+      oversized = true;
+      continue;
+    }
 
-    void syncWrite(
+    const saved = await syncWrite(
       {
         op: 'upsert',
         table: 'hsc28_kv',
@@ -147,10 +165,11 @@ export async function flushVault(): Promise<void> {
       },
       userId
     );
-    meta[key] = now;
+    if (saved) meta[key] = now;
   }
 
   writeMeta(meta);
+  if (oversized) throw new Error("Some local data is too large to sync");
 }
 
 export interface RestoreDecision {
@@ -195,7 +214,8 @@ export async function pullFromCloud(userId: string): Promise<string[]> {
       .select('key,value,updated_at')
       .eq('user_id', userId);
 
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) throw error || new Error("Cloud vault returned invalid data");
+    if (activeUser !== userId) return [];
 
     const meta = readMeta();
     // এই ডিভাইস আগে কখনো সিঙ্ক করেনি? তাহলে অ্যাকাউন্টের (ক্লাউডের) ডেটাই
@@ -231,8 +251,8 @@ export async function pullFromCloud(userId: string): Promise<string[]> {
     }
 
     return restored;
-  } catch {
-    return [];
+  } catch (error) {
+    throw error;
   }
 }
 
@@ -256,13 +276,13 @@ function installHooks(): void {
 
   // অ্যাপ বন্ধ/লুকানো হওয়ার আগে জমে থাকা বদল পাঠিয়ে দিই।
   window.addEventListener('pagehide', () => {
-    void flushVault();
+    void flushVault().catch(() => { /* kept dirty for a later retry */ });
   });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') void flushVault();
+    if (document.visibilityState === 'hidden') void flushVault().catch(() => {});
   });
   window.addEventListener('online', () => {
-    void flushVault();
+    void flushVault().catch(() => { /* kept dirty for a later retry */ });
   });
 }
 
@@ -271,6 +291,8 @@ async function initialSync(userId: string): Promise<void> {
   initialised.add(userId);
 
   const restored = await pullFromCloud(userId);
+  if (activeUser !== userId) return;
+  reconciled = true;
 
   // অতিথি অবস্থায় যা পড়া হয়েছে, বা এই ডিভাইসের সর্বশেষ অবস্থা — সবই তোলা হয়।
   for (const key of listLocalKeys()) dirty.add(key);
@@ -308,10 +330,21 @@ async function initialSync(userId: string): Promise<void> {
 
 /** লগইন/লগআউটের সাথে ভল্ট বাঁধে। গেস্ট হলে কিছুই হয় না। */
 export function startCloudVault(userId: string | null): void {
+  if (activeUser !== userId) {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    dirty.clear();
+    initialised.clear();
+    reconciled = false;
+  }
   activeUser = userId;
   if (!userId) return;
   installHooks();
-  void initialSync(userId);
+  initialSyncError = null;
+  initialSyncPromise = initialSync(userId).catch((error) => {
+    initialised.delete(userId);
+    if (activeUser === userId) { reconciled = false; initialSyncError = error; }
+  });
 }
 
 /**
@@ -329,4 +362,17 @@ export function takeRestoreNotice(): number {
   } catch {
     return 0;
   }
+}
+
+/** Wait for initial cloud reconciliation; a failed pull must block safe sign-out. */
+export async function ensureVaultReady(): Promise<void> {
+  if (initialSyncPromise) await initialSyncPromise;
+  if (initialSyncError && activeUser) {
+    initialSyncError = null;
+    await initialSync(activeUser).catch((error) => {
+      if (activeUser) initialised.delete(activeUser);
+      initialSyncError = error;
+    });
+  }
+  if (initialSyncError) throw initialSyncError;
 }

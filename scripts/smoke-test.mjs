@@ -1739,6 +1739,40 @@ localStorage.setItem(
 check(vault.takeRestoreNotice() === 3, 'restored sections from the cloud are counted once');
 check(vault.takeRestoreNotice() === 0, 'the restore notice self-clears so the toast never repeats');
 
+// A signed-out visitor sees the gate, not dashboard content; a deep link survives.
+if (root) root.unmount();
+container.innerHTML = '';
+window.history.replaceState(null, '', '/#/planner');
+const { AuthGate } = await vite.ssrLoadModule('/src/components/AuthGate.tsx');
+const fakeAuth = { auth: { onAuthStateChange: (callback) => { queueMicrotask(() => callback('INITIAL_SESSION', null)); return { data: { subscription: { unsubscribe() {} } } }; } } };
+root = createRoot(container);
+root.render(React.createElement(AuthGate, { clientFactory: async () => fakeAuth }));
+await new Promise(resolve => setTimeout(resolve, 120));
+check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'signed-out visitor sees login and no app navigation');
+check(window.location.hash === '#/planner', 'login gate preserves the requested deep link');
+const languageButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'EN');
+languageButton?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(container.textContent.includes('Sign in'), 'login gate switches to English');
+root.unmount(); root = null;
+
+// Account switching must not leak one student's local data into another account.
+const savedStorage = Object.fromEntries(Array.from({ length: localStorage.length }, (_, i) => { const key = localStorage.key(i); return [key, localStorage.getItem(key)]; }));
+localStorage.clear();
+const spaces = await vite.ssrLoadModule('/src/lib/accountSpace.ts');
+localStorage.setItem('hsc28_notes', JSON.stringify([{ title: 'guest work' }]));
+const firstSpace = spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111');
+check(!!firstSpace.guestData?.hsc28_notes, 'guest work is retained for migration');
+check(!!spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111').guestData, 'failed guest migration stays pending on retry');
+spaces.finishGuestMigration('11111111-1111-4111-8111-111111111111');
+spaces.selectAccountSpace('22222222-2222-4222-8222-222222222222');
+check(localStorage.getItem('hsc28_notes') === null, 'a different account does not see prior account local data');
+localStorage.setItem('hsc28_notes', JSON.stringify([{ title: 'second account' }]));
+spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111');
+check(localStorage.getItem('hsc28_notes')?.includes('guest work'), 'switching back restores the first account local space');
+localStorage.clear();
+for (const [key, value] of Object.entries(savedStorage)) if (value !== null) localStorage.setItem(key, value);
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

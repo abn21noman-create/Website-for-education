@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nokkhotro-hsc28-offline-v4';
+const CACHE_NAME = 'nokkhotro-hsc28-offline-v5';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -25,7 +25,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== CACHE_NAME)
+            .filter((k) => k.startsWith('nokkhotro-hsc28-offline-') && k !== CACHE_NAME)
             .map((k) => caches.delete(k))
         )
       )
