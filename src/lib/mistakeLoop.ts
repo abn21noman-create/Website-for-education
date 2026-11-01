@@ -153,3 +153,60 @@ export function mainBlockSuggestion(
     subtitleEn: 'The chapter furthest behind in your tracker — start the day here.',
   };
 }
+
+export interface MistakeReportRow extends ChapterMistake {
+  /** Two or more wrong answers in the same chapter — it keeps coming back. */
+  repeated: boolean;
+  /** How many of the four syllabus stages are already done. */
+  stagesDone: number;
+}
+
+export interface MistakeReport {
+  totalWrong: number;
+  chapters: MistakeReportRow[];
+  papers: { subjectKey: string; count: number }[];
+  repeatedChapters: number;
+  adviceBn: string;
+  adviceEn: string;
+}
+
+/**
+ * The weekly picture of the mistake bank: which chapters are carrying the
+ * damage, which papers they come from, and whether a chapter keeps repeating.
+ */
+export function mistakeReport(
+  questionIds: string[],
+  questions: McqQuestion[],
+  progressMap: Record<string, ChapterProgressState>
+): MistakeReport {
+  const chapters = mistakesByChapter(questionIds, questions).map((row) => ({
+    ...row,
+    repeated: row.wrongCount >= 2,
+    stagesDone: row.chapterId ? stagesDone(progressMap[row.chapterId]) : 0,
+  }));
+
+  const perPaper = new Map<string, number>();
+  for (const row of chapters) {
+    perPaper.set(row.subjectKey, (perPaper.get(row.subjectKey) || 0) + row.wrongCount);
+  }
+  const papers = [...perPaper.entries()]
+    .map(([subjectKey, count]) => ({ subjectKey, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const totalWrong = chapters.reduce((sum, row) => sum + row.wrongCount, 0);
+  const repeatedChapters = chapters.filter((row) => row.repeated).length;
+  const worst = chapters[0];
+
+  let adviceBn = 'ভুলের খাতা খালি — কোনো প্রশ্ন এখনো ভুল হয়নি। মক দিয়ে শুরু করো।';
+  let adviceEn = 'The mistake bank is empty — nothing wrong yet. Start with a mock.';
+  if (worst) {
+    adviceBn = `সবচেয়ে বেশি ভুল “${worst.chapterBn}” (${worst.wrongCount}টি)${
+      repeatedChapters > 0 ? `; ${repeatedChapters}টি অধ্যায়ে ভুল ফিরে আসছে` : ''
+    }। ১০টি প্রশ্নের ড্রিল দিয়ে ওটাই আগে সারাও।`;
+    adviceEn = `Most misses are in “${worst.chapterEn}” (${worst.wrongCount})${
+      repeatedChapters > 0 ? `; ${repeatedChapters} chapter(s) keep repeating` : ''
+    }. Clear it with a 10-question drill first.`;
+  }
+
+  return { totalWrong, chapters, papers, repeatedChapters, adviceBn, adviceEn };
+}

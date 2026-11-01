@@ -41,7 +41,8 @@ import {
   tracksByPriority,
   trackTimeSplit,
 } from '../lib/trackProgress';
-import { mainBlockSuggestion } from '../lib/mistakeLoop';
+import { mainBlockSuggestion, mistakeReport } from '../lib/mistakeLoop';
+import { requestChapterDrill } from '../lib/chapterDrill';
 import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
@@ -50,7 +51,8 @@ import {
   mockTestsBetween,
   upcomingMocks,
 } from '../lib/mockPlan';
-import { loadMcqSubjects } from '../data/mcqBank';
+import { loadAllMcq } from '../data/mcqBank';
+import { getSubjectByKey } from '../data/syllabusData';
 import type { Chronotype } from '../lib/studyScience';
 import type { McqQuestion, SubjectKey } from '../types';
 import { sleepFeedback } from '../lib/studyScience';
@@ -127,10 +129,10 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
       setMistakeQuestions([]);
       return;
     }
-    const primary = ADMISSION_TRACKS.find((track) => track.key === state.primaryTrack);
-    if (!primary) return;
+    // The weekly report spans every paper, so the whole bank is loaded once
+    // (session-cached) — only when the mistake bank actually holds something.
     let cancelled = false;
-    loadMcqSubjects(primary.subjects.map((subject) => subject.subjectKey))
+    loadAllMcq()
       .then((list) => {
         if (!cancelled) setMistakeQuestions(list);
       })
@@ -140,13 +142,19 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [mistakeSignature, state.primaryTrack]);
+  }, [mistakeSignature]);
 
   // The main track (Medical by default) gets a named block in the timetable,
   // opening on the chapter the mock answers say is weak.
   const focus = useMemo(
     () => mainBlockSuggestion(state.primaryTrack, progressMap, mistakeIds, mistakeQuestions),
-    [state.primaryTrack, progressMap, mistakeIds, mistakeQuestions]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.primaryTrack, progressMap, mistakeSignature, mistakeQuestions]
+  );
+  const mistakeStats = useMemo(
+    () => mistakeReport(mistakeIds, mistakeQuestions, progressMap),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mistakeSignature, mistakeQuestions, progressMap]
   );
   const studyDay = useMemo(
     () => buildStudyDay(state.settings, state.chronotype, focus),
@@ -222,6 +230,18 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
     }
     return out;
   }, [dateKey, state.minutes]);
+
+  /** Hand a chapter to the MCQ screen and jump there. */
+  const startChapterDrill = (row: { subjectKey: string; chapterBn: string; chapterEn: string; chapterId?: string | null }) => {
+    requestChapterDrill({
+      subjectKey: row.subjectKey as SubjectKey,
+      chapterBn: row.chapterBn,
+      chapterEn: row.chapterEn,
+      chapterId: row.chapterId ?? undefined,
+      count: 10,
+    });
+    onOpenMock?.();
+  };
 
   const shiftDate = (days: number) => {
     const d = new Date(`${dateKey}T00:00:00`);
@@ -612,6 +632,23 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                         {useBn ? 'সিলেবাসে খোলো' : 'Open in syllabus'}
                       </button>
                     )}
+                    {onOpenMock && focus.chapterBn && (
+                      <button
+                        onClick={() =>
+                          startChapterDrill({
+                            subjectKey: focus.subjectKey,
+                            chapterBn: focus.chapterBn as string,
+                            chapterEn: focus.chapterEn || (focus.chapterBn as string),
+                            chapterId: focus.chapterId,
+                          })
+                        }
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          isDark ? 'bg-rose-500/25 text-rose-100' : 'bg-rose-200 text-rose-900'
+                        }`}
+                      >
+                        {useBn ? '১০টি প্রশ্ন' : '10 questions'}
+                      </button>
+                    )}
                   </span>
                 </span>
               </div>
@@ -690,6 +727,93 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               </ul>
             </div>
           )}
+
+          {/* Mistake bank report */}
+          <div className={`rounded-2xl border p-4 ${card}`}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-extrabold">
+                {useBn ? 'ভুলের খাতা' : 'Mistake bank'}
+              </p>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                  mistakeStats.totalWrong > 0
+                    ? isDark
+                      ? 'bg-amber-500/20 text-amber-200'
+                      : 'bg-amber-100 text-amber-800'
+                    : chip
+                }`}
+              >
+                {useBn
+                  ? `${bn(mistakeStats.totalWrong)}টি ভুল`
+                  : `${mistakeStats.totalWrong} wrong`}
+              </span>
+            </div>
+            <p className={`text-[11px] mt-1 leading-relaxed ${muted}`}>
+              {useBn ? mistakeStats.adviceBn : mistakeStats.adviceEn}
+            </p>
+
+            {mistakeStats.chapters.length > 0 && (
+              <ul className="mt-3 space-y-2">
+                {mistakeStats.chapters.slice(0, 5).map((row) => (
+                  <li
+                    key={`${row.subjectKey}-${row.chapterBn}`}
+                    className={`flex items-start justify-between gap-2 rounded-xl border px-2.5 py-2 ${
+                      isDark ? 'border-slate-800' : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold truncate">
+                        {useBn ? row.chapterBn : row.chapterEn}
+                      </p>
+                      <p className={`text-[10px] mt-0.5 ${muted}`}>
+                        {useBn
+                          ? getSubjectByKey(row.subjectKey as SubjectKey).shortName.bn
+                          : getSubjectByKey(row.subjectKey as SubjectKey).shortName.en}
+                        {' · '}
+                        {useBn
+                          ? `${bn(row.wrongCount)}টি ভুল · ${bn(row.stagesDone)}/৪ ধাপ`
+                          : `${row.wrongCount} wrong · ${row.stagesDone}/4 stages`}
+                        {row.repeated && (
+                          <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">
+                            {useBn ? '· বারবার ফিরছে' : '· repeating'}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    {onOpenMock && (
+                      <button
+                        onClick={() => startChapterDrill(row)}
+                        className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg border ${
+                          isDark
+                            ? 'border-slate-700 hover:border-slate-500'
+                            : 'border-slate-200 hover:border-slate-400'
+                        }`}
+                      >
+                        {useBn ? '১০ প্রশ্ন' : '10 Q'}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {mistakeStats.papers.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {mistakeStats.papers.map((paper) => (
+                  <span
+                    key={paper.subjectKey}
+                    className={`text-[10px] px-2 py-0.5 rounded ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}
+                  >
+                    {useBn
+                      ? getSubjectByKey(paper.subjectKey as SubjectKey).shortName.bn
+                      : getSubjectByKey(paper.subjectKey as SubjectKey).shortName.en}
+                    {' '}
+                    {bn(paper.count)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Hours log */}
           <div className={`rounded-2xl border p-4 ${card}`}>

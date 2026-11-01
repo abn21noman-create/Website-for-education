@@ -383,6 +383,8 @@ const hasTarget = todayCardText.includes('আজকের পড়ার লক
 const hasNextMock = todayCardText.includes('পরের মক টেস্ট');
 const hasFocusBlock = timeTabText.includes('মূল ট্র্যাক ব্লক — ');
 const hasFocusDetail = todayCardText.includes('ট্র্যাকারে পিছিয়ে') && todayCardText.includes('সিলেবাসে খোলো');
+const hasMistakeCard = todayCardText.includes('ভুলের খাতা') &&
+  todayCardText.includes('১০টি প্রশ্ন');
 const hasPacing = timeTabText.includes('এই সপ্তাহের হিসাব');
 const hasChronotype =
   timeTabText.includes('তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?') &&
@@ -390,9 +392,9 @@ const hasChronotype =
   timeTabText.includes('রাতে');
 const hasEvidence = timeTabText.includes('এই রুটিনের পেছনের প্রমাণ');
 console.log(
-  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock && hasFocusDetail
-    ? 'the today card shows target + next mock + a tappable main-track block; study time shows pacing, chronotype and evidence'
-    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence}, focus=${hasFocusBlock}, detail=${hasFocusDetail})`
+  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock && hasFocusDetail && hasMistakeCard
+    ? 'the today card shows target, next mock, a tappable main-track block and the mistake bank; study time shows pacing, chronotype and evidence'
+    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence}, focus=${hasFocusBlock}, detail=${hasFocusDetail}, mistakes=${hasMistakeCard})`
 );
 failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock && hasFocusDetail ? 0 : 1;
 
@@ -432,6 +434,36 @@ console.log(
     : `\u2717 medical priority missing (first=${medicalFirst}, badge=${mainBadge}, split=${splitShown})`
 );
 failures += medicalFirst && mainBadge && splitShown ? 0 : 1;
+
+// A chapter drill requested from the routine must open on the MCQ screen.
+window.localStorage.setItem(
+  'hsc28_chapter_drill_v1',
+  JSON.stringify({
+    subjectKey: 'biology1',
+    chapterBn: '\u0995\u09cb\u09b7 \u09ac\u09bf\u09ad\u09be\u099c\u09a8',
+    chapterEn: 'Cell Division',
+    count: 4,
+    createdAt: new Date().toISOString(),
+  })
+);
+window.history.replaceState(null, '', '/#/mcq');
+window.location.hash = '#/mcq';
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise((resolve) => setTimeout(resolve, 1800));
+const drillText = container.textContent || '';
+const drillStarted =
+  drillText.includes('\u0995\u09cb\u09b7 \u09ac\u09bf\u09ad\u09be\u099c\u09a8') &&
+  !drillText.includes('\u09b6\u09c1\u09b0\u09c1 \u0995\u09b0\u09cb');
+console.log(
+  drillStarted
+    ? '\u2713 a chapter drill from the routine opens on that chapter'
+    : `\u2717 chapter drill did not start (mqc screen text ${drillText.length} chars)`
+);
+failures += drillStarted ? 0 : 1;
+
 
 // Switching banks must swap the whole screen, not just the label.
 // Remount first: the switcher only exists on the drill home screen, and the
@@ -1090,6 +1122,62 @@ const otherPaper = mistakeLoop.mainBlockSuggestion(
 check(
   otherPaper.reason === 'gap' && otherPaper.wrongCount === 0,
   'mistakes in another paper do not hijack the medical block'
+);
+
+const reportIds = [
+  sameChapter[0].id,
+  sameChapter[1].id,
+  sameChapter[2] ? sameChapter[2].id : sameChapter[0].id,
+  physicsBank[0].id,
+];
+const report = mistakeLoop.mistakeReport(reportIds, [...bioBank, ...physicsBank], {});
+check(
+  report.totalWrong === reportIds.length &&
+    report.chapters.length === 2 &&
+    report.chapters[0].repeated &&
+    report.papers.reduce((sum, paper) => sum + paper.count, 0) === report.totalWrong,
+  'the mistake report groups ids per chapter and per paper',
+  `${report.totalWrong} wrong / ${report.chapters.length} chapters`
+);
+const emptyReport = mistakeLoop.mistakeReport([], bioBank, {});
+check(
+  emptyReport.totalWrong === 0 &&
+    emptyReport.chapters.length === 0 &&
+    emptyReport.adviceBn.length > 0,
+  'an empty mistake bank still explains where to start'
+);
+
+const chapterDrill = await vite.ssrLoadModule('/src/lib/chapterDrill.ts');
+chapterDrill.requestChapterDrill({
+  subjectKey: 'biology1',
+  chapterBn: firstBio.chapter.bn,
+  chapterEn: firstBio.chapter.en,
+  count: 10,
+});
+const takenDrill = chapterDrill.takeChapterDrill();
+check(
+  takenDrill &&
+    takenDrill.subjectKey === 'biology1' &&
+    takenDrill.chapterBn === firstBio.chapter.bn &&
+    takenDrill.count === 10,
+  'a chapter drill request survives the route change'
+);
+check(
+  chapterDrill.takeChapterDrill() === null,
+  'the drill request is consumed exactly once'
+);
+const pickedDrill = chapterDrill.pickChapterQuestions(bioBank, {
+  subjectKey: 'biology1',
+  chapterBn: firstBio.chapter.bn,
+  chapterEn: firstBio.chapter.en,
+  count: 3,
+});
+check(
+  pickedDrill.length > 0 &&
+    pickedDrill.length <= 3 &&
+    pickedDrill.every((question) => question.chapter.bn === firstBio.chapter.bn),
+  'a chapter drill only draws that chapter\u2019s questions',
+  `${pickedDrill.length} question(s)`
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

@@ -40,6 +40,8 @@ import {
 import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
 import { SelfExplainBox } from './SelfExplainBox';
 import { selfNoteCount } from '../lib/selfNotes';
+import { pickChapterQuestions, takeChapterDrill } from '../lib/chapterDrill';
+import type { ChapterDrillRequest } from '../lib/chapterDrill';
 
 interface McqExamViewProps {
   lang: Lang;
@@ -76,6 +78,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     'all' | 'easy' | 'medium' | 'hard'
   >('all');
   const [isMistakeRun, setIsMistakeRun] = useState(false);
+  // A chapter drill requested from the routine screen, consumed exactly once.
+  const [chapterDrill] = useState<ChapterDrillRequest | null>(() => takeChapterDrill());
+  const [isChapterRun, setIsChapterRun] = useState(false);
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [examMode, setExamMode] = useState<'timed' | 'practice'>('timed');
   const [negativeMarking, setNegativeMarking] = useState<boolean>(false);
@@ -197,6 +202,25 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     onConsumedMistakeExam,
   ]);
 
+  /** Deep link from the routine: a timed drill on one chapter. */
+  useEffect(() => {
+    if (!chapterDrill || stage !== 'setup' || bank.length === 0) return;
+    const picked = pickChapterQuestions(bank, chapterDrill);
+    if (picked.length === 0) return;
+    setSelectedSubject(chapterDrill.subjectKey);
+    setExamQuestions(picked);
+    setIsMistakeRun(false);
+    setIsChapterRun(true);
+    setAnswers({});
+    setFlagged({});
+    setFocusTabSwitches(0);
+    setSecondsLeft(picked.length * 60);
+    setStartedAt(Date.now());
+    setLastResult(null);
+    setStage('running');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [chapterDrill, bank, stage]);
+
   /**
    * Which papers this configuration needs. A single-paper drill asks for one
    * file; admission papers and mixed practice span several.
@@ -307,7 +331,11 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
       Math.round((Date.now() - startedAt) / 1000)
     );
 
-    const subjTitle = isMistakeRun
+    const subjTitle = isChapterRun && chapterDrill
+      ? lang === 'bn'
+        ? `${chapterDrill.chapterBn} — ১০টি প্রশ্নের ড্রিল`
+        : `${chapterDrill.chapterEn} — 10-question drill`
+      : isMistakeRun
       ? lang === 'bn'
         ? 'ভুল প্রশ্নের রিভিশন পরীক্ষা (Mistake Bank)'
         : 'Mistake Bank Remediation Exam'
@@ -353,6 +381,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     examQuestions,
     answers,
     isMistakeRun,
+    isChapterRun,
+    chapterDrill,
     mistakeIds,
     scoringPattern,
     startedAt,
