@@ -1296,6 +1296,7 @@ export function App() {
               onToggleStage={handleToggleStage}
               onOpenMock={() => handleNavigate('mcq')}
               mistakeIds={profile.mistakeIds || []}
+              quizHistory={quizHistory}
               onOpenSyllabus={(subjectKey: SubjectKey) => handleNavigate('syllabus', subjectKey)}
             />
           )}

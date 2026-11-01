@@ -353,6 +353,23 @@ console.log(
 );
 failures += dashboardMedicalFirst ? 0 : 1;
 
+window.localStorage.setItem(
+  'hsc28_quizzes',
+  JSON.stringify([
+    {
+      id: 'seed-low-bio',
+      subjectKey: 'biology1',
+      examTitle: 'Weekly board-style mock',
+      totalQuestions: 20,
+      correctAnswers: 9,
+      wrongAnswers: 11,
+      score: 9,
+      accuracy: 45,
+      durationSeconds: 900,
+      createdAt: new Date().toISOString(),
+    },
+  ])
+);
 window.history.replaceState(null, '', '/#/routine');
 window.location.hash = '#/routine';
 if (root) root.unmount();
@@ -403,7 +420,10 @@ await new Promise((resolve) => setTimeout(resolve, 400));
 const weekTabText = container.textContent || '';
 const hasWeekMockCard = weekTabText.includes('এই সপ্তাহের মক টেস্ট');
 const hasWeekTarget =
-  weekTabText.includes('সাপ্তাহিক রিপোর্ট') && weekTabText.includes('MCQ') && weekTabText.includes('/');
+  weekTabText.includes('সাপ্তাহিক রিপোর্ট') &&
+  weekTabText.includes('MCQ') &&
+  weekTabText.includes('/') &&
+  (weekTabText.includes('২৪ MCQ') || weekTabText.includes('শেষ ফল'));
 console.log(
   openedWeekTab && hasWeekMockCard && hasWeekTarget
     ? 'the weekly tab lists this week\u2019s chapters, quotas, report and scheduled mock'
@@ -1247,6 +1267,51 @@ check(
 check(
   weeklyTarget.weekTarget('2026-01-01', '2025-12-31', {}) === null,
   'the week target stays silent outside the plan'
+);
+
+const biology1Key = 'biology1';
+const attempts = [
+  { id: 'a1', subjectKey: biology1Key, examTitle: 'weekly', totalQuestions: 20, correctAnswers: 16, wrongAnswers: 4, score: 16, accuracy: 80, durationSeconds: 600, createdAt: '2026-01-10T10:00:00.000Z' },
+  { id: 'a2', subjectKey: biology1Key, examTitle: 'weekly', totalQuestions: 20, correctAnswers: 17, wrongAnswers: 3, score: 17, accuracy: 85, durationSeconds: 600, createdAt: '2026-01-12T10:00:00.000Z' },
+  { id: 'a3', subjectKey: biology1Key, examTitle: 'weekly', totalQuestions: 20, correctAnswers: 9, wrongAnswers: 11, score: 9, accuracy: 45, durationSeconds: 600, createdAt: '2026-01-17T10:00:00.000Z' },
+  { id: 'a4', subjectKey: 'all', examTitle: 'combined', totalQuestions: 30, correctAnswers: 10, wrongAnswers: 20, score: 10, accuracy: 33, durationSeconds: 900, createdAt: '2026-01-18T10:00:00.000Z' },
+];
+const paperScoresNow = weeklyTarget.paperScores(attempts);
+check(
+  paperScoresNow.length === 1 &&
+    paperScoresNow[0].subjectKey === biology1Key &&
+    paperScoresNow[0].accuracy === 45 &&
+    paperScoresNow[0].attempts === 3,
+  'only the latest score per paper counts, and combined mocks are left out',
+  JSON.stringify(paperScoresNow.map((row) => [row.subjectKey, row.accuracy]))
+);
+
+const adjusted = weeklyTarget.adjustWeekTarget(firstWeek, paperScoresNow);
+const bioRow = adjusted.papers.find((paper) => paper.subjectKey === biology1Key);
+check(
+  adjusted.hasResults &&
+    adjusted.urgent.length === 1 &&
+    adjusted.papers[0].subjectKey === biology1Key &&
+    bioRow.weight === 1.6 &&
+    bioRow.mcqQuota === 24 &&
+    bioRow.extraMinutes === 18,
+  'a paper under 50% leads the week with a bigger quota',
+  bioRow ? `${bioRow.mcqQuota} MCQ / w${bioRow.weight}` : 'missing'
+);
+const relaxed = weeklyTarget.adjustWeekTarget(firstWeek, [
+  { subjectKey: biology1Key, accuracy: 92, attempts: 2, lastAt: '2026-01-12T10:00:00.000Z' },
+]);
+const strongRow = relaxed.papers.find((paper) => paper.subjectKey === biology1Key);
+check(
+  strongRow.weight === 0.9 && strongRow.mcqQuota < 15 && strongRow.extraMinutes === 0 && relaxed.urgent.length === 0,
+  'a paper above 80% gives some of its quota back',
+  `${strongRow.mcqQuota} MCQ`
+);
+const untouched = weeklyTarget.adjustWeekTarget(firstWeek, []);
+check(
+  untouched.hasResults === false &&
+    untouched.papers.every((paper) => paper.weight === 1 && paper.score === null),
+  'without results every paper keeps its normal quota'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

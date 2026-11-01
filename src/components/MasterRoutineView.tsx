@@ -43,7 +43,8 @@ import {
 } from '../lib/trackProgress';
 import { mainBlockSuggestion, mistakeReport } from '../lib/mistakeLoop';
 import { requestChapterDrill } from '../lib/chapterDrill';
-import { WEEKLY_CQ_QUOTA, WEEKLY_MCQ_QUOTA, weekReport, weekTarget } from '../lib/weeklyTarget';
+import { adjustWeekTarget, paperScores, WEEKLY_CQ_QUOTA, WEEKLY_MCQ_QUOTA, weekReport, weekTarget } from '../lib/weeklyTarget';
+import type { AdjustedPaper } from '../lib/weeklyTarget';
 import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
@@ -55,7 +56,7 @@ import {
 import { loadAllMcq } from '../data/mcqBank';
 import { getSubjectByKey } from '../data/syllabusData';
 import type { Chronotype } from '../lib/studyScience';
-import type { McqQuestion, SubjectKey } from '../types';
+import type { McqQuestion, QuizAttemptRecord, SubjectKey } from '../types';
 import { sleepFeedback } from '../lib/studyScience';
 import {
   completedTasksForDate,
@@ -83,6 +84,8 @@ interface MasterRoutineViewProps {
   onOpenMock?: () => void;
   /** Ids of every question answered wrongly — feeds the daily main-track block. */
   mistakeIds?: string[];
+  /** Past attempts — last week's scores decide this week's quotas. */
+  quizHistory?: QuizAttemptRecord[];
   /** Open the syllabus for a paper (used by the main-track block). */
   onOpenSyllabus?: (subjectKey: SubjectKey) => void;
 }
@@ -105,6 +108,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   onToggleStage,
   onOpenMock,
   mistakeIds = [],
+  quizHistory = [],
   onOpenSyllabus,
 }) => {
   const isDark = theme === 'dark';
@@ -217,6 +221,11 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const report = useMemo(
     () => weekReport(target, state.minutes, state.tasks, state.startDate, dateKey),
     [target, state.minutes, state.tasks, state.startDate, dateKey]
+  );
+  // Last week's scores re-weight this week's quotas, weakest paper first.
+  const adjustment = useMemo(
+    () => (target ? adjustWeekTarget(target, paperScores(quizHistory)) : null),
+    [target, quizHistory]
   );
   const trackSplit = useMemo(
     () => trackTimeSplit(state.primaryTrack, WEEKLY_HOUR_TARGET * 60),
@@ -959,17 +968,62 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             Day {bn(target.fromDay)}–{bn(target.toDay)} · {target.fromKey} → {target.toKey}
           </p>
 
+          {adjustment && (
+            <p className={`text-[10px] mt-2 leading-relaxed ${muted}`}>
+              {useBn ? adjustment.noteBn : adjustment.noteEn}
+            </p>
+          )}
+
           <ul className="mt-3 space-y-3">
-            {target.papers.map((paper) => (
+            {(adjustment?.papers ?? target.papers).map((paper) => {
+              const adjusted = adjustment ? (paper as AdjustedPaper) : null;
+              return (
               <li key={paper.subjectKey}>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-extrabold">
+                  <p className="text-[11px] font-extrabold flex items-center gap-1.5">
                     {useBn ? paper.subjectBn : paper.subjectEn}
+                    {adjusted && adjusted.score && (
+                      <span
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                          adjusted.priority === 'urgent'
+                            ? isDark
+                              ? 'bg-rose-500/25 text-rose-200'
+                              : 'bg-rose-200 text-rose-900'
+                            : adjusted.priority === 'watch'
+                              ? isDark
+                                ? 'bg-amber-500/25 text-amber-200'
+                                : 'bg-amber-200 text-amber-900'
+                              : isDark
+                                ? 'bg-slate-700/70 text-slate-300'
+                                : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {useBn ? 'শেষ ফল ' : 'last '}
+                        {bn(Math.round(adjusted.score.accuracy))}%
+                      </span>
+                    )}
+                    {adjusted && adjusted.priority === 'urgent' && (
+                      <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                        {useBn ? 'আগে এটাই' : 'first'}
+                      </span>
+                    )}
                   </p>
                   <span className={`text-[10px] ${muted}`}>
                     {useBn
-                      ? `${bn(paper.doneChapters)}/${bn(paper.chapters.length)} · ${bn(WEEKLY_MCQ_QUOTA)} MCQ · ${bn(WEEKLY_CQ_QUOTA)} CQ`
-                      : `${paper.doneChapters}/${paper.chapters.length} · ${WEEKLY_MCQ_QUOTA} MCQ · ${WEEKLY_CQ_QUOTA} CQ`}
+                      ? `${bn(paper.doneChapters)}/${bn(paper.chapters.length)} · ${bn(
+                          adjusted ? adjusted.mcqQuota : WEEKLY_MCQ_QUOTA
+                        )} MCQ · ${bn(adjusted ? adjusted.cqQuota : WEEKLY_CQ_QUOTA)} CQ${
+                          adjusted && adjusted.extraMinutes > 0
+                            ? ` · +${bn(adjusted.extraMinutes)} মিনিট`
+                            : ''
+                        }`
+                      : `${paper.doneChapters}/${paper.chapters.length} · ${
+                          adjusted ? adjusted.mcqQuota : WEEKLY_MCQ_QUOTA
+                        } MCQ · ${adjusted ? adjusted.cqQuota : WEEKLY_CQ_QUOTA} CQ${
+                          adjusted && adjusted.extraMinutes > 0
+                            ? ` · +${adjusted.extraMinutes} min`
+                            : ''
+                        }`}
                   </span>
                 </div>
                 <ul className="mt-1 space-y-1">
@@ -988,7 +1042,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                   ))}
                 </ul>
               </li>
-            ))}
+              );
+            })}
             {target.papers.length === 0 && (
               <li className={`text-[11px] ${muted}`}>
                 {useBn

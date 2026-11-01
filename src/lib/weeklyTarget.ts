@@ -8,7 +8,7 @@ import {
 } from './masterRoutine';
 import type { PhaseKey } from './masterRoutine';
 import { mockTestsBetween } from './mockPlan';
-import type { ChapterProgressState, SubjectKey } from '../types';
+import type { ChapterProgressState, QuizAttemptRecord, SubjectKey } from '../types';
 
 /**
  * HSC weekly target and the automatic week report.
@@ -251,4 +251,121 @@ export function weekReport(
     linesBn,
     linesEn,
   };
+}
+
+// ── Board-style result → next week's quota ────────────────────────────────
+
+export interface PaperScore {
+  subjectKey: SubjectKey;
+  accuracy: number;
+  attempts: number;
+  lastAt: string;
+}
+
+/**
+ * The latest accuracy per paper, from real attempts (weekly board-style mocks,
+ * drills, admission mocks). 'all' attempts are skipped because they cannot be
+ * blamed on one paper.
+ */
+export function paperScores(history: QuizAttemptRecord[]): PaperScore[] {
+  const byPaper = new Map<SubjectKey, PaperScore>();
+  for (const attempt of history) {
+    if (attempt.subjectKey === 'all') continue;
+    const key = attempt.subjectKey;
+    const existing = byPaper.get(key);
+    if (!existing) {
+      byPaper.set(key, {
+        subjectKey: key,
+        accuracy: attempt.accuracy,
+        attempts: 1,
+        lastAt: attempt.createdAt,
+      });
+      continue;
+    }
+    if (attempt.createdAt > existing.lastAt) {
+      existing.accuracy = attempt.accuracy;
+      existing.lastAt = attempt.createdAt;
+    }
+    existing.attempts += 1;
+  }
+  return [...byPaper.values()].sort((a, b) => a.accuracy - b.accuracy);
+}
+
+export type PaperPriority = 'urgent' | 'watch' | 'steady' | 'strong';
+
+export interface AdjustedPaper extends WeekPaperTarget {
+  score: PaperScore | null;
+  /** 1 = the normal quota; above 1 means "this paper needs more this week". */
+  weight: number;
+  mcqQuota: number;
+  cqQuota: number;
+  extraMinutes: number;
+  priority: PaperPriority;
+}
+
+export interface WeekAdjustment {
+  papers: AdjustedPaper[];
+  /** Papers that scored below the pass line — they lead the week. */
+  urgent: AdjustedPaper[];
+  hasResults: boolean;
+  noteBn: string;
+  noteEn: string;
+}
+
+const weightFor = (accuracy: number): number => {
+  if (accuracy < 50) return 1.6;
+  if (accuracy < 65) return 1.35;
+  if (accuracy < 80) return 1.1;
+  return 0.9;
+};
+
+const priorityFor = (accuracy: number): PaperPriority => {
+  if (accuracy < 50) return 'urgent';
+  if (accuracy < 65) return 'watch';
+  if (accuracy < 80) return 'steady';
+  return 'strong';
+};
+
+/**
+ * Reweights this week's papers by last week's results: a paper scored below 50%
+ * gets a 1.6× quota and leads the list, a paper above 80% gets a little less so
+ * the weak papers have room. The 15 MCQ / 2 CQ base stays fixed.
+ */
+export function adjustWeekTarget(target: WeekTarget, scores: PaperScore[]): WeekAdjustment {
+  const scoreOf = new Map(scores.map((score) => [score.subjectKey, score]));
+
+  const papers: AdjustedPaper[] = target.papers.map((paper) => {
+    const score = scoreOf.get(paper.subjectKey) ?? null;
+    const weight = score ? weightFor(score.accuracy) : 1;
+    return {
+      ...paper,
+      score,
+      weight,
+      mcqQuota: Math.max(5, Math.round(WEEKLY_MCQ_QUOTA * weight)),
+      cqQuota: Math.max(1, Math.round(WEEKLY_CQ_QUOTA * weight)),
+      extraMinutes: Math.max(0, Math.round((weight - 1) * 30)),
+      priority: score ? priorityFor(score.accuracy) : 'steady',
+    };
+  });
+
+  // Weakest papers lead, untouched papers keep the plan's order.
+  const rank: Record<PaperPriority, number> = { urgent: 0, watch: 1, steady: 2, strong: 3 };
+  papers.sort((a, b) => rank[a.priority] - rank[b.priority] || b.weight - a.weight);
+
+  const urgent = papers.filter((paper) => paper.priority === 'urgent');
+  const hasResults = scores.length > 0;
+  const worst = urgent[0] || papers.find((paper) => paper.priority === 'watch');
+
+  const noteBn = !hasResults
+    ? 'এখনো কোনো মক/প্র্যাকটিসের ফল নেই — ফ্রাইডের মক দিলে পরের সপ্তাহের কোটা নিজে থেকেই বদলাবে।'
+    : worst
+      ? `${worst.subjectBn}-এ শেষ ফল ${Math.round(worst.score?.accuracy ?? 0)}% — তাই এই সপ্তাহে এর কোটা বাড়ানো হয়েছে (${worst.mcqQuota} MCQ, ${worst.cqQuota} CQ, +${worst.extraMinutes} মিনিট)।`
+      : 'সব পত্রে ফল ভালো — কোটা স্বাভাবিক রাখা হয়েছে, শুধু ধরে রাখো।';
+  const noteEn = !hasResults
+    ? 'No results yet — finish Friday’s mock and next week’s quotas adjust themselves.'
+    : worst
+      ? `${worst.subjectEn} last scored ${Math.round(worst.score?.accuracy ?? 0)}%, so its quota is raised this week (${worst.mcqQuota} MCQs, ${worst.cqQuota} CQs, +${worst.extraMinutes} min).`
+      : 'Every paper is scoring well — quotas stay normal; just hold the line.';
+
+  return { papers, urgent, hasResults, noteBn, noteEn };
 }
