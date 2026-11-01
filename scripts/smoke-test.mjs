@@ -1739,6 +1739,74 @@ localStorage.setItem(
 check(vault.takeRestoreNotice() === 3, 'restored sections from the cloud are counted once');
 check(vault.takeRestoreNotice() === 0, 'the restore notice self-clears so the toast never repeats');
 
+// A signed-out visitor sees the gate, not dashboard content; a deep link survives.
+if (root) root.unmount();
+container.innerHTML = '';
+window.history.replaceState(null, '', '/#/planner');
+const { AuthGate } = await vite.ssrLoadModule('/src/components/AuthGate.tsx');
+let emitAuth;
+const fakeAuth = { auth: { onAuthStateChange: (callback) => { emitAuth = callback; queueMicrotask(() => callback('INITIAL_SESSION', null)); return { data: { subscription: { unsubscribe() {} } } }; } }, from: () => ({ upsert: async () => ({ error: null }) }) };
+root = createRoot(container);
+root.render(React.createElement(AuthGate, { clientFactory: async () => fakeAuth }));
+await new Promise(resolve => setTimeout(resolve, 120));
+check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'signed-out visitor sees login and no app navigation');
+check(window.location.hash === '#/planner', 'login gate preserves the requested deep link');
+const languageButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'EN');
+languageButton?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(container.textContent.includes('Sign in'), 'login gate switches to English');
+// A successful auth event must actually enter the application, not remain on login.
+emitAuth('SIGNED_IN', { user: { id: '44444444-4444-4444-8444-444444444444', email: 'test@example.invalid' } });
+await new Promise(resolve => setTimeout(resolve, 500));
+check(!!container.querySelector('nav') && !container.querySelector('input[type=email]'), 'authenticated session leaves gate and mounts app');
+check(window.location.hash === '#/planner', 'signed-in transition preserves the deep link');
+emitAuth('SIGNED_OUT', null);
+await new Promise(resolve => setTimeout(resolve, 100));
+check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'sign-out closes the app and returns to the gate');
+root.unmount(); root = null;
+
+// A persisted session on page load must take the same path as a new login.
+container.innerHTML = '';
+const initialSession = { user: { id: '44444444-4444-4444-8444-444444444444', email: 'test@example.invalid' } };
+const sessionClient = { auth: { onAuthStateChange: callback => { queueMicrotask(() => callback('INITIAL_SESSION', initialSession)); return { data: { subscription: { unsubscribe() {} } } }; } }, from: () => ({ upsert: async () => ({ error: null }) }) };
+root = createRoot(container);
+root.render(React.createElement(AuthGate, { clientFactory: async () => sessionClient }));
+await new Promise(resolve => setTimeout(resolve, 500));
+check(!!container.querySelector('nav'), 'persisted session enters app on startup');
+root.unmount(); root = null;
+
+// Portable backups must be validated and cannot retain malformed legacy IDs.
+const backup = await vite.ssrLoadModule('/src/lib/backup.ts');
+let invalidBackupRejected = false;
+try { backup.parseStudyBackup({ app: 'nokkhotro-hsc-2028', profile: {} }); } catch { invalidBackupRejected = true; }
+check(invalidBackupRejected, 'malformed portable backup is rejected');
+const backupFixture = {
+  profile: { id: 'user-a', fullName: 'Student', collegeName: '', board: 'Jashore', targetGoal: 'Medical', avatarColor: '#000000', xp: 0, chaptersMastered: 0, quizzesTaken: 0, bestAccuracy: 0, studyMinutes: 0, streakDays: 1, bookmarks: [] },
+  progressMap: {}, quizHistory: [], sessions: [], personalNotes: [],
+  tasks: [{ id: 'starter-1', title: 'Legacy task', subjectKey: 'physics1', priority: 'high', completed: false, dueDate: '2026-11-02', createdAt: '2026-11-02T00:00:00Z' }],
+};
+const parsedBackup = backup.parseStudyBackup({ app: backup.BACKUP_APP_ID, ...backupFixture });
+const repairedBackup = backup.prepareBackupForAccount(parsedBackup, 'user-a', 'a@example.invalid', () => '11111111-1111-4111-8111-111111111111');
+check(repairedBackup.tasks[0].id === '11111111-1111-4111-8111-111111111111', 'legacy task IDs are converted to UUIDs before sync');
+check(backup.buildBackupSyncOps(repairedBackup, 'user-a', '2026-11-02T00:00:00Z')[0].payload.user_id === 'user-a', 'backup writes target the active account');
+
+// Account switching must not leak one student's local data into another account.
+const savedStorage = Object.fromEntries(Array.from({ length: localStorage.length }, (_, i) => { const key = localStorage.key(i); return [key, localStorage.getItem(key)]; }));
+localStorage.clear();
+const spaces = await vite.ssrLoadModule('/src/lib/accountSpace.ts');
+localStorage.setItem('hsc28_notes', JSON.stringify([{ title: 'guest work' }]));
+const firstSpace = spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111');
+check(!!firstSpace.guestData?.hsc28_notes, 'guest work is retained for migration');
+check(!!spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111').guestData, 'failed guest migration stays pending on retry');
+spaces.finishGuestMigration('11111111-1111-4111-8111-111111111111');
+spaces.selectAccountSpace('22222222-2222-4222-8222-222222222222');
+check(localStorage.getItem('hsc28_notes') === null, 'a different account does not see prior account local data');
+localStorage.setItem('hsc28_notes', JSON.stringify([{ title: 'second account' }]));
+spaces.selectAccountSpace('11111111-1111-4111-8111-111111111111');
+check(localStorage.getItem('hsc28_notes')?.includes('guest work'), 'switching back restores the first account local space');
+localStorage.clear();
+for (const [key, value] of Object.entries(savedStorage)) if (value !== null) localStorage.setItem(key, value);
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

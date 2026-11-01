@@ -18,15 +18,17 @@ import {
   SubjectKey,
   Theme,
 } from './types';
+import { parseStudyBackup, prepareBackupForAccount, buildBackupSyncOps } from './lib/backup';
 import { getSupabase } from './lib/supabase';
 import {
+  ensureSyncSaved,
   clearSyncQueueForCurrentUser,
   initSyncNetworkWatcher,
   setSyncUser,
   syncWrite,
   useSyncStatus,
 } from './lib/sync';
-import { startCloudVault, takeRestoreNotice } from './lib/cloudVault';
+import { ensureVaultReady, flushVault, startCloudVault, takeRestoreNotice } from './lib/cloudVault';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -73,9 +75,9 @@ const STORAGE_KEYS = {
   notes: 'hsc28_notes',
 };
 
-const DEFAULT_STARTER_TASKS: StudyTask[] = [
+const createStarterTasks = (): StudyTask[] => [
   {
-    id: 'starter-1',
+    id: crypto.randomUUID(),
     title: 'পদার্থবিজ্ঞান ১ম পত্র — ভেক্টর অধ্যায়ের সামান্তরিক সূত্র ও নদী-নৌকার গাণিতিক সমস্যা অনুশীলন',
     subjectKey: 'physics1',
     priority: 'high',
@@ -84,7 +86,7 @@ const DEFAULT_STARTER_TASKS: StudyTask[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'starter-2',
+    id: crypto.randomUUID(),
     title: 'রসায়ন ১ম পত্র — গুণগত রসায়ন (কোয়ান্টাম সংখ্যা ও বোর বর্ণালি) পুনরালোচনা',
     subjectKey: 'chemistry1',
     priority: 'high',
@@ -93,7 +95,7 @@ const DEFAULT_STARTER_TASKS: StudyTask[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'starter-3',
+    id: crypto.randomUUID(),
     title: 'উচ্চতর গণিত ১ম পত্র — ম্যাট্রিক্স ও নির্ণায়কের বোর্ড MCQ সমাধান',
     subjectKey: 'math1',
     priority: 'medium',
@@ -133,6 +135,32 @@ function readLocal<T>(key: string, fallback: T): T {
   }
 }
 
+// Feature stores not owned by the core React state. Internal sync metadata is
+// intentionally excluded; it must never be restored from a portable backup.
+const BACKUP_EXTRA_KEYS = [
+  'hsc28_life_v1', 'hsc28_master_routine_v1', 'hsc28_confidence_v1',
+  'hsc28_prediction_v1', 'hsc28_mistake_reasons_v1', 'hsc28_chapter_drill_v1',
+  'hsc28_self_notes_v1', 'hsc28_reminder_log_v1', 'hsc28_english_drill_last_v1',
+  'hsc28_gk_last_v1', 'hsc28_upvoted', 'hsc28_peer_doubts',
+];
+function backupExtraStorage(): Record<string, string> {
+  const data: Record<string, string> = {};
+  for (const key of BACKUP_EXTRA_KEYS) { const value = localStorage.getItem(key); if (value !== null) data[key] = value; }
+  return data;
+}
+function validateExtraStorage(value: unknown, legacyLife: unknown): Record<string, string> {
+  if (value === undefined) return legacyLife && typeof legacyLife === 'object' ? { hsc28_life_v1: JSON.stringify(legacyLife) } : {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid backup data');
+  const result: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (!BACKUP_EXTRA_KEYS.includes(key) || typeof raw !== 'string' || raw.length > 400_000) throw new Error('Invalid backup key');
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') throw new Error('Invalid backup value');
+    result[key] = raw;
+  }
+  return result;
+}
+
 export function App() {
   const [lang, setLang] = useState<Lang>(() => readLocal<Lang>(STORAGE_KEYS.lang, 'bn'));
   const [theme, setTheme] = useState<Theme>(() =>
@@ -159,7 +187,10 @@ export function App() {
     readLocal(STORAGE_KEYS.quizzes, [])
   );
   const [tasks, setTasks] = useState<StudyTask[]>(() =>
-    readLocal(STORAGE_KEYS.tasks, DEFAULT_STARTER_TASKS)
+    readLocal<StudyTask[]>(STORAGE_KEYS.tasks, createStarterTasks()).map((task) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task.id)
+        ? task : { ...task, id: crypto.randomUUID() }
+    )
   );
   const [sessions, setSessions] = useState<StudySessionRecord[]>(() =>
     readLocal(STORAGE_KEYS.sessions, [])
@@ -200,12 +231,14 @@ export function App() {
 
   useEffect(() => {
     setSyncUser(authUserId);
+    return () => setSyncUser(null);
   }, [authUserId]);
 
   // ক্লাউড ভল্ট: লগইন করা থাকলে প্রতিটি `store`-বদল Supabase-এর hsc28_kv-তে যায়,
   // আর নতুন ডিভাইসে লগইন করলে পুরো অগ্রগতি ফিরে আসে।
   useEffect(() => {
     startCloudVault(authUserId);
+    return () => startCloudVault(null);
   }, [authUserId]);
 
   // অন্য ডিভাইস থেকে ফিরে আসা ডেটার সংখ্যা একবার জানিয়ে দিই।
@@ -358,11 +391,12 @@ export function App() {
       try {
         // Pulled in on demand: the dashboard has already painted by now.
         const supabase = await getSupabase();
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile, error: existingProfileError } = await supabase
           .from('hsc28_profiles')
           .select('*')
           .eq('id', userId)
           .maybeSingle();
+        if (existingProfileError) throw existingProfileError;
 
         if (existingProfile) {
           setProfile((prev) => {
@@ -439,10 +473,11 @@ export function App() {
           });
         }
 
-        const { data: chRows } = await supabase
+        const { data: chRows, error: chRowsError } = await supabase
           .from('hsc28_chapter_progress')
           .select('*')
           .eq('user_id', userId);
+        if (chRowsError) throw chRowsError;
 
         if (chRows && chRows.length > 0) {
           setProgressMap((prev) => {
@@ -459,12 +494,13 @@ export function App() {
           });
         }
 
-        const { data: qRows } = await supabase
+        const { data: qRows, error: qRowsError } = await supabase
           .from('hsc28_quiz_attempts')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(25);
+        if (qRowsError) throw qRowsError;
 
         if (qRows && qRows.length > 0) {
           setQuizHistory(
@@ -483,11 +519,12 @@ export function App() {
           );
         }
 
-        const { data: noteRows } = await supabase
+        const { data: noteRows, error: noteRowsError } = await supabase
           .from('hsc28_personal_notes')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
+        if (noteRowsError) throw noteRowsError;
 
         if (noteRows && noteRows.length > 0) {
           setPersonalNotes(
@@ -505,11 +542,12 @@ export function App() {
 
         // Tasks and study sessions were written to Supabase but never read back,
         // so the planner appeared empty on any second device.
-        const { data: taskRows } = await supabase
+        const { data: taskRows, error: taskRowsError } = await supabase
           .from('hsc28_study_tasks')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
+        if (taskRowsError) throw taskRowsError;
 
         if (taskRows && taskRows.length > 0) {
           setTasks(
@@ -547,11 +585,12 @@ export function App() {
           }
         }
 
-        const { data: sessionRows } = await supabase
+        const { data: sessionRows, error: sessionRowsError } = await supabase
           .from('hsc28_study_sessions')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
+        if (sessionRowsError) throw sessionRowsError;
 
         if (sessionRows && sessionRows.length > 0) {
           setSessions(
@@ -606,14 +645,14 @@ export function App() {
           }
         }
       } catch {
-        // Offline safe
+        showToast('ক্লাউড ডেটা পড়া যায়নি। / Could not read cloud data.');
       }
     },
     // `tasks`, `sessions` and `progressMap` are read for the one-time first-sync
     // upload; they are intentionally not dependencies to avoid re-hydrating on
     // every keystroke elsewhere in the app.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [syncProfileToCloud]
+    [syncProfileToCloud, showToast]
   );
 
   useEffect(() => {
@@ -823,6 +862,7 @@ export function App() {
       // exams, checklist). Read it straight from storage so a backup really is
       // a complete snapshot of the student's work.
       lifeHub: readLocal<unknown>('hsc28_life_v1', null),
+      extraStorage: backupExtraStorage(),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: 'application/json',
@@ -847,35 +887,32 @@ export function App() {
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const parsed = JSON.parse(String(reader.result || '{}'));
-          if (parsed.profile) setProfile(parsed.profile);
-          if (parsed.progressMap) setProgressMap(parsed.progressMap);
-          if (Array.isArray(parsed.quizHistory)) setQuizHistory(parsed.quizHistory);
-          if (Array.isArray(parsed.tasks)) setTasks(parsed.tasks);
-          if (Array.isArray(parsed.sessions)) setSessions(parsed.sessions);
-          if (Array.isArray(parsed.personalNotes))
-            setPersonalNotes(parsed.personalNotes);
-          if (parsed.lifeHub && typeof parsed.lifeHub === 'object') {
-            localStorage.setItem('hsc28_life_v1', JSON.stringify(parsed.lifeHub));
-            // The Life Hub owns this data, so tell it to re-read storage.
-            window.dispatchEvent(new Event('hsc28:life-data-changed'));
-          }
-          showToast(
-            lang === 'bn'
-              ? 'সকল নোটস ও অগ্রগতি সফলভাবে রিস্টোর হয়েছে!'
-              : 'All study data restored successfully!'
-          );
+          if (file.size > 5_000_000) throw new Error('Backup too large');
+          const raw = JSON.parse(String(reader.result || '{}'));
+          const parsed = parseStudyBackup(raw);
+          if (!authUserId) throw new Error('Sign in first');
+          if (parsed.profile.id !== authUserId) throw new Error('Backup belongs to a different account');
+          const data = prepareBackupForAccount(parsed, authUserId, profile.email, () => crypto.randomUUID());
+          const extras = validateExtraStorage(raw.extraStorage, raw.lifeHub);
+          if (!window.confirm(lang === 'bn' ? 'এই ব্যাকআপ বর্তমান ডেটার কিছু অংশ প্রতিস্থাপন করবে। এগোবেন?' : 'This backup will replace parts of your current data. Continue?')) return;
+          // A local before-image is written before applying any changes.
+          localStorage.setItem('nokkhotro_pre_import_' + authUserId, JSON.stringify({
+            app: 'nokkhotro-hsc-2028', profile, progressMap, quizHistory, tasks, sessions, personalNotes, extraStorage: backupExtraStorage(),
+          }));
+          for (const [key, value] of Object.entries(extras)) localStorage.setItem(key, value);
+          setProfile(data.profile); setProgressMap(data.progressMap); setQuizHistory(data.quizHistory);
+          setTasks(data.tasks); setSessions(data.sessions); setPersonalNotes(data.personalNotes);
+          window.dispatchEvent(new Event('hsc28:life-data-changed'));
+          void syncProfileToCloud(authUserId, data.profile);
+          for (const op of buildBackupSyncOps(data, authUserId, new Date().toISOString())) void syncWrite(op, authUserId);
+          showToast(lang === 'bn' ? 'ডেটা রিস্টোর হয়েছে; ক্লাউড সিঙ্কের অবস্থা দেখুন।' : 'Restored locally; check cloud sync status.');
         } catch {
-          showToast(
-            lang === 'bn'
-              ? 'সঠিক ব্যাকআপ JSON ফাইল নির্বাচন করুন'
-              : 'Invalid backup JSON file'
-          );
+          showToast(lang === 'bn' ? 'সঠিক অ্যাকাউন্টের বৈধ ব্যাকআপ ফাইল নির্বাচন করুন।' : 'Choose a valid backup from this account.');
         }
       };
       reader.readAsText(file);
     },
-    [lang, showToast]
+    [authUserId, lang, personalNotes, profile, progressMap, quizHistory, sessions, showToast, syncProfileToCloud, tasks]
   );
 
   const handleToggleSolvedCq = useCallback(
@@ -1181,12 +1218,47 @@ export function App() {
   };
 
   const handleSignOut = async () => {
-    // Anything still queued belongs to the account that is leaving.
-    clearSyncQueueForCurrentUser();
+    // Never discard queued or still-debounced changes on sign-out.
+    try {
+      await Promise.race([
+        ensureVaultReady(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('sync timeout')), 15000)),
+      ]);
+      await flushVault();
+      if (!(await ensureSyncSaved())) throw new Error('sync incomplete');
+    } catch {
+      throw new Error(lang === 'bn'
+        ? 'সব তথ্য ক্লাউডে সংরক্ষিত হয়নি। ইন্টারনেট ও সিঙ্কের অবস্থা দেখে আবার চেষ্টা করুন।'
+        : 'Not all data is saved to the cloud. Check your connection and sync status, then try again.');
+    }
     const client = await getSupabase();
-    await client.auth.signOut();
+    const { error } = await client.auth.signOut();
+    if (error) throw error;
     setAuthUserId(null);
     setProfile(DEFAULT_GUEST_PROFILE);
+  };
+
+  const handleClearStudyData = async () => {
+    if (!authUserId) throw new Error('Not signed in');
+    if (!window.confirm(lang === 'bn'
+      ? 'আপনার ব্যক্তিগত পড়াশোনার ডেটা ক্লাউড ও এই ডিভাইস থেকে স্থায়ীভাবে মুছে যাবে। কমিউনিটি পোস্ট থাকবে। নিশ্চিত?'
+      : 'Permanently delete your private study data from the cloud and this device? Community posts remain.')) return;
+    await ensureVaultReady();
+    await flushVault();
+    if (!(await ensureSyncSaved())) throw new Error(lang === 'bn' ? 'প্রথমে সিঙ্ক সম্পন্ন করুন।' : 'Complete syncing first.');
+    startCloudVault(null);
+    const client = await getSupabase();
+    const { error } = await client.rpc('hsc28_clear_my_study_data');
+    if (error) { startCloudVault(authUserId); throw error; }
+    clearSyncQueueForCurrentUser();
+    setSyncUser(null);
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key?.startsWith('hsc28_')) keys.push(key); }
+    for (const key of keys) localStorage.removeItem(key);
+    localStorage.removeItem('nokkhotro_local_space_v1_' + authUserId);
+    localStorage.removeItem('nokkhotro_pre_import_' + authUserId);
+    localStorage.removeItem('nokkhotro_guest_pending_v1_' + authUserId);
+    window.location.reload();
   };
 
   const handleUpdateProfileMeta = async (updates: Partial<StudentProfile>) => {
@@ -1445,6 +1517,7 @@ export function App() {
         isAuthenticated={!!authUserId}
         onAuthSuccess={hydrateFromCloud}
         onSignOut={handleSignOut}
+        onClearStudyData={handleClearStudyData}
         onUpdateProfileMeta={handleUpdateProfileMeta}
       />
       </Suspense>

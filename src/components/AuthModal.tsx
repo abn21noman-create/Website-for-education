@@ -26,6 +26,7 @@ interface AuthModalProps {
   isAuthenticated: boolean;
   onAuthSuccess: (userId: string, email: string, meta?: Partial<StudentProfile>) => Promise<void>;
   onSignOut: () => Promise<void>;
+  onClearStudyData: () => Promise<void>;
   onUpdateProfileMeta: (updates: Partial<StudentProfile>) => Promise<void>;
 }
 
@@ -38,6 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isAuthenticated,
   onAuthSuccess,
   onSignOut,
+  onClearStudyData,
   onUpdateProfileMeta,
 }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
@@ -105,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
 
         if (error) throw error;
-        if (data.user) {
+        if (data.user && data.session) {
           await onAuthSuccess(data.user.id, cleanEmail, {
             fullName: fullName.trim(),
             collegeName: collegeName.trim(),
@@ -115,10 +117,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           });
           setSuccessMsg(
             lang === 'bn'
-              ? 'অ্যাকাউন্ট সম্পন্ন হয়েছে এবং সকল তথ্য ক্লাউডে সংরক্ষিত হয়েছে।'
-              : 'Account created and study progress synced to cloud.'
+              ? 'অ্যাকাউন্ট তৈরি হয়েছে; সিঙ্কের অবস্থা দেখুন।'
+              : 'Account created. Check the sync status for your progress.'
           );
           setTimeout(() => onClose(), 800);
+        } else {
+          setSuccessMsg(lang === 'bn'
+            ? 'ইমেইল যাচাই করে তারপর লগইন করুন। আপনার লোকাল ডেটা এই ডিভাইসে থাকবে।'
+            : 'Verify your email, then sign in. Your local data remains on this device.');
         }
       } else {
         const client = await getSupabase();
@@ -354,9 +360,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={async () => {
-                    await onSignOut();
-                    onClose();
+                    setLoading(true);
+                    setErrorMsg(null);
+                    try {
+                      await onSignOut();
+                      onClose();
+                    } catch (error) {
+                      setErrorMsg(error instanceof Error ? error.message : 'Sign out failed');
+                    } finally {
+                      setLoading(false);
+                    }
                   }}
                   className={`py-2.5 px-3.5 rounded-xl border text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer ${
                     isDark
@@ -369,6 +384,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </form>
+            <button type="button" disabled={loading} className="mt-5 block text-xs text-indigo-600 underline disabled:opacity-50" onClick={async () => {
+              setLoading(true); setErrorMsg(null); setSuccessMsg(null);
+              try {
+                const client = await getSupabase();
+                const { data: auth } = await client.auth.getUser();
+                if (!auth.user) throw new Error('Sign in first');
+                const { data, error } = await client.from('hsc28_kv').select('value').eq('user_id', auth.user.id).eq('key', 'nokkhotro_guest_archive_v1').maybeSingle();
+                if (error) throw error;
+                if (!data?.value) { setSuccessMsg(lang === 'bn' ? 'সংরক্ষিত অতিথি-ডেটা পাওয়া যায়নি।' : 'No guest-data archive found.'); return; }
+                const url = URL.createObjectURL(new Blob([data.value], { type: 'application/json' }));
+                const link = document.createElement('a'); link.href = url; link.download = 'nokkhotro-guest-archive.json'; link.click(); URL.revokeObjectURL(url);
+                setSuccessMsg(lang === 'bn' ? 'অতিথি-ডেটার নিরাপদ কপি ডাউনলোড হয়েছে।' : 'Guest-data archive downloaded.');
+              } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Could not download guest data'); } finally { setLoading(false); }
+            }}>{lang === 'bn' ? 'পুরোনো অতিথি-ডেটার কপি ডাউনলোড' : 'Download guest-data archive'}</button>
+            <button type="button" disabled={loading} className="mt-5 text-xs text-rose-600 underline disabled:opacity-50" onClick={async () => {
+              setLoading(true); setErrorMsg(null);
+              try { await onClearStudyData(); } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Delete failed'); } finally { setLoading(false); }
+            }}>{lang === 'bn' ? 'নিজের ব্যক্তিগত পড়াশোনার ডেটা মুছুন' : 'Delete my private study data'}</button>
           </div>
         ) : (
           <div>

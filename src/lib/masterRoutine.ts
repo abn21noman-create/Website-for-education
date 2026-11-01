@@ -13,10 +13,8 @@ import type { BilingualText, SubjectKey } from '../types';
  * the whole book before the exam.
  */
 
-export const TOTAL_PLAN_DAYS = 391;
-export const HSC_EXAM_START = '2026-07-02';
-export const WEEKDAYS_BN = ['শনিবার', 'রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার'];
-export const WEEKDAYS_EN = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+import { TOTAL_PLAN_DAYS, HSC_EXAM_START, WEEKDAYS_BN, WEEKDAYS_EN } from './planConstants';
+export { TOTAL_PLAN_DAYS, HSC_EXAM_START, WEEKDAYS_BN, WEEKDAYS_EN } from './planConstants';
 
 export type PhaseKey = 'academic' | 'preAdmission' | 'fullAdmission';
 
@@ -260,8 +258,6 @@ export {
 } from './studyScience';
 
 export type { LearnedItem, RevisionDue, EvidenceNote } from './studyScience';
-export { mockTestsBetween, mockTestForDay, mockCounts, upcomingMocks, MOCK_TRACKS, FINAL_REVISION_FROM_DAY } from './mockPlan';
-export type { MockKind, MockTest, MockTrack, UpcomingMock } from './mockPlan';
 
 export const DEFAULT_TIME_SETTINGS = {
   wake: '06:00',
