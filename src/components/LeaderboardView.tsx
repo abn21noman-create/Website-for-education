@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Lang, StudentProfile, Theme } from '../types';
 import { EDUCATION_BOARDS, formatNum, getBoardLabel } from '../lib/i18n';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 interface LeaderboardViewProps {
   lang: Lang;
@@ -117,6 +117,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   const loadLeaderboard = React.useCallback(async () => {
     setLoading(true);
     try {
+      const supabase = await getSupabase();
       const { data, error } = await supabase
         .from('hsc28_profiles')
         .select('*')

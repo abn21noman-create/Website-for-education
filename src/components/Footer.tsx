@@ -19,7 +19,7 @@ export const Footer: React.FC<FooterProps> = ({
 
   return (
     <footer
-      className={`no-print mt-16 border-t py-8 px-4 sm:px-6 transition-colors duration-300 ${
+      className={`no-print mt-16 border-t pt-8 pb-24 md:pb-8 px-4 sm:px-6 transition-colors duration-300 ${
         isDark
           ? 'border-slate-800/80 bg-slate-900/60 text-slate-400'
           : 'border-slate-200/80 bg-white/75 text-slate-500'
@@ -95,6 +95,12 @@ export const Footer: React.FC<FooterProps> = ({
             className="hover:text-indigo-500 transition-colors cursor-pointer"
           >
             {lang === 'bn' ? 'জাতীয় মেধাতালিকা' : 'Merit List'}
+          </button>
+          <button
+            onClick={() => onNavigate('life')}
+            className="hover:text-indigo-500 transition-colors cursor-pointer"
+          >
+            {lang === 'bn' ? 'লাইফ হাব' : 'Life Hub'}
           </button>
           <span
             className={`font-mono text-[11px] px-2 py-0.5 rounded-full border ${

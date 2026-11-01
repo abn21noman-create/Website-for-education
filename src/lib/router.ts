@@ -25,6 +25,9 @@ export const TAB_SLUGS: Record<ActiveTab, string> = {
   practical: 'practical',
   gpa: 'gpa',
   leaderboard: 'leaderboard',
+  life: 'life',
+  gk: 'gk',
+  routine: 'routine',
 };
 
 const SLUG_TO_TAB: Record<string, ActiveTab> = Object.entries(

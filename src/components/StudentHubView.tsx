@@ -25,7 +25,7 @@ import {
 } from '../data/hsc28EcosystemData';
 import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { FORMULAS } from '../data/formulasData';
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { formatNum, getBoardLabel } from '../lib/i18n';
 
 interface StudentHubViewProps {
@@ -142,6 +142,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   useEffect(() => {
     (async () => {
       try {
+        const supabase = await getSupabase();
         const { data: dRows } = await supabase
           .from('hsc28_student_doubts')
           .select('*')
@@ -247,7 +248,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
 
     if (isAuthenticated && authUserId) {
       try {
-        await supabase.from('hsc28_student_doubts').insert({
+        const client = await getSupabase();
+        await client.from('hsc28_student_doubts').insert({
           id,
           user_id: authUserId,
           author_name: newPost.authorName,
@@ -300,7 +302,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
 
     if (isAuthenticated && authUserId) {
       try {
-        await supabase.from('hsc28_doubt_replies').insert({
+        const client = await getSupabase();
+        await client.from('hsc28_doubt_replies').insert({
           id: replyId,
           doubt_id: doubtId,
           user_id: authUserId,
@@ -641,7 +644,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                         // retry queue when the network is down.
                         void (async () => {
                           try {
-                            const { data, error } = await supabase.rpc(
+                            const client = await getSupabase();
+                            const { data, error } = await client.rpc(
                               'hsc28_upvote_doubt',
                               { p_doubt_id: d.id }
                             );
