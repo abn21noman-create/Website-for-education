@@ -402,12 +402,14 @@ const openedWeekTab = clickByText('এই সপ্তাহ');
 await new Promise((resolve) => setTimeout(resolve, 400));
 const weekTabText = container.textContent || '';
 const hasWeekMockCard = weekTabText.includes('এই সপ্তাহের মক টেস্ট');
+const hasWeekTarget =
+  weekTabText.includes('সাপ্তাহিক রিপোর্ট') && weekTabText.includes('MCQ') && weekTabText.includes('/');
 console.log(
-  openedWeekTab && hasWeekMockCard
-    ? 'the weekly tab lists the scheduled mock test'
-    : `weekly mock card missing (tab=${openedWeekTab}, card=${hasWeekMockCard})`
+  openedWeekTab && hasWeekMockCard && hasWeekTarget
+    ? 'the weekly tab lists this week\u2019s chapters, quotas, report and scheduled mock'
+    : `weekly tab incomplete (tab=${openedWeekTab}, card=${hasWeekMockCard}, target=${hasWeekTarget})`
 );
-failures += openedWeekTab && hasWeekMockCard ? 0 : 1;
+failures += openedWeekTab && hasWeekMockCard && hasWeekTarget ? 0 : 1;
 
 const openedTracksTab = clickByText('ভর্তি ট্র্যাক');
 await new Promise((resolve) => setTimeout(resolve, 400));
@@ -1178,6 +1180,73 @@ check(
     pickedDrill.every((question) => question.chapter.bn === firstBio.chapter.bn),
   'a chapter drill only draws that chapter\u2019s questions',
   `${pickedDrill.length} question(s)`
+);
+
+const weeklyTarget = await vite.ssrLoadModule('/src/lib/weeklyTarget.ts');
+
+const firstWeek = weeklyTarget.weekTarget('2026-01-01', '2026-01-03', {});
+check(
+  firstWeek &&
+    firstWeek.weekNumber === 1 &&
+    firstWeek.fromDay === 1 &&
+    firstWeek.toDay === 7 &&
+    firstWeek.papers.length >= 3 &&
+    firstWeek.chaptersTotal > 0,
+  'the week target collects the papers and chapters of that week',
+  firstWeek ? `${firstWeek.papers.length} papers / ${firstWeek.chaptersTotal} chapters` : 'null'
+);
+check(
+  firstWeek.mcqQuota === weeklyTarget.WEEKLY_MCQ_QUOTA * firstWeek.papers.length &&
+    firstWeek.cqQuota === weeklyTarget.WEEKLY_CQ_QUOTA * firstWeek.papers.length &&
+    firstWeek.papers.every((paper) =>
+      paper.chapters.every((chapter) => syllabus.CHAPTERS.some((item) => item.id === chapter.chapterId))
+    ),
+  'weekly quotas scale per paper and every chapter is a real syllabus chapter'
+);
+
+const finishedWeek = {};
+for (const paper of firstWeek.papers) {
+  for (const chapter of paper.chapters) {
+    finishedWeek[chapter.chapterId] = { theoryDone: true, notesDone: true, mcqDone: true, cqDone: true };
+  }
+}
+const finishedWeekTarget = weeklyTarget.weekTarget('2026-01-01', '2026-01-03', finishedWeek);
+check(
+  finishedWeekTarget.percent === 100 &&
+    finishedWeekTarget.chaptersDone === finishedWeekTarget.chaptersTotal,
+  'ticking all four stages closes the week target'
+);
+
+const emptyWeekReport = weeklyTarget.weekReport(firstWeek, {}, {}, '2026-01-01', '2026-01-03');
+check(
+  emptyWeekReport && emptyWeekReport.verdict === 'empty' && emptyWeekReport.minutesDone === 0,
+  'an untouched week reports as not started'
+);
+const hscWeekMinutes = { '2026-01-01': 300, '2026-01-02': 400 };
+const hscTickingWeek = {
+  '2026-01-01|0|0': true,
+  '2026-01-02|due|bio1-ch1|3': true,
+};
+const busyReport = weeklyTarget.weekReport(
+  firstWeek,
+  hscWeekMinutes,
+  hscTickingWeek,
+  '2026-01-01',
+  '2026-01-03'
+);
+check(
+  busyReport &&
+    busyReport.minutesDone === 700 &&
+    busyReport.minutesTarget === Math.round((25 * 60 / 7) * 3) &&
+    busyReport.verdict === 'onTrack' &&
+    busyReport.tasksTicked === 2 &&
+    busyReport.reviewsTicked === 1,
+  'the weekly report counts minutes, ticks and spaced reviews against the target',
+  busyReport ? `${busyReport.minutesDone}/${busyReport.minutesTarget} ${busyReport.verdict}` : 'null'
+);
+check(
+  weeklyTarget.weekTarget('2026-01-01', '2025-12-31', {}) === null,
+  'the week target stays silent outside the plan'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

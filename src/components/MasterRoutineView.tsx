@@ -43,6 +43,7 @@ import {
 } from '../lib/trackProgress';
 import { mainBlockSuggestion, mistakeReport } from '../lib/mistakeLoop';
 import { requestChapterDrill } from '../lib/chapterDrill';
+import { WEEKLY_CQ_QUOTA, WEEKLY_MCQ_QUOTA, weekReport, weekTarget } from '../lib/weeklyTarget';
 import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
@@ -208,6 +209,15 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
       .map((track) => byKey.get(track.key))
       .filter((track): track is NonNullable<typeof track> => Boolean(track));
   }, [progressMap, state.primaryTrack]);
+  // This week's HSC target and the honest report of what happened.
+  const target = useMemo(
+    () => weekTarget(state.startDate, dateKey, progressMap),
+    [state.startDate, dateKey, progressMap]
+  );
+  const report = useMemo(
+    () => weekReport(target, state.minutes, state.tasks, state.startDate, dateKey),
+    [target, state.minutes, state.tasks, state.startDate, dateKey]
+  );
   const trackSplit = useMemo(
     () => trackTimeSplit(state.primaryTrack, WEEKLY_HOUR_TARGET * 60),
     [state.primaryTrack]
@@ -917,6 +927,128 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               );
             })}
           </ul>
+        </div>
+      )}
+
+      {tab === 'week' && target && (
+        <div className={`rounded-2xl border p-4 ${card}`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-extrabold">
+              {useBn ? `সপ্তাহ ${bn(target.weekNumber)}-এর টার্গেট` : `Week ${target.weekNumber} target`}
+            </p>
+            <span
+              className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                target.percent >= 70
+                  ? isDark
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'bg-emerald-100 text-emerald-800'
+                  : isDark
+                    ? 'bg-slate-700/70 text-slate-300'
+                    : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {useBn
+                ? `${bn(target.chaptersDone)}/${bn(target.chaptersTotal)} অধ্যায়`
+                : `${target.chaptersDone}/${target.chaptersTotal} chapters`}
+            </span>
+          </div>
+          <p className={`text-[11px] mt-1 leading-relaxed ${muted}`}>
+            {useBn ? target.noteBn : target.noteEn}
+          </p>
+          <p className={`text-[10px] mt-1 font-mono ${muted}`}>
+            Day {bn(target.fromDay)}–{bn(target.toDay)} · {target.fromKey} → {target.toKey}
+          </p>
+
+          <ul className="mt-3 space-y-3">
+            {target.papers.map((paper) => (
+              <li key={paper.subjectKey}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-extrabold">
+                    {useBn ? paper.subjectBn : paper.subjectEn}
+                  </p>
+                  <span className={`text-[10px] ${muted}`}>
+                    {useBn
+                      ? `${bn(paper.doneChapters)}/${bn(paper.chapters.length)} · ${bn(WEEKLY_MCQ_QUOTA)} MCQ · ${bn(WEEKLY_CQ_QUOTA)} CQ`
+                      : `${paper.doneChapters}/${paper.chapters.length} · ${WEEKLY_MCQ_QUOTA} MCQ · ${WEEKLY_CQ_QUOTA} CQ`}
+                  </span>
+                </div>
+                <ul className="mt-1 space-y-1">
+                  {paper.chapters.map((chapter) => (
+                    <li key={chapter.chapterId} className="flex items-start gap-1.5 text-[10px]">
+                      <span className={chapter.done ? 'text-emerald-500' : muted}>
+                        {chapter.done ? '✓' : '○'}
+                      </span>
+                      <span className={chapter.done ? `${muted} line-through` : ''}>
+                        {useBn ? chapter.chapterBn : chapter.chapterEn}
+                      </span>
+                      <span className={`ml-auto shrink-0 font-mono ${muted}`}>
+                        {bn(chapter.stagesDone)}/৪
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+            {target.papers.length === 0 && (
+              <li className={`text-[11px] ${muted}`}>
+                {useBn
+                  ? 'এই সপ্তাহে নতুন ক্লাস নেই — শুধু রিভিশন আর মক।'
+                  : 'No new classes this week — revision and mocks only.'}
+              </li>
+            )}
+          </ul>
+
+          {report && (
+            <div className={`mt-3 pt-3 border-t ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-extrabold">
+                  {useBn ? 'সাপ্তাহিক রিপোর্ট' : 'Weekly report'}
+                </p>
+                <span
+                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                    report.verdict === 'onTrack'
+                      ? isDark
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'bg-emerald-100 text-emerald-800'
+                      : report.verdict === 'behind'
+                        ? isDark
+                          ? 'bg-amber-500/20 text-amber-300'
+                          : 'bg-amber-100 text-amber-800'
+                        : isDark
+                          ? 'bg-slate-700/70 text-slate-300'
+                          : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {report.verdict === 'onTrack'
+                    ? useBn
+                      ? 'তালে আছে'
+                      : 'on track'
+                    : report.verdict === 'behind'
+                      ? useBn
+                        ? 'পিছিয়ে'
+                        : 'behind'
+                      : useBn
+                        ? 'শুরু হয়নি'
+                        : 'not started'}
+                </span>
+              </div>
+              <ul className={`mt-1.5 space-y-1 text-[10px] ${muted}`}>
+                {(useBn ? report.linesBn : report.linesEn).map((line) => (
+                  <li key={line} className="flex gap-1.5">
+                    <span className="text-indigo-500">•</span>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+              {report.chaptersDone < report.chaptersTotal && (
+                <p className="text-[10px] mt-1.5 font-semibold">
+                  {useBn
+                    ? 'করণীয়: ওপরের অ○ অধ্যায়গুলো আগে শেষ করো — প্রতিটির চারটি ধাপ (তত্ত্ব, নোট, MCQ, CQ)।'
+                    : 'To do: finish the ○ chapters first — all four stages each.'}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
