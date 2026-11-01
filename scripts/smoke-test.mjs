@@ -1683,6 +1683,38 @@ check(
   'the cloud vault exposes start, pull, flush and restore-notice'
 );
 
+const restoreDecision = (over) =>
+  vault.shouldRestore({
+    localValue: null,
+    remoteValue: 'x',
+    remoteUpdatedAt: '2026-01-01T00:00:00Z',
+    lastPushedAt: null,
+    freshDevice: false,
+    ...over,
+  });
+check(restoreDecision({}) === true, 'a key missing on this device comes back from the cloud');
+check(restoreDecision({ localValue: 'x' }) === false, 'an identical local value is never rewritten');
+check(
+  restoreDecision({ localValue: 'app-default', freshDevice: true }) === true,
+  'on a brand-new phone the cloud copy beats app defaults'
+);
+check(
+  restoreDecision({
+    localValue: 'today-work',
+    lastPushedAt: '2026-01-02T00:00:00Z',
+    remoteUpdatedAt: '2026-01-01T00:00:00Z',
+  }) === false,
+  'unsynced local work is never clobbered by an older cloud row'
+);
+check(
+  restoreDecision({
+    localValue: 'old',
+    lastPushedAt: '2026-01-01T00:00:00Z',
+    remoteUpdatedAt: '2026-01-02T00:00:00Z',
+  }) === true,
+  'an edit made on another device after our last push wins'
+);
+
 try {
   localStorage.removeItem('hsc28_sync_queue');
 } catch {

@@ -153,6 +153,36 @@ export async function flushVault(): Promise<void> {
   writeMeta(meta);
 }
 
+export interface RestoreDecision {
+  localValue: string | null;
+  remoteValue: string;
+  remoteUpdatedAt: string;
+  lastPushedAt: string | null;
+  freshDevice: boolean;
+}
+
+/**
+ * কোন কী ক্লাউড থেকে ফিরিয়ে আনব — এই সিদ্ধান্তটা আলাদা করে রাখা, যাতে
+ * নেটওয়ার্ক ছাড়াই যাচাই করা যায়। নিয়ম:
+ *  ১. লোকাল না থাকলে → আনো।
+ *  ২. দুটো একই হলে → কিছু করার নেই।
+ *  ৩. এই ডিভাইস আগে কখনো সিঙ্ক করেনি → ক্লাউডই সত্যি (নতুন ফোনের ডিফল্ট
+ *     ভ্যালু যেন আসল ডেটা ঢেকে না দেয়)।
+ *  ৪. নইলে: অন্য ডিভাইসে আমাদের শেষ পাঠানোর পরে বদলালে → আনো; নাহলে
+ *     লোকালেই থাক। অর্থাৎ যা এখনো ক্লাউডে ওঠেনি, তা কখনো হারায় না।
+ */
+export function shouldRestore(input: RestoreDecision): boolean {
+  const { localValue, remoteValue, remoteUpdatedAt, lastPushedAt, freshDevice } =
+    input;
+  if (localValue === remoteValue) return false;
+  if (localValue === null) return true;
+  if (freshDevice) return true;
+  if (!lastPushedAt) return true;
+  const remoteTime = Date.parse(remoteUpdatedAt) || 0;
+  const localTime = Date.parse(lastPushedAt) || 0;
+  return remoteTime > localTime + 1000;
+}
+
 /**
  * ক্লাউড থেকে ফিরিয়ে আনে। ফেরত দেয় কোন কোন কি বদলাতে হয়েছে তার তালিকা।
  * নিয়ম: লোকালে না থাকলে বসাও; অন্য ডিভাইসে নতুন করে লেখা হলে সেটাই জেতে।
@@ -168,6 +198,9 @@ export async function pullFromCloud(userId: string): Promise<string[]> {
     if (error || !Array.isArray(data)) return [];
 
     const meta = readMeta();
+    // এই ডিভাইস আগে কখনো সিঙ্ক করেনি? তাহলে অ্যাকাউন্টের (ক্লাউডের) ডেটাই
+    // সত্যি — নইলে নতুন ফোনে অ্যাপের ডিফল্ট ভ্যালু ক্লাউডের আসল ডেটা ঢেকে দিত।
+    const freshDevice = Object.keys(meta).length === 0;
     const restored: string[] = [];
 
     for (const row of data as { key: string; value: string; updated_at: string }[]) {
@@ -183,15 +216,15 @@ export async function pullFromCloud(userId: string): Promise<string[]> {
         local = null;
       }
 
-      const remoteTime = Date.parse(row.updated_at || '') || 0;
-      const pushedAt = meta[row.key];
-      const localTime = pushedAt ? Date.parse(pushedAt) || 0 : 0;
+      const apply = shouldRestore({
+        localValue: local,
+        remoteValue: row.value,
+        remoteUpdatedAt: row.updated_at,
+        lastPushedAt: meta[row.key] ?? null,
+        freshDevice: freshDevice,
+      });
 
-      const missingHere = local === null;
-      const remoteIsNewer = pushedAt ? remoteTime > localTime + 1000 : false;
-      if (!missingHere && !remoteIsNewer) continue;
-
-      if (local !== row.value) {
+      if (apply) {
         setLocalRaw(row.key, row.value);
         restored.push(row.key);
       }
