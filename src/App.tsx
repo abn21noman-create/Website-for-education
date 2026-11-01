@@ -1295,6 +1295,8 @@ export function App() {
               progressMap={progressMap}
               onToggleStage={handleToggleStage}
               onOpenMock={() => handleNavigate('mcq')}
+              mistakeIds={profile.mistakeIds || []}
+              onOpenSyllabus={(subjectKey: SubjectKey) => handleNavigate('syllabus', subjectKey)}
             />
           )}
 

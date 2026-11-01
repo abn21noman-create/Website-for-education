@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlarmClock,
   CalendarDays,
@@ -38,10 +38,10 @@ import {
 import {
   ADMISSION_TRACKS,
   allTrackReadiness,
-  dailyFocus,
   tracksByPriority,
   trackTimeSplit,
 } from '../lib/trackProgress';
+import { mainBlockSuggestion } from '../lib/mistakeLoop';
 import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
@@ -50,7 +50,9 @@ import {
   mockTestsBetween,
   upcomingMocks,
 } from '../lib/mockPlan';
+import { loadMcqSubjects } from '../data/mcqBank';
 import type { Chronotype } from '../lib/studyScience';
+import type { McqQuestion, SubjectKey } from '../types';
 import { sleepFeedback } from '../lib/studyScience';
 import {
   completedTasksForDate,
@@ -76,6 +78,10 @@ interface MasterRoutineViewProps {
   onToggleStage?: (chapterId: string, stage: keyof ChapterProgressState) => void;
   /** Jump to the mock-test screen when the student taps a scheduled test. */
   onOpenMock?: () => void;
+  /** Ids of every question answered wrongly — feeds the daily main-track block. */
+  mistakeIds?: string[];
+  /** Open the syllabus for a paper (used by the main-track block). */
+  onOpenSyllabus?: (subjectKey: SubjectKey) => void;
 }
 
 type Tab = 'today' | 'week' | 'time' | 'tracks';
@@ -95,6 +101,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   progressMap = {},
   onToggleStage,
   onOpenMock,
+  mistakeIds = [],
+  onOpenSyllabus,
 }) => {
   const isDark = theme === 'dark';
   const useBn = lang === 'bn';
@@ -110,10 +118,35 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const slots = useMemo(() => (dayNumber ? classSlotsForDay(dayNumber) : []), [dayNumber, state.startDate]);
   const revisionDay = dayNumber ? isRevisionDay(dayNumber) : weekday === 6;
   const phase = dayNumber ? phaseForDay(dayNumber) : null;
-  // The main track (Medical by default) gets a named block in the timetable.
+  // Wrong answers from mocks: only the main track's papers are loaded, and only
+  // when there is actually something in the mistake bank.
+  const [mistakeQuestions, setMistakeQuestions] = useState<McqQuestion[]>([]);
+  const mistakeSignature = mistakeIds.join('|');
+  useEffect(() => {
+    if (!mistakeSignature) {
+      setMistakeQuestions([]);
+      return;
+    }
+    const primary = ADMISSION_TRACKS.find((track) => track.key === state.primaryTrack);
+    if (!primary) return;
+    let cancelled = false;
+    loadMcqSubjects(primary.subjects.map((subject) => subject.subjectKey))
+      .then((list) => {
+        if (!cancelled) setMistakeQuestions(list);
+      })
+      .catch(() => {
+        if (!cancelled) setMistakeQuestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mistakeSignature, state.primaryTrack]);
+
+  // The main track (Medical by default) gets a named block in the timetable,
+  // opening on the chapter the mock answers say is weak.
   const focus = useMemo(
-    () => dailyFocus(state.primaryTrack, progressMap),
-    [state.primaryTrack, progressMap]
+    () => mainBlockSuggestion(state.primaryTrack, progressMap, mistakeIds, mistakeQuestions),
+    [state.primaryTrack, progressMap, mistakeIds, mistakeQuestions]
   );
   const studyDay = useMemo(
     () => buildStudyDay(state.settings, state.chronotype, focus),
@@ -542,10 +575,44 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                 <span className="shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20">
                   {useBn ? 'মূল ট্র্যাক' : 'MAIN'}
                 </span>
-                <span className="text-[11px] font-semibold leading-relaxed">
-                  {useBn ? focus.titleBn : focus.titleEn}
-                  {' · '}
-                  {useBn ? `${bn(focus.minutes)} মিনিট` : `${focus.minutes} min`}
+                <span className="flex-1">
+                  <span className="text-[11px] font-semibold leading-relaxed block">
+                    {useBn ? focus.titleBn : focus.titleEn}
+                    {' · '}
+                    {useBn ? `${bn(focus.minutes)} মিনিট` : `${focus.minutes} min`}
+                  </span>
+                  <span className="block text-[10px] mt-0.5 opacity-90">
+                    {useBn ? focus.subtitleBn : focus.subtitleEn}
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                        focus.reason === 'mistakes'
+                          ? isDark
+                            ? 'bg-amber-500/25 text-amber-200'
+                            : 'bg-amber-200 text-amber-900'
+                          : isDark
+                            ? 'bg-slate-600/50 text-slate-200'
+                            : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {focus.reason === 'mistakes'
+                        ? useBn
+                          ? `মক-এর ভুল ${bn(focus.wrongCount)}`
+                          : `${focus.wrongCount} mock mistakes`
+                        : useBn
+                          ? 'ট্র্যাকারে পিছিয়ে'
+                          : 'behind in tracker'}
+                    </span>
+                    {onOpenSyllabus && (
+                      <button
+                        onClick={() => onOpenSyllabus(focus.subjectKey)}
+                        className="text-[10px] font-bold underline decoration-dotted"
+                      >
+                        {useBn ? 'সিলেবাসে খোলো' : 'Open in syllabus'}
+                      </button>
+                    )}
+                  </span>
                 </span>
               </div>
               {pacing.perDayExtra > 0 && (

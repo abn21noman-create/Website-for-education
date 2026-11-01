@@ -382,6 +382,7 @@ const timeTabText = container.textContent || '';
 const hasTarget = todayCardText.includes('আজকের পড়ার লক্ষ্য');
 const hasNextMock = todayCardText.includes('পরের মক টেস্ট');
 const hasFocusBlock = timeTabText.includes('মূল ট্র্যাক ব্লক — ');
+const hasFocusDetail = todayCardText.includes('ট্র্যাকারে পিছিয়ে') && todayCardText.includes('সিলেবাসে খোলো');
 const hasPacing = timeTabText.includes('এই সপ্তাহের হিসাব');
 const hasChronotype =
   timeTabText.includes('তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?') &&
@@ -389,11 +390,11 @@ const hasChronotype =
   timeTabText.includes('রাতে');
 const hasEvidence = timeTabText.includes('এই রুটিনের পেছনের প্রমাণ');
 console.log(
-  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock
-    ? 'the today card shows target + next mock; study time shows pacing, chronotype, evidence and the main-track block'
-    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence}, focus=${hasFocusBlock})`
+  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock && hasFocusDetail
+    ? 'the today card shows target + next mock + a tappable main-track block; study time shows pacing, chronotype and evidence'
+    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence}, focus=${hasFocusBlock}, detail=${hasFocusDetail})`
 );
-failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock ? 0 : 1;
+failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock && hasFocusDetail ? 0 : 1;
 
 const openedWeekTab = clickByText('এই সপ্তাহ');
 await new Promise((resolve) => setTimeout(resolve, 400));
@@ -1026,6 +1027,69 @@ check(
     focusAfterBiology.titleBn.startsWith('মূল ট্র্যাক ব্লক'),
   'once biology is done the block moves to chemistry',
   focusAfterBiology.subjectKey
+);
+
+const mistakeLoop = await vite.ssrLoadModule('/src/lib/mistakeLoop.ts');
+const bioBank = (await vite.ssrLoadModule('/src/data/mcq/biology1.ts')).default;
+
+const firstBio = bioBank[0];
+const firstBioChapter = syllabus.CHAPTERS.find(
+  (chapter) => chapter.id === mistakeLoop.chapterIdForQuestion(firstBio)
+);
+check(
+  Boolean(firstBioChapter) && firstBioChapter.subjectKey === 'biology1',
+  'a wrongly answered question maps back to a real syllabus chapter',
+  firstBio.id
+);
+
+const sameChapter = bioBank.filter(
+  (question) => question.chapter.bn === firstBio.chapter.bn
+);
+const grouped = mistakeLoop.mistakesByChapter(
+  sameChapter.slice(0, 2).map((question) => question.id),
+  bioBank
+);
+check(
+  grouped.length === 1 && grouped[0].wrongCount === 2,
+  'two wrong answers from the same chapter collapse into one row'
+);
+check(
+  mistakeLoop.mistakesByChapter([], bioBank).length === 0,
+  'an empty mistake bank produces no weak chapters'
+);
+
+const gapSuggestion = mistakeLoop.mainBlockSuggestion('medical', {}, [], []);
+check(
+  gapSuggestion.reason === 'gap' &&
+    Boolean(gapSuggestion.chapterId) &&
+    gapSuggestion.chapterId.startsWith('bio1-'),
+  'with no mistakes the block starts on the furthest-behind biology chapter',
+  gapSuggestion.chapterId
+);
+const mistakeSuggestion = mistakeLoop.mainBlockSuggestion(
+  'medical',
+  {},
+  [firstBio.id],
+  bioBank
+);
+check(
+  mistakeSuggestion.reason === 'mistakes' &&
+    mistakeSuggestion.wrongCount === 1 &&
+    mistakeSuggestion.chapterBn === firstBio.chapter.bn &&
+    mistakeSuggestion.titleBn.includes(firstBio.chapter.bn),
+  'a wrong mock answer moves that chapter into the daily main block',
+  mistakeSuggestion.chapterBn
+);
+const physicsBank = (await vite.ssrLoadModule('/src/data/mcq/physics1.ts')).default;
+const otherPaper = mistakeLoop.mainBlockSuggestion(
+  'medical',
+  {},
+  [physicsBank[0].id],
+  [...bioBank, ...physicsBank]
+);
+check(
+  otherPaper.reason === 'gap' && otherPaper.wrongCount === 0,
+  'mistakes in another paper do not hijack the medical block'
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');
