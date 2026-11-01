@@ -77,13 +77,15 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         if (event === 'PASSWORD_RECOVERY') { recovery.current = true; setMode('recovery'); setSession(next); setStatus('signed-out'); return; }
         if (event === 'SIGNED_OUT') { preparingUser.current = null; sequence.current++; setSession(null); setStatus('signed-out'); return; }
         if (next && !recovery.current && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-          // Supabase may deliver both events for one session.\n          if (preparingUser.current !== next.user.id) void prepare(next);
+          // Supabase may deliver both events for one session.
+          if (preparingUser.current !== next.user.id) void prepare(next);
         } else if (!next && event === 'INITIAL_SESSION') setStatus('signed-out');
       });
       unsubscribe = () => data.subscription.unsubscribe();
     }).catch(e => { if (!cancelled) { setError(message(e, bn)); setStatus('error'); } });
     return () => { cancelled = true; unsubscribe?.(); sequence.current++; };
-    // Auth subscription lasts for the lifetime of the gate.\n    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Auth subscription lasts for the lifetime of the gate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submit(e: React.FormEvent) {

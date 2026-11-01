@@ -75,9 +75,9 @@ const STORAGE_KEYS = {
   notes: 'hsc28_notes',
 };
 
-const DEFAULT_STARTER_TASKS: StudyTask[] = [
+const createStarterTasks = (): StudyTask[] => [
   {
-    id: 'starter-1',
+    id: crypto.randomUUID(),
     title: 'পদার্থবিজ্ঞান ১ম পত্র — ভেক্টর অধ্যায়ের সামান্তরিক সূত্র ও নদী-নৌকার গাণিতিক সমস্যা অনুশীলন',
     subjectKey: 'physics1',
     priority: 'high',
@@ -86,7 +86,7 @@ const DEFAULT_STARTER_TASKS: StudyTask[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'starter-2',
+    id: crypto.randomUUID(),
     title: 'রসায়ন ১ম পত্র — গুণগত রসায়ন (কোয়ান্টাম সংখ্যা ও বোর বর্ণালি) পুনরালোচনা',
     subjectKey: 'chemistry1',
     priority: 'high',
@@ -95,7 +95,7 @@ const DEFAULT_STARTER_TASKS: StudyTask[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'starter-3',
+    id: crypto.randomUUID(),
     title: 'উচ্চতর গণিত ১ম পত্র — ম্যাট্রিক্স ও নির্ণায়কের বোর্ড MCQ সমাধান',
     subjectKey: 'math1',
     priority: 'medium',
@@ -187,7 +187,10 @@ export function App() {
     readLocal(STORAGE_KEYS.quizzes, [])
   );
   const [tasks, setTasks] = useState<StudyTask[]>(() =>
-    readLocal(STORAGE_KEYS.tasks, DEFAULT_STARTER_TASKS)
+    readLocal<StudyTask[]>(STORAGE_KEYS.tasks, createStarterTasks()).map((task) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task.id)
+        ? task : { ...task, id: crypto.randomUUID() }
+    )
   );
   const [sessions, setSessions] = useState<StudySessionRecord[]>(() =>
     readLocal(STORAGE_KEYS.sessions, [])

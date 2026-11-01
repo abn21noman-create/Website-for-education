@@ -295,7 +295,7 @@ export function prepareBackupForAccount(
   const comesFromAnotherAccount = data.profile.id !== userId;
   const rehome = <T extends { id: string }>(record: T): T => ({
     ...record,
-    id: comesFromAnotherAccount ? createId() : record.id,
+    id: comesFromAnotherAccount || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(record.id) ? createId() : record.id,
   });
 
   return {
