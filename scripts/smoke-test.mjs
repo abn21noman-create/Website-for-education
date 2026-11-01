@@ -381,6 +381,7 @@ await new Promise((resolve) => setTimeout(resolve, 400));
 const timeTabText = container.textContent || '';
 const hasTarget = todayCardText.includes('আজকের পড়ার লক্ষ্য');
 const hasNextMock = todayCardText.includes('পরের মক টেস্ট');
+const hasFocusBlock = timeTabText.includes('মূল ট্র্যাক ব্লক — ');
 const hasPacing = timeTabText.includes('এই সপ্তাহের হিসাব');
 const hasChronotype =
   timeTabText.includes('তোমার মাথা কখন সবচেয়ে ভালো কাজ করে?') &&
@@ -388,11 +389,11 @@ const hasChronotype =
   timeTabText.includes('রাতে');
 const hasEvidence = timeTabText.includes('এই রুটিনের পেছনের প্রমাণ');
 console.log(
-  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence
-    ? 'the today card shows target + next mock, and study time shows pacing, chronotype and evidence'
-    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence})`
+  openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock
+    ? 'the today card shows target + next mock; study time shows pacing, chronotype, evidence and the main-track block'
+    : `routine cards incomplete (tab=${openedTimeTab}, target=${hasTarget}, mock=${hasNextMock}, pacing=${hasPacing}, chrono=${hasChronotype}, evidence=${hasEvidence}, focus=${hasFocusBlock})`
 );
-failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence ? 0 : 1;
+failures += openedTimeTab && hasTarget && hasNextMock && hasPacing && hasChronotype && hasEvidence && hasFocusBlock ? 0 : 1;
 
 const openedWeekTab = clickByText('এই সপ্তাহ');
 await new Promise((resolve) => setTimeout(resolve, 400));
@@ -733,6 +734,36 @@ check(
   mixedReviews.map((item) => item.subjectKey).join(',')
 );
 
+const focusBlock = {
+  titleBn: '\u09ae\u09c2\u09b2 \u099f\u09cd\u09b0\u09cd\u09af\u0995 \u09ac\u09cd\u09b2\u0995',
+  titleEn: 'Main-track block',
+  minutes: 45,
+};
+const focusDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'neutral', focusBlock);
+const plainDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'neutral');
+const focusBlockOut = focusDay.blocks.find((block) => block.kind === 'focus');
+check(
+  Boolean(focusBlockOut) &&
+    focusBlockOut.minutes === 45 &&
+    focusDay.blocks[1].kind === 'focus' &&
+    focusDay.blocks[2].kind === 'break',
+  'the main-track block opens the study day and is followed by a break'
+);
+check(
+  focusDay.studyMinutes > 0 &&
+    Math.abs(focusDay.studyMinutes - plainDay.studyMinutes) <= 15 &&
+    focusDay.blocks.some((block) => block.kind === 'focus'),
+  'the main-track block comes out of the same daily budget, not on top of it',
+  `${focusDay.studyMinutes} vs ${plainDay.studyMinutes}`
+);
+const focusStudySum = focusDay.blocks
+  .filter((block) => ['class', 'practice', 'revision', 'focus'].includes(block.kind))
+  .reduce((sum, block) => sum + block.minutes, 0);
+check(
+  focusStudySum === focusDay.studyMinutes &&
+    focusDay.blocks[focusDay.blocks.length - 1].kind === 'winddown',
+  'the reported study minutes match the blocks and the day still ends with a wind-down'
+);
 const morningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'morning');
 const eveningDay = science.buildStudyDay(routine.DEFAULT_TIME_SETTINGS, 'evening');
 check(
@@ -755,6 +786,22 @@ check(
   endsAt <= toMin(routine.DEFAULT_TIME_SETTINGS.sleep) + 1,
   'the timetable never runs past bedtime',
   `${last.start} + ${last.minutes}m`
+);
+
+const packedDay = science.buildStudyDay(
+  { ...routine.DEFAULT_TIME_SETTINGS, instituteHours: 8 },
+  'neutral',
+  focusBlock
+);
+const packedLast = packedDay.blocks[packedDay.blocks.length - 1];
+const packedFocus = packedDay.blocks.find((block) => block.kind === 'focus');
+check(
+  packedDay.blocks.length > 0 &&
+    toMin(packedLast.start) + packedLast.minutes <=
+      toMin(routine.DEFAULT_TIME_SETTINGS.sleep) + 1 &&
+    (!packedFocus || packedFocus.minutes >= 20),
+  'a packed day shrinks the main-track block instead of running past bedtime',
+  packedFocus ? `${packedFocus.minutes}m focus` : 'focus dropped'
 );
 check(
   science.sleepFeedback({ wake: '06:00', sleep: '13:00' }).verdict === 'short' &&
@@ -959,6 +1006,26 @@ check(
     admissionMockCounts.medical > admissionMockCounts.varsity,
   'the admission phase schedules more medical mocks than any other track',
   JSON.stringify(admissionMockCounts)
+);
+
+check(
+  trackProgress.dailyFocus('medical', {}).subjectKey === 'biology1' &&
+    trackProgress.dailyFocus('engineering', {}).subjectKey === 'math1' &&
+    trackProgress.dailyFocus('varsity', {}).subjectKey === 'math1',
+  'the daily main-track block starts on each track\u2019s heaviest paper'
+);
+const biologyDone = {};
+for (const chapter of syllabus.CHAPTERS) {
+  if (!chapter.subjectKey.startsWith('biology')) continue;
+  biologyDone[chapter.id] = { theoryDone: true, notesDone: true, mcqDone: true, cqDone: true };
+}
+const focusAfterBiology = trackProgress.dailyFocus('medical', biologyDone);
+check(
+  focusAfterBiology.subjectKey === 'chemistry1' &&
+    focusAfterBiology.minutes === 45 &&
+    focusAfterBiology.titleBn.startsWith('মূল ট্র্যাক ব্লক'),
+  'once biology is done the block moves to chemistry',
+  focusAfterBiology.subjectKey
 );
 
 const routineStore = await vite.ssrLoadModule('/src/lib/routineStore.ts');

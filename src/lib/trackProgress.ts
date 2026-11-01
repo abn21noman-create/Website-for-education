@@ -282,3 +282,51 @@ export function trackTimeSplit(primary: TrackKey, weeklyMinutes: number): TrackT
     };
   });
 }
+
+/** Minutes the main-track block gets each day. */
+export const DAILY_FOCUS_MINUTES = 45;
+
+export interface DailyFocus {
+  trackKey: TrackKey;
+  subjectKey: SubjectKey;
+  titleBn: string;
+  titleEn: string;
+  minutes: number;
+  whyBn: string;
+  whyEn: string;
+}
+
+/**
+ * Which paper the daily focus block should carry.
+ *
+ * Among the two heaviest papers of the main track it picks the one furthest
+ * behind, so the priority block keeps moving to where the gap is — Medical
+ * starts with biology, then shifts to chemistry once biology is ahead.
+ */
+export function dailyFocus(
+  primary: TrackKey,
+  progressMap: Record<string, ChapterProgressState>,
+  minutes = DAILY_FOCUS_MINUTES
+): DailyFocus {
+  const track = ADMISSION_TRACKS.find((item) => item.key === primary) ?? ADMISSION_TRACKS[0];
+  // Only the papers that actually carry weight; the small ones never win the slot.
+  const important = track.subjects.filter((item) => item.weight >= 0.12).slice(0, 4);
+  const heaviest = (important.length ? important : [...track.subjects].sort((a, b) => b.weight - a.weight).slice(0, 2)).sort(
+    (a, b) => b.weight - a.weight
+  );
+  const scored = heaviest.map((item) => ({
+    item,
+    readiness: subjectReadiness(item.subjectKey, progressMap, item.weight),
+  }));
+  scored.sort((a, b) => a.readiness.percent - b.readiness.percent || b.item.weight - a.item.weight);
+  const chosen = scored[0];
+  return {
+    trackKey: track.key,
+    subjectKey: chosen.item.subjectKey,
+    titleBn: `মূল ট্র্যাক ব্লক — ${chosen.readiness.nameBn}`,
+    titleEn: `Main-track block — ${chosen.readiness.nameEn}`,
+    minutes,
+    whyBn: `${track.nameBn} তোমার মূল ট্র্যাক, আর ${chosen.readiness.nameBn} এখন সবচেয়ে পিছিয়ে (${chosen.readiness.percent}%) — তাই দিনের সবচেয়ে তাজা স্লটটা এখানে।`,
+    whyEn: `${track.nameEn} is your main track and ${chosen.readiness.nameEn} is furthest behind (${chosen.readiness.percent}%) — so it gets the freshest slot of the day.`,
+  };
+}

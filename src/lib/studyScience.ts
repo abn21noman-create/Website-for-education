@@ -210,7 +210,8 @@ export type StudyBlockKind =
   | 'break'
   | 'life'
   | 'institute'
-  | 'winddown';
+  | 'winddown'
+  | 'focus';
 
 export interface StudyBlock {
   id: string;
@@ -219,6 +220,19 @@ export interface StudyBlock {
   start: string;
   minutes: number;
   kind: StudyBlockKind;
+  whyBn?: string;
+  whyEn?: string;
+}
+
+/**
+ * One daily block reserved for the student's main track (Medical by default).
+ * It is a real, named block so the timetable shows the priority instead of
+ * leaving it as advice.
+ */
+export interface StudyFocus {
+  titleBn: string;
+  titleEn: string;
+  minutes: number;
   whyBn?: string;
   whyEn?: string;
 }
@@ -310,13 +324,18 @@ type SleepCallbackShape = ReturnType<typeof sleepFeedback>;
  * wind-down before bed, and never more study time than the awake window minus
  * commitments allows.
  */
-export function buildStudyDay(settings: StudySettings, chronotype: Chronotype = 'neutral'): StudyDay {
+export function buildStudyDay(
+  settings: StudySettings,
+  chronotype: Chronotype = 'neutral',
+  focus?: StudyFocus
+): StudyDay {
   const awakeRaw = minutesOf(settings.sleep) - minutesOf(settings.wake);
   const awake = awakeRaw > 0 ? awakeRaw : awakeRaw + 1440;
   const blocked = (settings.instituteHours + settings.commuteHours + settings.lifeHours) * 60;
 
   const WAKE_MINUTES = 30;
-  const BREAK_BUDGET = LONG_BREAK_MINUTES + 2 * BREAK_MINUTES;
+  const activityCount = activitiesFor(chronotype).length + (focus ? 1 : 0);
+  const BREAK_BUDGET = Math.max(0, activityCount - 1) * BREAK_MINUTES + LONG_BREAK_MINUTES;
   const usable = Math.max(0, awake - blocked - WIND_DOWN_MINUTES - WAKE_MINUTES - BREAK_BUDGET);
 
   const sleepCheck = sleepFeedback(settings);
@@ -330,11 +349,19 @@ export function buildStudyDay(settings: StudySettings, chronotype: Chronotype = 
     activities.pop();
   }
 
+  // The main-track block comes out of the same budget, before the rest is split.
+  const normalBlocks = activities.length;
+  const focusMinutes =
+    focus && usable >= (normalBlocks + 1) * MIN_BLOCK
+      ? Math.min(focus.minutes, usable - normalBlocks * MIN_BLOCK)
+      : 0;
+  const studyBudget = usable - focusMinutes;
+
   const totalWeight = activities.reduce((sum, a) => sum + a.weight, 0) || 1;
   const sizes = activities.map((activity) =>
-    Math.max(MIN_BLOCK, Math.round((usable * activity.weight) / totalWeight))
+    Math.max(MIN_BLOCK, Math.round((studyBudget * activity.weight) / totalWeight))
   );
-  let overflow = sizes.reduce((a, b) => a + b, 0) - usable;
+  let overflow = sizes.reduce((a, b) => a + b, 0) - studyBudget;
   while (overflow > 0) {
     const longest = sizes.indexOf(Math.max(...sizes));
     const cut = Math.min(overflow, sizes[longest] - MIN_BLOCK);
@@ -360,6 +387,32 @@ export function buildStudyDay(settings: StudySettings, chronotype: Chronotype = 
 
   let studyMinutes = 0;
   let blockCount = 0;
+
+  // Main-track block first: the freshest slot, and the one the student asked
+  // to prioritise.
+  if (focus && focusMinutes > 0) {
+    push({
+      id: 'focus',
+      titleBn: focus.titleBn,
+      titleEn: focus.titleEn,
+      minutes: focusMinutes,
+      kind: 'focus',
+      whyBn: focus.whyBn,
+      whyEn: focus.whyEn,
+    });
+    studyMinutes += focusMinutes;
+    blockCount += 1;
+    push({
+      id: 'break-focus',
+      titleBn: 'ছোট বিরতি — উঠে একটু নড়াচড়া',
+      titleEn: 'Short break — stand and move',
+      minutes: BREAK_MINUTES,
+      kind: 'break',
+      whyBn: 'বিরতিতে স্ক্রিন নয় — নড়াচড়া করলে মনোযোগ ফিরতে সময় কম লাগে।',
+      whyEn: 'Keep breaks screen-free; movement restores attention faster.',
+    });
+  }
+
   activities.forEach((activity, index) => {
     const minutes = sizes[index];
     push({

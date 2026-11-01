@@ -35,7 +35,13 @@ import {
   toDateKey,
   weekdayIndexForDay,
 } from '../lib/masterRoutine';
-import { ADMISSION_TRACKS, allTrackReadiness, tracksByPriority, trackTimeSplit } from '../lib/trackProgress';
+import {
+  ADMISSION_TRACKS,
+  allTrackReadiness,
+  dailyFocus,
+  tracksByPriority,
+  trackTimeSplit,
+} from '../lib/trackProgress';
 import type { TrackKey } from '../lib/trackProgress';
 import {
   FINAL_REVISION_FROM_DAY,
@@ -104,9 +110,14 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const slots = useMemo(() => (dayNumber ? classSlotsForDay(dayNumber) : []), [dayNumber, state.startDate]);
   const revisionDay = dayNumber ? isRevisionDay(dayNumber) : weekday === 6;
   const phase = dayNumber ? phaseForDay(dayNumber) : null;
+  // The main track (Medical by default) gets a named block in the timetable.
+  const focus = useMemo(
+    () => dailyFocus(state.primaryTrack, progressMap),
+    [state.primaryTrack, progressMap]
+  );
   const studyDay = useMemo(
-    () => buildStudyDay(state.settings, state.chronotype),
-    [state.settings, state.chronotype]
+    () => buildStudyDay(state.settings, state.chronotype, focus),
+    [state.settings, state.chronotype, focus]
   );
   const plan = studyDay.blocks;
   const studyMinutes = studyDay.studyMinutes;
@@ -523,6 +534,20 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               <p className={`text-[11px] mt-2 leading-relaxed ${muted}`}>
                 {useBn ? pacing.messageBn : pacing.messageEn}
               </p>
+              <div
+                className={`mt-2 flex items-start gap-2 rounded-lg px-2.5 py-2 ${
+                  isDark ? 'bg-rose-500/10 text-rose-200' : 'bg-rose-50 text-rose-900'
+                }`}
+              >
+                <span className="shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20">
+                  {useBn ? 'মূল ট্র্যাক' : 'MAIN'}
+                </span>
+                <span className="text-[11px] font-semibold leading-relaxed">
+                  {useBn ? focus.titleBn : focus.titleEn}
+                  {' · '}
+                  {useBn ? `${bn(focus.minutes)} মিনিট` : `${focus.minutes} min`}
+                </span>
+              </div>
               {pacing.perDayExtra > 0 && (
                 <p className="text-[11px] mt-1 font-bold text-amber-600 dark:text-amber-300">
                   {useBn
@@ -958,13 +983,27 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             ) : (
               <ul className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200/80'}`}>
                 {plan.map((block) => {
-                  const isStudy = block.kind === 'class' || block.kind === 'practice' || block.kind === 'revision';
+                  const isStudy =
+                    block.kind === 'class' ||
+                    block.kind === 'practice' ||
+                    block.kind === 'revision' ||
+                    block.kind === 'focus';
+                  const isFocus = block.kind === 'focus';
                   return (
                     <li key={block.id} className="px-4 py-2.5 flex items-center gap-3 text-xs">
-                      <span className={`font-mono font-bold tabular-nums ${isStudy ? 'text-emerald-600 dark:text-emerald-400' : muted}`}>
+                      <span className={`font-mono font-bold tabular-nums ${isFocus ? 'text-rose-600 dark:text-rose-400' : isStudy ? 'text-emerald-600 dark:text-emerald-400' : muted}`}>
                         {block.start}
                       </span>
                       <span className={`flex-1 ${isStudy ? 'font-bold' : muted}`}>
+                        {isFocus && (
+                          <span
+                            className={`mr-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded align-middle ${
+                              isDark ? 'bg-rose-500/20 text-rose-200' : 'bg-rose-100 text-rose-800'
+                            }`}
+                          >
+                            {useBn ? 'মূল ট্র্যাক' : 'MAIN'}
+                          </span>
+                        )}
                         {useBn ? block.titleBn : block.titleEn}
                         {(useBn ? block.whyBn : block.whyEn) && (
                           <span className={`block text-[10px] font-normal mt-0.5 ${muted}`}>
