@@ -1273,10 +1273,10 @@ export function App() {
 
   return (
     <div
-      className={`min-h-dvh flex flex-col justify-between transition-colors duration-300 ${
+      className={`premium-shell min-h-dvh flex flex-col justify-between transition-colors duration-300 ${
         isDark
-          ? 'bg-[#0f172a] text-slate-100'
-          : 'bg-[#f4f7fb] text-slate-800'
+          ? 'bg-[#111827] text-slate-100'
+          : 'bg-[#f5f6fa] text-slate-800'
       }`}
     >
       <div>
@@ -1314,7 +1314,8 @@ export function App() {
           </div>
         )}
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-28 md:pb-8">
+        <main className={`premium-main px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:pb-12 ${activeTab !== 'dashboard' ? 'premium-sector' : ''}`}>
+          {activeTab !== 'dashboard' && <div className="premium-breadcrumb"><span>✦</span><button onClick={() => handleNavigate('dashboard')}>{lang === 'bn' ? 'আমার স্টাডি স্পেস' : 'My study space'}</button><span>/</span><strong>{['syllabus', 'formulas', 'cq', 'mcq', 'gk', 'lab', 'practical'].includes(activeTab) ? (lang === 'bn' ? 'পড়াশোনা' : 'Learning') : ['planner', 'routine'].includes(activeTab) ? (lang === 'bn' ? 'পরিকল্পনা' : 'Planning') : (lang === 'bn' ? 'আরও আবিষ্কার' : 'Explore')}</strong></div>}
           <Suspense fallback={<ViewSkeleton lang={lang} theme={theme} />}>
           <div key={activeTab} className="animate-view-in">
           {activeTab === 'dashboard' && (
@@ -1487,12 +1488,12 @@ export function App() {
         </main>
       </div>
 
-      <Footer
+      <div className="premium-footer"><Footer
         lang={lang}
         theme={theme}
         isAuthenticated={!!authUserId}
         onNavigate={(t) => handleNavigate(t)}
-      />
+      /></div>
 
       <InstallPrompt lang={lang} theme={theme} />
 

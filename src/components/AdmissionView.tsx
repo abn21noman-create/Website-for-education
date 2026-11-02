@@ -73,16 +73,16 @@ const TRACK_PROBLEMS: Record<AdmissionTrack, TrackProblem[]> = {
         en: 'BUET Written • Higher Math 1st (Calculus)',
       },
       question: {
-        bn: 'x² + y² - 4x - 6y + 4 = 0 বৃত্তের (4, 2) বিন্দুতে স্পর্শক ও অভিলম্বের সমীকরণ নির্ণয় করো।',
-        en: 'Find the equations of the tangent and normal to the circle x² + y² - 4x - 6y + 4 = 0 at the point (4, 2).',
+        bn: 'x² + y² - 4x - 6y + 4 = 0 বৃত্তের (5, 3) বিন্দুতে স্পর্শক ও অভিলম্বের সমীকরণ নির্ণয় করো।',
+        en: 'Find the equations of the tangent and normal to the circle x² + y² - 4x - 6y + 4 = 0 at the point (5, 3).',
       },
       trick: {
         bn: 'বৃত্তে x² → xx₁, y² → yy₁, 2x → (x+x₁), 2y → (y+y₁) প্রতিস্থাপন করলেই ১ লাইনে স্পর্শক পাওয়া যায়!',
         en: 'Replace x² → xx₁, y² → yy₁, 2x → (x+x₁), 2y → (y+y₁) for instant tangent!',
       },
       solution: {
-        bn: 'স্পর্শক: 4x + 2y - 2(x + 4) - 3(y + 2) + 4 = 0 ⇒ 2x - y - 10 = 0। অভিলম্ব (লম্ব রেখা যা (4,2)গামী): x + 2y = 4 + 2(2) ⇒ x + 2y - 8 = 0।',
-        en: 'Tangent: 4x + 2y - 2(x+4) - 3(y+2) + 4 = 0 ⇒ 2x - y - 10 = 0. Normal through (4,2): x + 2y - 8 = 0.',
+        bn: 'বৃত্তের কেন্দ্র (2, 3)। কেন্দ্র থেকে (5, 3)-এ ব্যাসার্ধ অনুভূমিক, তাই স্পর্শক x = 5 এবং অভিলম্ব y = 3।',
+        en: 'The centre is (2, 3). The radius to (5, 3) is horizontal, so the tangent is x = 5 and the normal is y = 3.',
       },
     },
   ],
@@ -270,7 +270,7 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
       </div>
 
       {/* Track Switcher */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="admission-tracks grid grid-cols-1 md:grid-cols-3 gap-3" role="group" aria-label={lang === 'bn' ? 'অ্যাডমিশন ট্র্যাক নির্বাচন' : 'Choose an admission track'}>
         {[
           {
             id: 'buet' as AdmissionTrack,
@@ -302,6 +302,7 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
             <button
               key={item.id}
               onClick={() => setTrack(item.id)}
+              aria-pressed={active}
               className={`p-4 rounded-2xl border text-left cursor-pointer transition-all ${
                 active
                   ? isDark

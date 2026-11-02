@@ -21,6 +21,7 @@ import {
 } from '../types';
 import { CHAPTERS, SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import { SectorStats } from './SectorStats';
 
 interface StudyPlannerViewProps {
   lang: Lang;
@@ -177,6 +178,13 @@ export const StudyPlannerView: React.FC<StudyPlannerViewProps> = ({
             : 'Maintain deep-work study blocks and daily curricular milestones.'}
         </p>
       </div>
+
+      <SectorStats label={lang === 'bn' ? 'পরিকল্পনার সারসংক্ষেপ' : 'Planner overview'} items={[
+        { label: lang === 'bn' ? 'বাকি লক্ষ্য' : 'Open tasks', value: formatNum(tasks.filter(task => !task.completed).length, lang), hint: lang === 'bn' ? 'তোমার তালিকায়' : 'On your list', icon: <ListTodo size={19} />, tone: 'purple' },
+        { label: lang === 'bn' ? 'সম্পন্ন লক্ষ্য' : 'Completed tasks', value: formatNum(tasks.filter(task => task.completed).length, lang), hint: lang === 'bn' ? 'ভালো এগোচ্ছো' : 'Keep it up', icon: <Check size={19} />, tone: 'mint' },
+        { label: lang === 'bn' ? 'ফোকাস সেশন' : 'Focus sessions', value: formatNum(sessions.length, lang), hint: lang === 'bn' ? 'সংরক্ষিত সেশন' : 'Sessions logged', icon: <Timer size={19} />, tone: 'peach' },
+        { label: lang === 'bn' ? 'অধ্যয়ন সময়' : 'Study time', value: `${formatNum(sessions.reduce((sum, session) => sum + session.durationMinutes, 0), lang)} ${lang === 'bn' ? 'মিনিট' : 'min'}`, hint: lang === 'bn' ? 'মোট ফোকাস সময়' : 'Total focus time', icon: <Clock size={19} />, tone: 'blue' },
+      ]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: SMOOTH POMODORO DIAL */}

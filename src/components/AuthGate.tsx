@@ -114,28 +114,32 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
 
   if (status === 'ready' && session) return <App key={session.user.id} />;
   if (status === 'loading' || status === 'preparing') return <div className="min-h-dvh grid place-items-center bg-slate-950 text-white" role="status"><div className="text-center"><LoaderCircle className="animate-spin mx-auto mb-4" /><p>{status === 'preparing' ? (bn ? 'আপনার ডেটা নিরাপদে প্রস্তুত হচ্ছে…' : 'Preparing your data safely…') : (bn ? 'নক্ষত্র চালু হচ্ছে…' : 'Starting Nokkhotro…')}</p></div></div>;
-  return <main className="min-h-dvh bg-slate-950 text-white flex items-center justify-center p-4 sm:p-8">
-    <div className="w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl grid lg:grid-cols-2">
-      <section className="p-8 sm:p-12 bg-gradient-to-br from-indigo-700 via-indigo-900 to-slate-900">
-        <div className="flex items-center gap-3 font-extrabold text-xl"><GraduationCap /> নক্ষত্র <span className="text-indigo-200 text-sm">HSC ’28</span></div>
-        <h1 className="mt-10 text-3xl sm:text-4xl font-extrabold leading-tight">{bn ? 'তোমার স্বপ্নের পথে, প্রতিদিন।' : 'Your goals, one day at a time.'}</h1>
-        <p className="mt-4 text-indigo-100 leading-relaxed">{bn ? 'পড়াশোনা, অনুশীলন ও অগ্রগতি—সব এক নিরাপদ অ্যাকাউন্টে।' : 'Study, practice and track your progress in one account.'}</p>
-        <div className="mt-8 flex gap-2 text-sm text-indigo-100"><ShieldCheck className="w-5 h-5 shrink-0" />{bn ? 'তোমার ব্যক্তিগত অগ্রগতি তোমার অ্যাকাউন্টেই থাকবে।' : 'Your personal progress stays in your account.'}</div>
+  return <main className="auth-page">
+    <div className="auth-shell">
+      <section className="auth-story">
+        <div className="auth-story-image" aria-hidden="true" />
+        <div className="auth-brand"><span><GraduationCap size={22} /></span><div><strong>নক্ষত্র<span>.</span></strong><small>HSC 2028 · STUDY SPACE</small></div></div>
+        <div className="auth-story-copy"><div className="auth-story-kicker">✦ &nbsp; HSC 2028 · SCIENCE</div><h1>{bn ? <>স্বপ্নটা তোমার,<br /><em>পথচলায় আমরা।</em></> : <>Your dreams.<br /><em>Our journey together.</em></>}</h1><p>{bn ? 'পড়াশোনা থেকে ভর্তি প্রস্তুতি—তোমার সব স্বপ্নের জন্য একটি সুন্দর, গোছানো জায়গা।' : 'From everyday study to admission prep, a thoughtful space for everything you dream of.'}</p></div>
+        <div className="auth-story-footer"><ShieldCheck size={17} /><span>{bn ? 'তোমার প্রস্তুতি, তোমার নিজস্ব জায়গা' : 'Your preparation, your personal space'}</span><span className="auth-story-stars">✦ &nbsp; ✧ &nbsp; ✦</span></div>
       </section>
-      <section className="p-8 sm:p-12">
-        <div className="flex justify-between items-center mb-8"><h2 className="text-xl font-bold">{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'New password') : (bn ? 'স্বাগতম' : 'Welcome')}</h2><button className="border border-slate-600 rounded-lg px-3 py-1 text-sm" onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div>
-        {status === 'error' && session ? <div role="alert" className="space-y-4"><p className="text-rose-300">{bn ? 'ডেটা প্রস্তুত করা যায়নি। আপনার আগের ডেটা ডিভাইসে রয়ে গেছে।' : 'Could not prepare your data. Your previous data remains on this device.'} {error}</p><button className="bg-indigo-600 rounded-xl px-4 py-3" onClick={() => void prepare(session)}>{bn ? 'আবার চেষ্টা করুন' : 'Retry'}</button></div> : <>
-          {(mode === 'login' || mode === 'signup') && <div className="grid grid-cols-2 rounded-xl bg-slate-800 p-1 mb-6">{(['login','signup'] as const).map(m => <button key={m} onClick={() => { setMode(m); setError(''); setNotice(''); }} className={'rounded-lg py-2 font-semibold text-sm ' + (mode === m ? 'bg-indigo-600' : 'text-slate-300')}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : (bn ? 'রেজিস্ট্রেশন' : 'Register')}</button>)}</div>}
-          <form onSubmit={submit} className="space-y-4">
-            {mode === 'signup' && <label className="block text-sm">{bn ? 'পুরো নাম' : 'Full name'}<input required autoComplete="name" value={name} onChange={e => setName(e.target.value)} className="mt-2 w-full rounded-xl bg-slate-800 border border-slate-600 p-3" /></label>}
-            {mode !== 'recovery' && <label className="block text-sm">{bn ? 'ইমেইল' : 'Email'}<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-2 w-full rounded-xl bg-slate-800 border border-slate-600 p-3" /></label>}
-            {mode !== 'forgot' && <label className="block text-sm">{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="mt-2 flex rounded-xl bg-slate-800 border border-slate-600"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full min-w-0 p-3 outline-none" /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)} className="px-3">{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
-            {error && <p role="alert" className="text-sm text-rose-300">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
-            <button disabled={busy} className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 p-3 font-bold">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')}</button>
+      <section className="auth-panel">
+        <div className="auth-panel-top"><span>{bn ? 'তোমার স্টাডি স্পেসে স্বাগতম' : 'WELCOME TO YOUR STUDY SPACE'}</span><button type="button" className="auth-language" aria-label={bn ? 'Switch to English' : 'বাংলা ভাষা নির্বাচন'} onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div>
+        <div className="auth-panel-heading"><span className="auth-panel-sparkle">✦</span><h2>{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'Set a new password') : mode === 'signup' ? (bn ? 'যাত্রা শুরু করো' : 'Start your journey') : mode === 'forgot' ? (bn ? 'পাসওয়ার্ড রিসেট' : 'Reset your password') : (bn ? 'আবারও স্বাগতম!' : 'Welcome back!')}</h2><p>{bn ? 'তোমার লক্ষ্য পূরণের যাত্রাটা এখান থেকেই শুরু।' : 'Your journey toward your goals starts here.'}</p></div>
+        {status === 'error' && session ? <div role="alert" className="auth-message error"><p>{bn ? 'ডেটা প্রস্তুত করা যায়নি। তোমার আগের ডেটা ডিভাইসে রয়ে গেছে।' : 'Could not prepare your data. Your previous data remains on this device.'} {error}</p><button type="button" onClick={() => void prepare(session)}>{bn ? 'আবার চেষ্টা করুন' : 'Retry'}</button></div> : <>
+          {(mode === 'login' || mode === 'signup') && <div className="auth-tabs" role="group" aria-label={bn ? 'অ্যাকাউন্ট অপশন' : 'Account options'}>{(['login', 'signup'] as const).map(m => <button type="button" aria-pressed={mode === m} key={m} onClick={() => { setMode(m); setError(''); setNotice(''); }} className={mode === m ? 'active' : ''}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : (bn ? 'রেজিস্ট্রেশন' : 'Register')}</button>)}</div>}
+          <form onSubmit={submit} className="auth-form">
+            {mode === 'signup' && <label>{bn ? 'তোমার পুরো নাম' : 'Full name'}<input required autoComplete="name" placeholder={bn ? 'নাম লিখুন' : 'Enter your name'} value={name} onChange={e => setName(e.target.value)} /></label>}
+            {mode !== 'recovery' && <label>{bn ? 'ইমেইল ঠিকানা' : 'Email address'}<input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>}
+            {mode !== 'forgot' && <label>{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="auth-password"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={bn ? 'পাসওয়ার্ড লিখুন' : 'Enter your password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
+            {mode === 'login' && <button type="button" className="auth-forgot" onClick={() => { setMode('forgot'); setError(''); setNotice(''); }}>{bn ? 'পাসওয়ার্ড ভুলে গেছ?' : 'Forgot password?'}</button>}
+            {error && <p role="alert" className="auth-message error">{error}</p>}{notice && <p role="status" className="auth-message success">{notice}</p>}
+            <button disabled={busy} className="auth-submit">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')} <span>→</span></button>
           </form>
-          {mode !== 'recovery' && <button className="mt-5 text-sm text-indigo-300 hover:text-white" onClick={() => { setMode(mode === 'forgot' ? 'login' : 'forgot'); setError(''); setNotice(''); }}>{mode === 'forgot' ? (bn ? 'লগইনে ফিরে যান' : 'Back to sign in') : (bn ? 'পাসওয়ার্ড ভুলে গেছি?' : 'Forgot password?')}</button>}
+          {mode === 'forgot' && <button className="auth-back" onClick={() => { setMode('login'); setError(''); setNotice(''); }}>← {bn ? 'লগইনে ফিরে যান' : 'Back to sign in'}</button>}
         </>}
+        <div className="auth-panel-footer"><ShieldCheck size={16} /><span>{bn ? 'তোমার তথ্য সুরক্ষিত রাখতে আমরা যত্নশীল' : 'Thoughtfully designed for your learning'}</span></div>
       </section>
     </div>
+    <p className="auth-copyright">© নক্ষত্র HSC ’28 &nbsp; · &nbsp; Made for your journey ✦</p>
   </main>;
 }

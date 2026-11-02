@@ -17,6 +17,8 @@ interface LeaderboardViewProps {
   currentProfile: StudentProfile;
   isAuthenticated: boolean;
   onOpenAuth: () => void;
+  /** Optional dependency injection for offline and loading-state tests. */
+  clientFactory?: typeof getSupabase;
 }
 
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
@@ -25,23 +27,27 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
   currentProfile,
   isAuthenticated,
   onOpenAuth,
+  clientFactory = getSupabase,
 }) => {
   const isDark = theme === 'dark';
   const [entries, setEntries] = useState<StudentProfile[]>([]);
   const [boardFilter, setBoardFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState(false);
 
   const loadLeaderboard = React.useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const supabase = await getSupabase();
+      const supabase = await clientFactory();
       const { data, error } = await supabase
         .from('hsc28_leaderboard')
         .select('*')
         .order('xp', { ascending: false })
         .limit(50);
 
-      if (!error && data) {
+      if (error) throw error;
+      if (data) {
         const mapped: StudentProfile[] = data.map((row: any) => ({
           id: row.id,
           fullName: row.full_name,
@@ -61,29 +67,21 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
         setEntries(mapped);
       }
     } catch {
-      // Keep the last successfully loaded entries if offline
+      // Preserve a previous snapshot but do not present it as live.
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clientFactory]);
 
   useEffect(() => {
     loadLeaderboard();
   }, [loadLeaderboard, currentProfile.xp]);
 
   const combinedList = React.useMemo(() => {
-    const map = new Map<string, StudentProfile>();
-    entries.forEach((e) => map.set(e.id, e));
-    map.set(currentProfile.id, {
-      ...currentProfile,
-      fullName: isAuthenticated
-        ? currentProfile.fullName
-        : lang === 'bn'
-        ? `${currentProfile.fullName} (আপনি)`
-        : `${currentProfile.fullName} (You)`,
-    });
-
-    let arr = Array.from(map.values());
+    // The service returns at most the top 50 overall. Do not insert the
+    // current student into this sample and then claim a nationwide rank.
+    let arr = [...entries];
     if (boardFilter !== 'all') {
       arr = arr.filter(
         (x) => x.board.toLowerCase() === boardFilter.toLowerCase()
@@ -91,7 +89,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     }
     arr.sort((a, b) => b.xp - a.xp);
     return arr;
-  }, [entries, currentProfile, isAuthenticated, boardFilter, lang]);
+  }, [entries, boardFilter]);
 
   const myRank =
     combinedList.findIndex((x) => x.id === currentProfile.id) + 1;
@@ -106,7 +104,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
       >
         <div>
           <span className="text-[11px] font-mono font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-            {lang === 'bn' ? 'জাতীয় মেধাক্রম • HSC 2028' : 'NATIONAL MERIT STANDINGS'}
+            {lang === 'bn' ? 'শিক্ষার্থীদের অগ্রগতি • HSC 2028' : 'STUDENT STANDINGS • HSC 2028'}
           </span>
           <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2 mt-0.5">
             <Trophy className="w-5 h-5 text-amber-500" />
@@ -118,14 +116,15 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
           </h1>
           <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             {lang === 'bn'
-              ? 'সকল শিক্ষা বোর্ডের HSC ’28 শিক্ষার্থীদের অর্জিত XP, অধ্যায় সম্পন্নতা ও নির্ভুলতার র‍্যাঙ্কিং।'
-              : 'Live academic rankings across Bangladesh education boards powered by Supabase.'}
+              ? 'সর্বোচ্চ XP অনুযায়ী প্রথম ৫০টি প্রোফাইল দেখানো হয়; বোর্ড ফিল্টার এই তালিকাতেই প্রযোজ্য।'
+              : 'Up to 50 profiles with the highest XP are shown; the board filter applies to this list.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <select
             value={boardFilter}
+            aria-label={lang === 'bn' ? 'শিক্ষা বোর্ড ফিল্টার' : 'Filter by education board'}
             onChange={(e) => setBoardFilter(e.target.value)}
             className={`px-3 py-2 rounded-xl border text-xs font-bold outline-none ${
               isDark
@@ -150,7 +149,8 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 ? 'bg-slate-800/75 border-slate-700 hover:border-slate-500'
                 : 'bg-white border-slate-200/90 hover:border-indigo-300 shadow-2xs'
             }`}
-            title="Refresh Leaderboard"
+            title={lang === 'bn' ? 'তালিকা রিফ্রেশ করুন' : 'Refresh leaderboard'}
+            aria-label={lang === 'bn' ? 'তালিকা রিফ্রেশ করুন' : 'Refresh leaderboard'}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-500' : ''}`} />
           </button>
@@ -189,6 +189,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
           </button>
         </div>
       )}
+
+      {loadError && <div className="leaderboard-notice" role="status">{lang === 'bn' ? 'তালিকা লোড করা যায়নি। আগের তথ্য থাকলে তা দেখানো হচ্ছে; আবার চেষ্টা করুন।' : 'Could not load the leaderboard. Any previous snapshot is shown; please try again.'}</div>}
+      {!loading && !loadError && combinedList.length === 0 && <div className="sector-empty" role="status"><Trophy size={21} aria-hidden="true" /><strong>{lang === 'bn' ? 'কোনো প্রোফাইল পাওয়া যায়নি' : 'No profiles found'}</strong><span>{lang === 'bn' ? 'অন্য বোর্ড বেছে দেখো বা পরে আবার চেষ্টা করো।' : 'Try another board or check back later.'}</span></div>}
 
       {/* Top 3 Soft Pastel Podium */}
       {combinedList.length >= 3 && (
@@ -283,7 +286,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
       )}
 
       {/* Full Leaderboard Table */}
-      <div
+      {combinedList.length > 0 && <div
         className={`rounded-2xl border overflow-hidden ${
           isDark
             ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
@@ -299,8 +302,8 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
         >
           <span>
             {lang === 'bn'
-              ? `আপনার অবস্থান: #${formatNum(myRank || 1, lang)}`
-              : `YOUR STANDING: #${myRank || 1}`}
+              ? (myRank ? `দেখানো তালিকায় আপনার অবস্থান: #${formatNum(myRank, lang)}` : 'এই তালিকায় আপনার অবস্থান নেই')
+              : (myRank ? `YOUR POSITION IN THIS LIST: #${myRank}` : 'NOT IN THIS DISPLAYED LIST')}
           </span>
           <span className="tabular-nums">
             {formatNum(currentProfile.xp, lang)} XP
@@ -391,7 +394,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

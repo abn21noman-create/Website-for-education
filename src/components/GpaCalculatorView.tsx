@@ -114,8 +114,8 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
           </h1>
           <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             {lang === 'bn'
-              ? 'কলেজ পরীক্ষা বা সম্ভাব্য বোর্ড পরীক্ষার নম্বর বসিয়ে প্রকৃত HSC GPA এবং বুয়েট/মেডিকেল/ঢাবি আবেদনের যোগ্যতা যাচাই করুন।'
-              : 'Simulate your HSC GPA using official Bangladesh Education Board 4th-subject bonus rules and check admission benchmarks.'}
+              ? 'সম্ভাব্য নম্বর বসিয়ে আনুমানিক GPA ও ভর্তি যোগ্যতার ধারণা নাও। এটি আনুষ্ঠানিক ফলাফল নয়।'
+              : 'Estimate your GPA from sample marks and check admission benchmarks. This is not an official result.'}
           </p>
         </div>
 
@@ -123,6 +123,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
           onClick={() => {
             setRows(INITIAL_ROWS);
             setSscGpa(5);
+            setFourthSubjectId('biology');
           }}
           className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold cursor-pointer self-start sm:self-auto transition-colors ${
             isDark
@@ -135,6 +136,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
         </button>
       </div>
 
+      <div className="gpa-notice" role="note"><AlertCircle size={17} aria-hidden="true" /><span>{lang === 'bn' ? 'শুরুর নম্বরগুলো উদাহরণ হিসেবে দেওয়া আছে। নিজের নম্বর ও SSC GPA দিয়ে বদলে নাও; সর্বশেষ ভর্তি বিজ্ঞপ্তিও যাচাই করো।' : 'The starting marks are examples. Replace them with your own marks and SSC GPA, and check the latest admission circular.'}</span></div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Marks Input Table */}
         <div
@@ -165,6 +167,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
                 <button
                   key={opt.id}
                   onClick={() => setFourthSubjectId(opt.id)}
+                  aria-pressed={fourthSubjectId === opt.id}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
                     fourthSubjectId === opt.id
                       ? isDark
@@ -193,10 +196,10 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
               return (
                 <div
                   key={r.id}
-                  className="py-3 first:pt-0 last:pb-0 grid grid-cols-12 items-center gap-3"
+                  className="gpa-mark-row py-3 first:pt-0 last:pb-0 grid grid-cols-12 items-center gap-3"
                 >
                   <div className="col-span-6 sm:col-span-7 min-w-0">
-                    <div className="text-xs sm:text-sm font-semibold truncate flex items-center gap-2">
+                    <div className="text-xs sm:text-sm font-semibold flex flex-wrap items-center gap-2">
                       <span>{lang === 'bn' ? r.nameBn : r.nameEn}</span>
                       {isFourth && (
                         <span
@@ -215,6 +218,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
                   <div className="col-span-3 sm:col-span-2">
                     <input
                       type="number"
+                      aria-label={`${lang === 'bn' ? r.nameBn : r.nameEn} ${lang === 'bn' ? 'নম্বর' : 'marks'}`}
                       min={0}
                       max={100}
                       value={r.marks}
@@ -372,19 +376,19 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
               </label>
               <input
                 type="range"
-                min={3}
+                min={0}
                 max={5}
                 step={0.01}
                 value={sscGpa}
                 aria-label={lang === 'bn' ? 'SSC GPA' : 'SSC GPA'}
                 onChange={(e) =>
-                  setSscGpa(Math.max(3, Math.min(5, Number(e.target.value) || 0)))
+                  setSscGpa(Math.max(0, Math.min(5, Number(e.target.value) || 0)))
                 }
                 className="w-full mt-2 accent-indigo-600 cursor-pointer"
               />
               <div className="flex justify-between text-[10px] font-mono opacity-55 mt-1">
-                <span>3.00</span>
-                <span>4.00</span>
+                <span>0.00</span>
+                <span>2.50</span>
                 <span>5.00</span>
               </div>
             </div>

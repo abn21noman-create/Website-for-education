@@ -318,7 +318,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
       </div>
 
       {/* Sub-navigation */}
-      <div className="flex flex-wrap gap-2">
+      <div className="hub-sections flex flex-wrap gap-2" role="group" aria-label={lang === 'bn' ? 'স্টুডেন্ট হাব বিভাগ' : 'Student hub sections'}>
         {[
           {
             id: 'mentor' as const,
@@ -342,6 +342,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
+            aria-pressed={subTab === t.id}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border cursor-pointer transition-all ${
               subTab === t.id
                 ? isDark

@@ -24,6 +24,7 @@ import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 import { WeeklyReviewCard } from './WeeklyReviewCard';
+import { SectorStats } from './SectorStats';
 
 interface AnalyticsViewProps {
   lang: Lang;
@@ -162,66 +163,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         onNavigate={onNavigate}
       />
 
-      {/* Top 4 Telemetry Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className={cardClass}>
-          <div className="text-xs opacity-65 font-semibold">
-            {lang === 'bn' ? 'প্রশ্নপ্রতি গড় সময়' : 'Avg Speed / MCQ'}
-          </div>
-          <div className="text-2xl font-extrabold font-formula tabular-nums mt-2 text-indigo-600 dark:text-indigo-300">
-            {avgSecPerQuestion > 0
-              ? `${formatNum(avgSecPerQuestion, lang)}s`
-              : lang === 'bn'
-              ? 'পরীক্ষা দিন'
-              : 'N/A'}
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">
-            {lang === 'bn'
-              ? 'বোর্ড আদর্শ মান: ≤ ৫৫ সেকেন্ড'
-              : 'Board target: ≤ 55 sec/question'}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <div className="text-xs opacity-65 font-semibold">
-            {lang === 'bn' ? 'ভুল সংশোধন ব্যাংক (Mistakes)' : 'Pending Mistakes'}
-          </div>
-          <div className="text-2xl font-extrabold font-formula tabular-nums mt-2 text-amber-600 dark:text-amber-300">
-            {formatNum(mistakeCount, lang)}
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">
-            {lang === 'bn'
-              ? 'সঠিক উত্তর দিলেই তালিকা থেকে কমবে'
-              : 'Cleared automatically on re-test'}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <div className="text-xs opacity-65 font-semibold">
-            {lang === 'bn' ? 'আয়ত্তকৃত সূত্র (SRS Mastered)' : 'SRS Formulas Mastered'}
-          </div>
-          <div className="text-2xl font-extrabold font-formula tabular-nums mt-2 text-emerald-600 dark:text-emerald-300">
-            {formatNum(srsCount, lang)}
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">
-            {lang === 'bn'
-              ? 'ফ্ল্যাশকার্ড অ্যাক্টিভ রিকল'
-              : 'Verified via active recall'}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <div className="text-xs opacity-65 font-semibold">
-            {lang === 'bn' ? 'সমাধানকৃত বোর্ড CQ' : 'Solved Board CQs'}
-          </div>
-          <div className="text-2xl font-extrabold font-formula tabular-nums mt-2 text-teal-600 dark:text-teal-300">
-            {formatNum(profile.solvedCqs?.length || 0, lang)}
-          </div>
-          <div className="text-[11px] opacity-60 mt-1">
-            {lang === 'bn' ? '১০ নম্বরের পূর্ণাঙ্গ অনুশীলন' : '10-mark written practice'}
-          </div>
-        </div>
-      </div>
+      <SectorStats label={lang === 'bn' ? 'পারফরম্যান্স সারসংক্ষেপ' : 'Performance overview'} items={[
+        { label: lang === 'bn' ? 'প্রশ্নপ্রতি গড় সময়' : 'Average time / MCQ', value: totalQuestionsAnswered > 0 ? `${formatNum(avgSecPerQuestion, lang)} ${lang === 'bn' ? 'সেকেন্ড' : 'sec'}` : '—', hint: totalQuestionsAnswered > 0 ? (lang === 'bn' ? 'পরীক্ষার ইতিহাস অনুযায়ী' : 'From your exam history') : (lang === 'bn' ? 'এখনও পরীক্ষা নেই' : 'No exams yet'), icon: <Clock size={19} />, tone: 'purple' },
+        { label: lang === 'bn' ? 'ভুল সংশোধন ব্যাংক' : 'Pending mistakes', value: formatNum(mistakeCount, lang), hint: lang === 'bn' ? 'পুনরায় অনুশীলন করো' : 'Ready to revisit', icon: <RotateCcw size={19} />, tone: 'peach' },
+        { label: lang === 'bn' ? 'আয়ত্তকৃত সূত্র' : 'Mastered formulas', value: formatNum(srsCount, lang), hint: lang === 'bn' ? 'আয়ত্তে এসেছে হিসেবে চিহ্নিত' : 'Marked as mastered', icon: <CheckCircle2 size={19} />, tone: 'mint' },
+        { label: lang === 'bn' ? 'সমাধান করা CQ' : 'Solved CQs', value: formatNum(profile.solvedCqs?.length || 0, lang), hint: lang === 'bn' ? 'লিখিত অনুশীলন' : 'Written practice', icon: <Target size={19} />, tone: 'blue' },
+      ]} />
 
       {/* Weakness Radar & Immediate Action Box */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

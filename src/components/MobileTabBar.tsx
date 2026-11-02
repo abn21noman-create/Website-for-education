@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -57,6 +57,9 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   theme,
 }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(true);
   const isDark = theme === 'dark';
   const bn = lang === 'bn';
 
@@ -86,18 +89,35 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     { id: 'life', bn: 'লাইফ হাব', en: 'Life Hub', icon: <HeartPulse className="w-4 h-4" /> },
   ];
 
-  // Lock the page behind the sheet so a swipe does not scroll the module list.
+  // Keep keyboard focus inside the modal, restore it on close, and unlock on desktop.
   useEffect(() => {
     if (!sheetOpen) return;
+    restoreFocus.current = true;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const dialog = sheetRef.current;
+    dialog?.querySelector<HTMLButtonElement>('button')?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSheetOpen(false);
+      if (e.key === 'Escape') { e.preventDefault(); setSheetOpen(false); return; }
+      if (e.key !== 'Tab' || !dialog) return;
+      const buttons = Array.from(dialog.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+      if (!buttons.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        e.preventDefault(); first.focus();
+      }
     };
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const onViewportChange = (event: MediaQueryListEvent) => { if (event.matches) setSheetOpen(false); };
+    desktop.addEventListener('change', onViewportChange);
     window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = previous;
+      desktop.removeEventListener('change', onViewportChange);
       window.removeEventListener('keydown', onKey);
+      if (restoreFocus.current && !desktop.matches) moreRef.current?.focus();
     };
   }, [sheetOpen]);
 
@@ -120,6 +140,8 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             onClick={() => setSheetOpen(false)}
           />
           <div
+            ref={sheetRef}
+            id="mobile-module-sheet"
             role="dialog"
             aria-modal="true"
             aria-label={bn ? 'সব মডিউল' : 'All modules'}
@@ -146,48 +168,30 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             </div>
 
             <div className="max-h-[62dvh] overflow-y-auto overscroll-contain px-4 pb-4">
-              <div className="grid grid-cols-2 gap-2">
-                {allModules.map((m) => {
-                  const active = activeTab === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => go(m.id)}
-                      onTouchStart={() => onPreload(m.id)}
-                      className={`flex items-center gap-2.5 rounded-xl border p-3 text-left active:scale-[0.98] transition-transform ${
-                        active
-                          ? isDark
-                            ? 'border-indigo-400/40 bg-indigo-500/15 text-indigo-200'
-                            : 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                          : isDark
-                          ? 'border-slate-700/70 bg-slate-800/50 text-slate-200'
-                          : 'border-slate-200/90 bg-slate-50/80 text-slate-700'
-                      }`}
-                    >
-                      <span
-                        className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                          active
-                            ? isDark
-                              ? 'bg-indigo-500/25 text-indigo-200'
-                              : 'bg-indigo-600 text-white'
-                            : isDark
-                            ? 'bg-slate-700/60 text-slate-300'
-                            : 'bg-white text-slate-500 border border-slate-200/80'
-                        }`}
-                      >
-                        {m.icon}
-                      </span>
-                      <span className="text-[11px] font-bold leading-tight min-w-0">
-                        {bn ? m.bn : m.en}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-40 shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
+              {[
+                { bn: 'আমার পরিকল্পনা', en: 'MY PLANNING', ids: ['dashboard', 'planner', 'routine'] },
+                { bn: 'পড়াশোনা ও অনুশীলন', en: 'LEARN & PRACTICE', ids: ['syllabus', 'formulas', 'cq', 'mcq', 'gk', 'lab', 'practical'] },
+                { bn: 'আরও আবিষ্কার', en: 'EXPLORE MORE', ids: ['analytics', 'admission', 'hub', 'life', 'gpa', 'leaderboard'] },
+              ].map((group) => (
+                <div className="mb-5" key={group.en}>
+                  <p className={`px-1 mb-2 text-[10px] font-extrabold tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{bn ? group.bn : group.en}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {allModules.filter((m) => group.ids.includes(m.id)).map((m) => {
+                      const active = activeTab === m.id;
+                      return <button key={m.id} onClick={() => go(m.id)} onTouchStart={() => onPreload(m.id)} aria-current={active ? 'page' : undefined}
+                        className={`flex items-center gap-2.5 rounded-xl border p-3 text-left active:scale-[0.98] transition-transform ${active ? isDark ? 'border-indigo-400/40 bg-indigo-500/15 text-indigo-200' : 'border-indigo-200 bg-indigo-50 text-indigo-700' : isDark ? 'border-slate-700/70 bg-slate-800/50 text-slate-200' : 'border-slate-200/90 bg-slate-50/80 text-slate-700'}`}>
+                        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${active ? isDark ? 'bg-indigo-500/25 text-indigo-200' : 'bg-indigo-600 text-white' : isDark ? 'bg-slate-700/60 text-slate-300' : 'bg-white text-slate-500 border border-slate-200/80'}`}>{m.icon}</span>
+                        <span className="text-[11px] font-bold leading-tight min-w-0">{bn ? m.bn : m.en}</span>
+                        <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-40 shrink-0" />
+                      </button>;
+                    })}
+                  </div>
+                </div>
+              ))}
 
               <button
                 onClick={() => {
+                  restoreFocus.current = false;
                   setSheetOpen(false);
                   onOpenSearch();
                 }}
@@ -245,8 +249,10 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
           })}
 
           <button
+            ref={moreRef}
             onClick={() => setSheetOpen(true)}
             aria-expanded={sheetOpen}
+            aria-controls={sheetOpen ? 'mobile-module-sheet' : undefined}
             className={`relative flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform ${
               sheetOpen || !primary.some((p) => p.id === activeTab)
                 ? isDark

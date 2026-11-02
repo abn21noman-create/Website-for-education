@@ -1807,6 +1807,194 @@ check(localStorage.getItem('hsc28_notes')?.includes('guest work'), 'switching ba
 localStorage.clear();
 for (const [key, value] of Object.entries(savedStorage)) if (value !== null) localStorage.setItem(key, value);
 
+// The redesigned workspace must expose every section and keep controls usable.
+const { Navbar } = await vite.ssrLoadModule('/src/components/Navbar.tsx');
+let selectedSection = null, nextLanguage = null, nextTheme = null, searchOpened = false;
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(Navbar, {
+  activeTab: 'dashboard', setActiveTab: value => { selectedSection = value; },
+  lang: 'bn', setLang: value => { nextLanguage = value; }, theme: 'light', setTheme: value => { nextTheme = value; },
+  profile: { fullName: 'Test Student', xp: 0 }, isAuthenticated: true,
+  onOpenAuth() {}, onOpenSearch: () => { searchOpened = true; },
+  syncStatus: { phase: 'idle', pending: 0, queued: 0, lastSavedAt: null, lastError: null },
+}));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.querySelectorAll('.premium-nav-item').length === 16, 'premium sidebar exposes all 16 sections');
+const sidebarLinks = Array.from(container.querySelectorAll('.premium-nav-item'));
+sidebarLinks.find(button => button.textContent.includes('অ্যাডমিশন হাব'))?.click();
+check(selectedSection === 'admission', 'premium section navigation selects the correct route');
+container.querySelector('[aria-label="Switch language"]')?.click();
+container.querySelector('[aria-label="Dark mode"]')?.click();
+container.querySelector('.premium-search')?.click();
+check(nextLanguage === 'en' && nextTheme === 'dark' && searchOpened, 'premium topbar keeps language, theme and search controls working');
+check(container.querySelector('[role=status]')?.getAttribute('aria-label'), 'premium topbar exposes sync status accessibly');
+root.unmount(); root = null;
+
+// Module summaries reflect real records and filtering without changing existing controls.
+const { CqBankView } = await vite.ssrLoadModule('/src/components/CqBankView.tsx');
+const { CQ_QUESTIONS: cqQuestions } = await vite.ssrLoadModule('/src/data/cqData.ts');
+root = createRoot(container);
+root.render(React.createElement(CqBankView, { lang: 'en', theme: 'light', solvedCqs: [cqQuestions[0].id], onToggleSolvedCq() {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.querySelectorAll('.sector-stat').length === 4 && container.querySelectorAll('.sector-stat')[1]?.textContent.includes('1'), 'CQ overview counts the solved questions');
+const cqSearch = container.querySelector('input[aria-label="Search creative questions"]');
+Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(cqSearch, 'zz-no-matching-cq-zz');
+cqSearch.dispatchEvent(new window.Event('input', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 50));
+check(!!container.querySelector('.sector-empty') && container.querySelectorAll('.sector-stat')[3]?.textContent.includes('0'), 'CQ search updates the overview and shows an empty state');
+container.querySelector('.sector-empty button')?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(!container.querySelector('.sector-empty') && cqSearch.value === '', 'CQ clear filters restores the question bank');
+root.unmount(); root = null;
+
+const { PracticalWritingView } = await vite.ssrLoadModule('/src/components/PracticalWritingView.tsx');
+root = createRoot(container);
+root.render(React.createElement(PracticalWritingView, { lang: 'en', theme: 'dark', completedPracticals: ['prac-phy1-1'], onTogglePractical() {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.querySelectorAll('.sector-stat')[1]?.textContent.includes('1'), 'practical overview reflects completed experiments');
+const writingTab = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Bangla & English Writing'));
+writingTab?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(writingTab?.getAttribute('aria-pressed') === 'true', 'practical writing switch remains accessible and functional');
+root.unmount(); root = null;
+
+// The drill overview must follow the selected bank and not invent a last score.
+const { DrillView } = await vite.ssrLoadModule('/src/components/DrillView.tsx');
+const { DRILL_BANKS: overviewBanks } = await vite.ssrLoadModule('/src/data/drillBanks.ts');
+const savedDrillScores = overviewBanks.map(bank => localStorage.getItem(bank.storageKey));
+localStorage.removeItem(overviewBanks[0].storageKey);
+localStorage.setItem(overviewBanks[1].storageKey, JSON.stringify({ score: 7, total: 10, date: '2026-11-02' }));
+root = createRoot(container);
+root.render(React.createElement(DrillView, { lang: 'en', theme: 'light', banks: overviewBanks }));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.querySelectorAll('.sector-stat')[3]?.textContent.includes('No rounds yet'), 'drill overview does not invent a last score');
+const grammarTab = [...container.querySelectorAll('button')].find(button => button.textContent === 'English Grammar');
+grammarTab?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(grammarTab?.getAttribute('aria-pressed') === 'true' && container.querySelectorAll('.sector-stat')[3]?.textContent.includes('7/10') && container.querySelectorAll('.sector-stat')[0]?.textContent.includes(String(overviewBanks[1].questions.length)), 'drill overview follows the selected bank and its saved score');
+root.unmount(); root = null;
+overviewBanks.forEach((bank, index) => savedDrillScores[index] === null ? localStorage.removeItem(bank.storageKey) : localStorage.setItem(bank.storageKey, savedDrillScores[index]));
+
+// Analytics presents absence of exam data honestly and reflects saved progress.
+const { AnalyticsView } = await vite.ssrLoadModule('/src/components/AnalyticsView.tsx');
+root = createRoot(container);
+root.render(React.createElement(AnalyticsView, { lang: 'en', theme: 'light', profile: { ...backupFixture.profile, mistakeIds: ['q1', 'q2'], srsMasteredIds: ['f1'], solvedCqs: ['c1'] }, progressMap: {}, quizHistory: [], sessions: [], onNavigate() {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+const analyticsStats = container.querySelectorAll('.sector-stat');
+check(analyticsStats.length === 4 && analyticsStats[0]?.textContent.includes('No exams yet') && analyticsStats[1]?.textContent.includes('2'), 'analytics overview shows saved progress and handles no exams');
+root.unmount(); root = null;
+
+const { LifeHubView } = await vite.ssrLoadModule('/src/components/LifeHubView.tsx');
+root = createRoot(container);
+root.render(React.createElement(LifeHubView, { lang: 'en', theme: 'dark', profile: backupFixture.profile, authUserId: null, onNavigate() {}, onAwardXp() {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+const lifeNav = container.querySelector('nav[aria-label="Life Hub sections"]');
+const deadlinesTab = [...lifeNav.querySelectorAll('button')].find(button => button.textContent.includes('Deadlines'));
+check(lifeNav.querySelectorAll('button').length === 6 && lifeNav.querySelector('button[aria-pressed="true"]')?.textContent.includes('Daily habits'), 'life hub exposes its six sections with active state');
+deadlinesTab?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(deadlinesTab?.getAttribute('aria-pressed') === 'true', 'life hub section switch updates its accessible state');
+root.unmount(); root = null;
+
+// The calculator accepts the full SSC GPA range and resets the optional subject.
+const { GpaCalculatorView } = await vite.ssrLoadModule('/src/components/GpaCalculatorView.tsx');
+root = createRoot(container);
+root.render(React.createElement(GpaCalculatorView, { lang: 'en', theme: 'light' }));
+await new Promise(resolve => setTimeout(resolve, 80));
+const mathOptional = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Higher Math (4th)'));
+mathOptional?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(mathOptional?.getAttribute('aria-pressed') === 'true', 'GPA calculator selects the optional subject accessibly');
+const sscInput = container.querySelector('input[aria-label="SSC GPA"]');
+Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(sscInput, '2.5');
+sscInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 30));
+check(sscInput.min === '0' && sscInput.value === '2.5', 'GPA calculator accepts SSC results below 3');
+check(!!container.querySelector('input[aria-label="ICT marks"]'), 'GPA marks inputs have accessible subject labels');
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Reset Marks'))?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(mathOptional?.getAttribute('aria-pressed') === 'false' && sscInput.value === '5', 'GPA reset restores SSC and optional subject');
+root.unmount(); root = null;
+
+const { AdmissionView } = await vite.ssrLoadModule('/src/components/AdmissionView.tsx');
+root = createRoot(container);
+root.render(React.createElement(AdmissionView, { lang: 'en', theme: 'dark', profile: backupFixture.profile, progressMap: {}, onNavigate() {}, onAwardXp() {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+const admissionChoices = container.querySelector('[aria-label="Choose an admission track"]');
+const engineering = [...admissionChoices.querySelectorAll('button')].find(button => button.textContent.includes('Engineering Track'));
+engineering?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(admissionChoices.querySelectorAll('button').length === 3 && engineering?.getAttribute('aria-pressed') === 'true' && container.textContent.includes('at the point (5, 3)'), 'admission track switch selects the correct practice and exposes its state');
+root.unmount(); root = null;
+
+// Mobile sheet traps keyboard focus, restores it on Escape, and reaches every module.
+const { MobileTabBar } = await vite.ssrLoadModule('/src/components/MobileTabBar.tsx');
+let mobileRoute = null, mobileSearch = false;
+root = createRoot(container);
+root.render(React.createElement(MobileTabBar, { activeTab: 'dashboard', lang: 'en', theme: 'light', onNavigate: tab => { mobileRoute = tab; }, onPreload() {}, onOpenSearch: () => { mobileSearch = true; } }));
+await new Promise(resolve => setTimeout(resolve, 50));
+const moreButton = [...container.querySelectorAll('button')].find(button => button.textContent === 'More');
+moreButton.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+let mobileDialog = container.querySelector('[role="dialog"]');
+check(!!mobileDialog && mobileDialog.querySelectorAll('[aria-current="page"]').length === 1 && document.activeElement?.getAttribute('aria-label') === 'Close', 'mobile sheet opens with focus and current destination');
+const dialogButtons = [...mobileDialog.querySelectorAll('button')];
+dialogButtons[0].focus();
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+check(document.activeElement === dialogButtons[dialogButtons.length - 1], 'mobile sheet keeps keyboard focus inside');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 50));
+check(!container.querySelector('[role="dialog"]') && document.activeElement === moreButton && document.body.style.overflow !== 'hidden', 'mobile sheet escape restores focus and page scrolling');
+moreButton.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+mobileDialog = container.querySelector('[role="dialog"]');
+[...mobileDialog.querySelectorAll('button')].find(button => button.textContent.includes('Virtual Lab'))?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(mobileRoute === 'lab' && !container.querySelector('[role="dialog"]') && !mobileSearch, 'mobile sheet navigates to a module and closes');
+root.unmount(); root = null;
+
+const { VirtualLabView } = await vite.ssrLoadModule('/src/components/VirtualLabView.tsx');
+root = createRoot(container);
+root.render(React.createElement(VirtualLabView, { lang: 'en', theme: 'dark' }));
+await new Promise(resolve => setTimeout(resolve, 50));
+const decimalInput = container.querySelector('input[aria-label="Decimal number"]');
+Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(decimalInput, '13');
+decimalInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 30));
+check(container.querySelector('input[aria-label="Binary number"]')?.value === '1101', 'virtual lab base converter remains interactive');
+const labChoices = container.querySelector('[aria-label="Choose a lab"]');
+const logicLab = [...labChoices.querySelectorAll('button')].find(button => button.textContent.includes('Logic Gate'));
+logicLab?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(labChoices.querySelectorAll('button').length === 6 && logicLab?.getAttribute('aria-pressed') === 'true', 'virtual lab selection exposes six accessible workspaces');
+root.unmount(); root = null;
+
+// Leaderboard must not invent a #1 placement when a profile is missing or a request fails.
+const { LeaderboardView } = await vite.ssrLoadModule('/src/components/LeaderboardView.tsx');
+const leaderboardFactory = (rows, error = null) => async () => ({ from: () => ({ select: () => ({ order: () => ({ limit: async () => ({ data: rows, error }) }) }) }) });
+root = createRoot(container);
+root.render(React.createElement(LeaderboardView, { lang: 'en', theme: 'light', currentProfile: backupFixture.profile, isAuthenticated: true, onOpenAuth() {}, clientFactory: leaderboardFactory([{ id: 'another', full_name: 'Other Student', board: 'Dhaka', xp: 100 }]) }));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.textContent.includes('NOT IN THIS DISPLAYED LIST') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard does not invent a rank for a profile outside the displayed list');
+root.unmount(); root = null;
+root = createRoot(container);
+root.render(React.createElement(LeaderboardView, { lang: 'en', theme: 'light', currentProfile: backupFixture.profile, isAuthenticated: true, onOpenAuth() {}, clientFactory: leaderboardFactory(null, new Error('offline')) }));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(container.textContent.includes('Could not load the leaderboard') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard shows a load error instead of a false rank');
+root.unmount(); root = null;
+
+const { MasterRoutineView } = await vite.ssrLoadModule('/src/components/MasterRoutineView.tsx');
+root = createRoot(container);
+root.render(React.createElement(MasterRoutineView, { lang: 'en', theme: 'light', progressMap: {} }));
+await new Promise(resolve => setTimeout(resolve, 80));
+const routineNav = container.querySelector('[aria-label="Routine sections"]');
+const routineWeek = [...routineNav.querySelectorAll('button')].find(button => button.textContent === 'This week');
+routineWeek.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+check(routineNav.querySelectorAll('button').length === 4 && routineWeek.getAttribute('aria-pressed') === 'true' && !container.textContent.includes('HSC starts 2026-07-02'), 'routine navigation works and avoids an obsolete exam-date claim');
+root.unmount(); root = null;
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );
