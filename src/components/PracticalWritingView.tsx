@@ -8,10 +8,12 @@ import {
   Copy,
   Check,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 import { Lang, SubjectKey, Theme } from '../types';
 import { getSubjectByKey } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import { SectorStats } from './SectorStats';
 
 interface PracticalWritingViewProps {
   lang: Lang;
@@ -305,6 +307,7 @@ export const PracticalWritingView: React.FC<PracticalWritingViewProps> = ({
           >
             <button
               onClick={() => setSection('practical')}
+              aria-pressed={section === 'practical'}
               className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                 section === 'practical'
                   ? isDark
@@ -323,6 +326,7 @@ export const PracticalWritingView: React.FC<PracticalWritingViewProps> = ({
 
             <button
               onClick={() => setSection('writing')}
+              aria-pressed={section === 'writing'}
               className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                 section === 'writing'
                   ? isDark
@@ -353,6 +357,13 @@ export const PracticalWritingView: React.FC<PracticalWritingViewProps> = ({
           </button>
         </div>
       </div>
+
+      <SectorStats label={lang === 'bn' ? 'ব্যবহারিক ও লেখার সারসংক্ষেপ' : 'Practical and writing overview'} items={[
+        { label: lang === 'bn' ? 'পরীক্ষণ' : 'Experiments', value: formatNum(PRACTICAL_EXPERIMENTS.length, lang), hint: lang === 'bn' ? 'ব্যবহারিক গাইডে' : 'In your practical guide', icon: <Microscope size={19} />, tone: 'purple' },
+        { label: lang === 'bn' ? 'সম্পন্ন' : 'Completed', value: formatNum(PRACTICAL_EXPERIMENTS.filter(exp => completedPracticals.includes(exp.id)).length, lang), hint: lang === 'bn' ? 'তোমার অগ্রগতি' : 'Your progress', icon: <CheckCircle2 size={19} />, tone: 'mint' },
+        { label: lang === 'bn' ? 'লেখার নমুনা' : 'Writing templates', value: formatNum(WRITING_TEMPLATES.length, lang), hint: lang === 'bn' ? 'বাংলা ও ইংরেজি' : 'Bangla & English', icon: <PenTool size={19} />, tone: 'peach' },
+        { label: lang === 'bn' ? 'খসড়ায় শব্দ' : 'Draft words', value: formatNum(wordCount, lang), hint: lang === 'bn' ? 'বর্তমান খসড়া' : 'In your current draft', icon: <FileText size={19} />, tone: 'blue' },
+      ]} />
 
       {/* SECTION 1: 25-MARK SCIENCE & ICT PRACTICALS */}
       {section === 'practical' && (

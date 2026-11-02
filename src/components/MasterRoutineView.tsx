@@ -15,7 +15,6 @@ import { ChapterProgressState, Lang, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
 import {
   CLASS_TASKS,
-  HSC_EXAM_START,
   REVISION_TASKS,
   TOTAL_PLAN_DAYS,
   WEEKDAYS_BN,
@@ -29,7 +28,6 @@ import {
   revisionQueue,
   dateForDayNumber,
   dayNumberForDate,
-  daysToHsc,
   isRevisionDay,
   phaseForDay,
   toDateKey,
@@ -277,7 +275,6 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const toggleTask = (key: string) => setState((prev) => toggleRoutineTask(prev, key));
   const addMinutes = (delta: number) => setState((prev) => logStudyMinutes(prev, dateKey, delta));
 
-  const hscDays = daysToHsc(toDateKey(new Date()));
 
   return (
     <div className="space-y-5">
@@ -311,8 +308,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
           >
             <GraduationCap className="w-3.5 h-3.5" />
             {useBn
-              ? `HSC: ${bn(Math.max(0, hscDays))} দিন বাকি`
-              : `HSC in ${Math.max(0, hscDays)} days`}
+              ? `পরিকল্পনার শেষ দিন: ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)}`
+              : `Plan ends: ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)}`}
           </span>
           <span className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold ${chip}`}>
             <CalendarDays className="w-3.5 h-3.5" />
@@ -328,7 +325,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className={`inline-flex p-1 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-100/80 border-slate-200'}`}>
+      <div role="group" aria-label={useBn ? 'রুটিনের বিভাগ' : 'Routine sections'} className={`routine-sections inline-flex p-1 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-100/80 border-slate-200'}`}>
         {(
           [
             { key: 'today', bn: 'আজ', en: 'Today' },
@@ -340,6 +337,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
           <button
             key={item.key}
             onClick={() => setTab(item.key)}
+            aria-pressed={tab === item.key}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-colors ${
               tab === item.key
                 ? isDark
@@ -1448,8 +1446,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
             />
             <p className={`mt-2 text-[11px] ${muted}`}>
               {useBn
-                ? `Day ১ = ${dateForDayNumber(state.startDate, 1)} · Day ৩৯১ = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)} · HSC শুরু ${HSC_EXAM_START}`
-                : `Day 1 = ${dateForDayNumber(state.startDate, 1)} · Day 391 = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)} · HSC starts ${HSC_EXAM_START}`}
+                ? `Day ১ = ${dateForDayNumber(state.startDate, 1)} · Day ৩৯১ = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)}`
+                : `Day 1 = ${dateForDayNumber(state.startDate, 1)} · Day 391 = ${dateForDayNumber(state.startDate, TOTAL_PLAN_DAYS)}`}
             </p>
           </div>
 

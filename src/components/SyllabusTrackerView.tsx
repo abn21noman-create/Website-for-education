@@ -6,6 +6,10 @@ import {
   Filter,
   GitBranch,
   ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  CircleDot,
+  Layers,
 } from 'lucide-react';
 import {
   ChapterProgressState,
@@ -17,6 +21,7 @@ import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { PREREQUISITE_CHAINS } from '../data/hsc28EcosystemData';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
+import { SectorStats } from './SectorStats';
 
 interface SyllabusTrackerViewProps {
   lang: Lang;
@@ -191,6 +196,19 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
           </button>
         </div>
       </div>
+
+      <SectorStats label={lang === 'bn' ? 'সিলেবাসের সারসংক্ষেপ' : 'Syllabus overview'} items={(() => {
+        const counts = CHAPTERS.map(ch => { const p = progressMap[ch.id]; return p ? [p.theoryDone, p.notesDone, p.mcqDone, p.cqDone].filter(Boolean).length : 0; });
+        const complete = counts.filter(n => n === 4).length;
+        const inProgress = counts.filter(n => n > 0 && n < 4).length;
+        const stagesDone = counts.reduce((sum, n) => sum + n, 0);
+        return [
+          { label: lang === 'bn' ? 'মোট অধ্যায়' : 'Total chapters', value: formatNum(CHAPTERS.length, lang), hint: lang === 'bn' ? 'সম্পূর্ণ পাঠ্যক্রম' : 'Full curriculum', icon: <BookOpen size={19} />, tone: 'purple' as const },
+          { label: lang === 'bn' ? 'সম্পন্ন' : 'Mastered', value: formatNum(complete, lang), hint: lang === 'bn' ? 'চারটি ধাপ শেষ' : 'All four stages done', icon: <CheckCircle2 size={19} />, tone: 'mint' as const },
+          { label: lang === 'bn' ? 'চলমান' : 'In progress', value: formatNum(inProgress, lang), hint: lang === 'bn' ? 'পড়া চলছে' : 'Chapters in progress', icon: <CircleDot size={19} />, tone: 'peach' as const },
+          { label: lang === 'bn' ? 'ধাপ সম্পন্ন' : 'Stages complete', value: `${formatNum(stagesDone, lang)} / ${formatNum(CHAPTERS.length * 4, lang)}`, hint: lang === 'bn' ? 'তোমার মোট অগ্রগতি' : 'Your total progress', icon: <Layers size={19} />, tone: 'blue' as const },
+        ];
+      })()} />
 
       {/* Prerequisite Learning Sequence Panel */}
       {showPrereqMap && (

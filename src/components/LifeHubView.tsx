@@ -786,7 +786,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
     <div className="space-y-5">
       {/* Header */}
       <header
-        className={`rounded-2xl border p-4 sm:p-6 ${
+        className={`life-hero rounded-2xl border p-4 sm:p-6 ${
           isDark
             ? 'border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-indigo-950/40'
             : 'border-slate-200/80 bg-gradient-to-br from-white via-indigo-50/40 to-emerald-50/40 card-soft-light'
@@ -803,6 +803,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
             <HeartPulse className="w-5 h-5" />
           </div>
           <div className="min-w-0">
+            <span className="life-eyebrow">{bn ? 'তোমার জীবনের ভারসাম্য' : 'YOUR SPACE FOR BALANCE'}</span>
             <h1 className={`text-lg sm:text-xl font-extrabold tracking-tight ${head}`}>
               {bn ? 'লাইফ হাব — পুরো ছাত্রজীবনের সাথী' : 'Life Hub — with you through student life'}
             </h1>
@@ -836,8 +837,8 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               )}
               {cloudState === 'synced'
                 ? bn
-                  ? 'ক্লাউডে সংরক্ষিত'
-                  : 'Synced to cloud'
+                  ? 'ক্লাউড সিঙ্ক সক্রিয়'
+                  : 'Cloud sync active'
                 : cloudState === 'loading'
                 ? bn
                   ? 'সিঙ্ক হচ্ছে…'
@@ -899,7 +900,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
 
       {/* Section switcher — a 3×2 grid on phones so every section is visible
           without a horizontal swipe; a single row from small screens up. */}
-      <div className="sm:overflow-x-auto sm:no-scrollbar">
+      <nav className="life-sections sm:overflow-x-auto sm:no-scrollbar" aria-label={bn ? 'লাইফ হাবের বিভাগ' : 'Life Hub sections'}>
         <div className="grid grid-cols-3 gap-1.5 sm:flex sm:w-max">
           {sections.map((s) => {
             const Icon = s.icon;
@@ -908,6 +909,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
+                aria-pressed={active}
                 className={`inline-flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-[11px] sm:text-xs font-bold border shrink-0 transition-colors ${
                   active
                     ? isDark
@@ -924,7 +926,7 @@ export const LifeHubView: React.FC<LifeHubViewProps> = ({
             );
           })}
         </div>
-      </div>
+      </nav>
 
       {/* -------------------- Today -------------------- */}
       {section === 'today' && (
@@ -2182,7 +2184,7 @@ const StatTile: React.FC<{
 
   return (
     <div
-      className={`rounded-xl border p-3 ${
+      className={`life-stat rounded-xl border p-3 ${
         isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200/80 bg-white/80'
       }`}
     >

@@ -42,7 +42,7 @@ import { learnedChapters, loadRoutineState } from '../lib/routineStore';
 import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
 import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';
 import { requestChapterDrill } from '../lib/chapterDrill';
-import { formatNum, getBoardLabel } from '../lib/i18n';
+import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
 interface DashboardViewProps {
@@ -110,8 +110,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const diffMs = Math.max(0, HSC_2028_TARGET_DATE - now);
   const daysLeft = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const hoursLeft = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
-  const minsLeft = Math.floor((diffMs / (1000 * 60)) % 60);
 
   const totalCheckboxes = CHAPTERS.length * 4;
   let checkedCount = 0;
@@ -141,219 +139,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="space-y-7">
-      {/* Eye-Comfort Soft Pastel Hero Section */}
-      <section
-        className={`relative overflow-hidden rounded-2xl border p-6 sm:p-8 lg:p-10 transition-colors duration-300 ${
-          isDark
-            ? 'bg-gradient-to-br from-slate-800/85 via-slate-800/75 to-indigo-950/35 border-slate-700/70 text-slate-100 bg-soft-dots-dark card-soft-dark'
-            : 'bg-gradient-to-br from-white via-indigo-50/40 to-teal-50/35 border-slate-200/85 text-slate-800 bg-soft-dots-light card-soft-light'
-        }`}
-      >
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider border ${
-                  isDark
-                    ? 'bg-indigo-500/15 text-indigo-300 border-indigo-400/25'
-                    : 'bg-indigo-50/90 text-indigo-700 border-indigo-200/80'
-                }`}
-              >
-                {lang === 'bn'
-                  ? 'HSC 2028 • বিজ্ঞান বিভাগ (একাদশ শ্রেণি)'
-                  : 'HSC 2028 • SCIENCE DIVISION (YEAR 1)'}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border ${
-                  isDark
-                    ? 'bg-teal-500/12 text-teal-300 border-teal-400/20'
-                    : 'bg-teal-50/90 text-teal-700 border-teal-200/80'
-                }`}
-              >
-                <Target className="w-3.5 h-3.5" />
-                {profile.targetGoal}
-              </span>
-            </div>
-
-            <h1
-              className={`text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight ${
-                isDark ? 'text-slate-100' : 'text-slate-800'
-              }`}
-            >
-              {lang === 'bn'
-                ? `${profile.fullName} — সুশৃঙ্খল পরিকল্পনা ও নিয়মিত অনুশীলনেই নির্মিত হয় শীর্ষ সাফল্য।`
-                : `${profile.fullName} — Structured Preparation Built for Board & Admission Excellence.`}
-            </h1>
-
-            <p
-              className={`text-sm sm:text-base max-w-2xl leading-relaxed ${
-                isDark ? 'text-slate-300/90' : 'text-slate-600'
-              }`}
-            >
-              {lang === 'bn'
-                ? 'একাদশ শ্রেণি থেকেই ১ম পত্রের পদার্থবিজ্ঞান, রসায়ন, উচ্চতর গণিত ও জীববিজ্ঞানের প্রতিটি অধ্যায় ধাপে ধাপে সম্পন্ন করুন, বোর্ড মানের MCQ পরীক্ষা দিন এবং নিজের একাডেমিক অগ্রগতি পরিমাপ করুন।'
-                : 'Master NCTB 1st & 2nd Paper curricula systematically with 4-stage chapter tracking, curated formula references, timed MCQ assessments, and focused study analytics.'}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => onNavigate('mcq')}
-                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-xs ${
-                  isDark
-                    ? 'bg-indigo-500 text-white hover:bg-indigo-400'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-500'
-                }`}
-              >
-                <FileCheck2 className="w-4 h-4" />
-                <span>
-                  {lang === 'bn' ? 'মডেল টেস্ট শুরু করুন' : 'Launch MCQ Assessment'}
-                </span>
-              </button>
-
-              <button
-                onClick={() => onNavigate('syllabus')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm border transition-all duration-200 cursor-pointer ${
-                  isDark
-                    ? 'bg-slate-800/80 hover:bg-slate-700/80 border-slate-600/70 text-slate-100'
-                    : 'bg-white/95 hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
-                }`}
-              >
-                <span>
-                  {lang === 'bn' ? 'সিলেবাস ট্র্যাকার' : 'Syllabus Tracker'}
-                </span>
-                <ArrowRight className="w-4 h-4 text-indigo-500" />
-              </button>
-
-              <button
-                onClick={() => onNavigate('admission')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm border transition-all duration-200 cursor-pointer ${
-                  isDark
-                    ? 'bg-teal-500/15 hover:bg-teal-500/25 border-teal-400/30 text-teal-200'
-                    : 'bg-teal-50 hover:bg-teal-100/80 border-teal-200 text-teal-800 shadow-2xs'
-                }`}
-              >
-                <Target className="w-4 h-4 text-teal-500" />
-                <span>
-                  {lang === 'bn'
-                    ? 'অ্যাডমিশন হাব (BUET • Med • DU)'
-                    : 'Admission Hub (BUET • Med • DU)'}
-                </span>
-              </button>
-
-              {!isAuthenticated && (
-                <button
-                  onClick={onOpenAuth}
-                  className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm border transition-all duration-200 cursor-pointer ${
-                    isDark
-                      ? 'border-amber-400/25 bg-amber-500/10 text-amber-300 hover:bg-amber-500/15'
-                      : 'border-amber-200/80 bg-amber-50/80 text-amber-800 hover:bg-amber-100/70'
-                  }`}
-                >
-                  <Trophy className="w-4 h-4" />
-                  <span>
-                    {lang === 'bn' ? 'মেধাতালিকায় নিবন্ধন' : 'Join Merit List'}
-                  </span>
-                </button>
-              )}
-            </div>
+      <div className="dashboard-welcome">
+        <div><div className="dashboard-eyebrow"><span /> {lang === 'bn' ? 'তোমার ব্যক্তিগত স্টাডি স্পেস' : 'YOUR PERSONAL STUDY SPACE'}</div>
+          <h1>{lang === 'bn' ? `স্বাগতম, ${profile.fullName.split(' ')[0]}!` : `Welcome back, ${profile.fullName.split(' ')[0]}!`} <span>✦</span></h1>
+          <p>{lang === 'bn' ? 'বড় স্বপ্নের শুরু হোক আজকের ছোট্ট পদক্ষেপে।' : 'Big dreams begin with the small steps you take today.'}</p>
+        </div>
+        <div className="dashboard-date"><Calendar size={16} /><span>{new Intl.DateTimeFormat(lang === 'bn' ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now))}</span></div>
+      </div>
+      <div className="dashboard-hero-grid">
+        <section className="dashboard-hero">
+          <div className="dashboard-hero-content">
+            <span className="hero-kicker"><span>✦</span> {lang === 'bn' ? 'HSC ২০২৮ · বিজ্ঞান বিভাগ' : 'HSC 2028 · SCIENCE'}</span>
+            <h2>{lang === 'bn' ? <>তোমার লক্ষ্য,<br /><em>তোমার আগামী।</em></> : <>Your goal.<br /><em>Your tomorrow.</em></>}</h2>
+            <p>{lang === 'bn' ? 'পরিকল্পনা থেকে অনুশীলন—প্রস্তুতির প্রতিটি ধাপে নক্ষত্র আছে তোমার পাশে।' : 'From planning to practice, Nokkhotro is with you at every step.'}</p>
+            <div className="hero-actions"><button onClick={() => onNavigate('routine')} className="hero-primary">{lang === 'bn' ? 'আজকের পড়া শুরু করো' : 'Start studying'} <ArrowRight size={16} /></button><button onClick={() => onNavigate('mcq')} className="hero-secondary">{lang === 'bn' ? 'মডেল টেস্ট' : 'Take a test'} <ArrowUpRight size={15} /></button></div>
+            {!isAuthenticated && <button className="hero-login" onClick={onOpenAuth}>{lang === 'bn' ? 'অগ্রগতি সেভ করতে লগইন করো' : 'Sign in to save your progress'} →</button>}
           </div>
-
-          {/* Smooth Countdown & Syllabus Telemetry Box */}
-          <div className="lg:col-span-5">
-            <div
-              className={`rounded-2xl p-5 sm:p-6 border backdrop-blur-sm ${
-                isDark
-                  ? 'bg-slate-900/65 border-slate-700/70 text-slate-100'
-                  : 'bg-white/85 border-slate-200/85 text-slate-800 shadow-xs'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-indigo-600 dark:text-indigo-300">
-                  <Calendar className="w-3.5 h-3.5" />
-                  {lang === 'bn' ? 'HSC ২০২৮ কাউন্টডাউন' : 'HSC 2028 COUNTDOWN'}
-                </span>
-                <span
-                  className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
-                    isDark
-                      ? 'border-slate-700 bg-slate-800 text-slate-300'
-                      : 'border-slate-200 bg-slate-50 text-slate-600'
-                  }`}
-                >
-                  {lang === 'bn' ? 'লক্ষ্য: মে ২০২৮' : 'EST. MAY 2028'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2.5 text-center my-3">
-                {[
-                  { val: daysLeft, bn: 'দিন বাকি', en: 'DAYS' },
-                  { val: hoursLeft, bn: 'ঘণ্টা', en: 'HOURS' },
-                  { val: minsLeft, bn: 'মিনিট', en: 'MINUTES' },
-                ].map((unit, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3.5 rounded-xl border ${
-                      isDark
-                        ? 'bg-slate-800/75 border-slate-700/70'
-                        : 'bg-slate-50/90 border-slate-200/75'
-                    }`}
-                  >
-                    <div
-                      className={`text-2xl sm:text-3xl font-extrabold font-formula tabular-nums ${
-                        isDark ? 'text-indigo-200' : 'text-indigo-950'
-                      }`}
-                    >
-                      {formatNum(unit.val, lang)}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider mt-1 opacity-60">
-                      {lang === 'bn' ? unit.bn : unit.en}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                className={`mt-5 pt-4 border-t ${
-                  isDark ? 'border-slate-700/60' : 'border-slate-200/70'
-                }`}
-              >
-                <div className="flex justify-between text-xs font-semibold mb-2">
-                  <span>
-                    {lang === 'bn'
-                      ? 'সামগ্রিক সিলেবাস সম্পন্নতা'
-                      : 'Overall Syllabus Completion'}
-                  </span>
-                  <span className="font-mono tabular-nums font-bold text-teal-600 dark:text-teal-300">
-                    {formatNum(overallPercent, lang)}%
-                  </span>
-                </div>
-                <div
-                  className={`h-2 w-full rounded-full overflow-hidden ${
-                    isDark ? 'bg-slate-800' : 'bg-slate-100'
-                  }`}
-                >
-                  <div
-                    className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-indigo-500 to-teal-500"
-                    style={{ width: `${Math.max(overallPercent, 3)}%` }}
-                  />
-                </div>
-                <p className="text-[11px] mt-2.5 opacity-65">
-                  {lang === 'bn'
-                    ? `${getBoardLabel(profile.board, lang)} • ${formatNum(
-                        CHAPTERS.length,
-                        lang
-                      )}টি অধ্যায়ের মধ্যে ${formatNum(
-                        fullyMasteredChapters,
-                        lang
-                      )}টি পূর্ণাঙ্গভাবে সম্পন্ন`
-                    : `${getBoardLabel(profile.board, lang)} • ${fullyMasteredChapters} of ${
-                        CHAPTERS.length
-                      } chapters 100% mastered`}
-                </p>
-              </div>
-            </div>
-          </div>
+          <div className="hero-image" aria-hidden="true" />
+          <div className="hero-bottom-label"><span>✦</span> LEARN. GROW. BECOME.</div>
+        </section>
+        <section className={`dashboard-progress-card ${isDark ? 'is-dark' : ''}`}>
+          <div className="progress-card-heading"><div><span className="card-kicker">{lang === 'bn' ? 'তোমার অগ্রগতি' : 'YOUR PROGRESS'}</span><h2>{lang === 'bn' ? 'প্রস্তুতির এক নজর' : 'Your preparation'}</h2></div><span className="progress-icon"><Target size={19} /></span></div>
+          <div className="progress-ring-wrap"><div className="progress-ring" style={{ background: `conic-gradient(#7165e8 ${overallPercent}%, ${isDark ? '#344053' : '#eeedf9'} 0)` }}><div><strong>{formatNum(overallPercent, lang)}<small>%</small></strong><span>{lang === 'bn' ? 'সম্পন্ন' : 'complete'}</span></div></div><div className="progress-side"><span className="progress-side-dot" /><p>{lang === 'bn' ? 'সিলেবাসের অগ্রগতি' : 'Syllabus progress'}<strong>{formatNum(checkedCount, lang)} / {formatNum(totalCheckboxes, lang)}</strong></p></div></div>
+          <div className="progress-card-footer"><span>{lang === 'bn' ? `${formatNum(fullyMasteredChapters, lang)}টি অধ্যায় সম্পূর্ণ` : `${fullyMasteredChapters} chapters mastered`}</span><button onClick={() => onNavigate('syllabus')}>{lang === 'bn' ? 'বিস্তারিত' : 'Details'} <ArrowRight size={14} /></button></div>
+        </section>
+      </div>
+      <div className="dashboard-glance">
+        <div><span className="glance-icon lavender"><Zap size={18} /></span><span><small>{lang === 'bn' ? 'মোট পয়েন্ট' : 'TOTAL POINTS'}</small><strong>{formatNum(profile.xp, lang)} <em>XP</em></strong></span></div>
+        <div><span className="glance-icon mint"><BookOpen size={18} /></span><span><small>{lang === 'bn' ? 'সম্পন্ন অধ্যায়' : 'CHAPTERS MASTERED'}</small><strong>{formatNum(fullyMasteredChapters, lang)} <em>/ {formatNum(CHAPTERS.length, lang)}</em></strong></span></div>
+        <div><span className="glance-icon peach"><FileCheck2 size={18} /></span><span><small>{lang === 'bn' ? 'মডেল টেস্ট' : 'TESTS TAKEN'}</small><strong>{formatNum(quizHistory.length, lang)} <em>{lang === 'bn' ? 'টি পরীক্ষা' : 'tests'}</em></strong></span></div>
+        <div><span className="glance-icon blue"><CalendarClock size={18} /></span><span><small>{lang === 'bn' ? 'আনুমানিক লক্ষ্য: ১০ মে ২০২৮' : 'PLANNING TARGET: 10 MAY 2028'}</small><strong>{formatNum(daysLeft, lang)} <em>{lang === 'bn' ? 'দিন বাকি' : 'days left'}</em></strong></span></div>
+      </div>
+      <section className="dashboard-sectors" aria-label={lang === 'bn' ? 'পড়াশোনার সেকশন' : 'Study sections'}>
+        <div className="dashboard-section-heading"><div><span>{lang === 'bn' ? 'সবকিছু এক জায়গায়' : 'YOUR STUDY TOOLKIT'}</span><h2>{lang === 'bn' ? 'তোমার সেকশনগুলো' : 'Your study sections'}</h2></div><span className="sector-hint">{lang === 'bn' ? 'একটি বেছে শুরু করো' : 'Choose where to begin'}</span></div>
+        <div className="sector-grid">
+          {[
+            { tab: 'syllabus' as const, icon: BookOpen, bn: 'সিলেবাস', en: 'Syllabus', subBn: 'অধ্যায় ও অগ্রগতি', subEn: 'Chapters & progress', tone: 'purple' },
+            { tab: 'routine' as const, icon: CalendarClock, bn: 'মাস্টার রুটিন', en: 'Master routine', subBn: 'প্রতিদিনের পরিকল্পনা', subEn: 'Your daily roadmap', tone: 'blue' },
+            { tab: 'mcq' as const, icon: FileCheck2, bn: 'পরীক্ষা কেন্দ্র', en: 'Exam centre', subBn: 'MCQ ও মডেল টেস্ট', subEn: 'MCQs & mock tests', tone: 'peach' },
+            { tab: 'formulas' as const, icon: BookMarked, bn: 'সূত্র ভল্ট', en: 'Formula vault', subBn: 'সূত্র ও রিভিশন', subEn: 'Formulas & revision', tone: 'mint' },
+            { tab: 'analytics' as const, icon: BarChart3, bn: 'আমার অগ্রগতি', en: 'My progress', subBn: 'বিশ্লেষণ ও দুর্বলতা', subEn: 'Insights & strengths', tone: 'rose' },
+            { tab: 'admission' as const, icon: Target, bn: 'অ্যাডমিশন', en: 'Admission', subBn: 'স্বপ্নের পথে প্রস্তুতি', subEn: 'Prepare for your goals', tone: 'gold' },
+          ].map((item) => <button key={item.tab} className="sector-card" onClick={() => onNavigate(item.tab)}>
+            <span className={`sector-card-icon ${item.tone}`}><item.icon size={19} strokeWidth={1.8}/></span><span className="sector-card-copy"><strong>{lang === 'bn' ? item.bn : item.en}</strong><small>{lang === 'bn' ? item.subBn : item.subEn}</small></span><ArrowUpRight className="sector-card-arrow" size={15}/>
+          </button>)}
         </div>
       </section>
+      <div className="dashboard-section-heading"><div><span>{lang === 'bn' ? 'তোমার আজকের পরিকল্পনা' : 'YOUR DAILY FOCUS'}</span><h2>{lang === 'bn' ? 'আজ কী পড়বে?' : 'What’s on today?'}</h2></div><button onClick={() => onNavigate('planner')}>{lang === 'bn' ? 'প্ল্যানার খুলুন' : 'Open planner'} <ArrowRight size={15} /></button></div>
 
       {/* Today's slice of the 391-day master routine */}
       <section

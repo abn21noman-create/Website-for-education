@@ -39,6 +39,7 @@ import {
 } from '../lib/examPatterns';
 import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
 import { SelfExplainBox } from './SelfExplainBox';
+import { SectorStats } from './SectorStats';
 import { selfNoteCount } from '../lib/selfNotes';
 import { pickChapterQuestions, takeChapterDrill } from '../lib/chapterDrill';
 import type { ChapterDrillRequest } from '../lib/chapterDrill';
@@ -492,6 +493,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             </p>
           )}
         </div>
+
+        <SectorStats label={lang === 'bn' ? 'পরীক্ষার সারসংক্ষেপ' : 'Exam overview'} items={[
+          { label: lang === 'bn' ? 'প্রশ্ন ব্যাংক' : 'Question bank', value: formatNum(MCQ_TOTAL, lang), hint: lang === 'bn' ? 'মোট MCQ' : 'Total MCQs', icon: <BookOpenCheck size={19} />, tone: 'purple' },
+          { label: lang === 'bn' ? 'দেওয়া পরীক্ষা' : 'Attempts', value: formatNum(quizHistory.length, lang), hint: lang === 'bn' ? 'তোমার পরীক্ষার ইতিহাস' : 'Your exam history', icon: <Award size={19} />, tone: 'mint' },
+          { label: lang === 'bn' ? 'পুনরায় অনুশীলন' : 'To revisit', value: formatNum(mistakeIds.length, lang), hint: lang === 'bn' ? 'মিস্টেক ব্যাংকে' : 'In your mistake bank', icon: <RotateCcw size={19} />, tone: 'peach' },
+          { label: lang === 'bn' ? 'নিজের ব্যাখ্যা' : 'Explanations', value: formatNum(writtenNotes, lang), hint: lang === 'bn' ? 'নিজের ভাষায় লেখা' : 'Written in your words', icon: <Check size={19} />, tone: 'blue' },
+        ]} />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Exam Builder Card */}

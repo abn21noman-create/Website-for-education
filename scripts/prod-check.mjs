@@ -8,6 +8,12 @@ const dist = resolve('dist');
 const html = await readFile(resolve(dist, 'index.html'), 'utf8');
 const entry = html.match(/<script\b[^>]*\btype="module"[^>]*\bsrc="([^"]+)"/)?.[1];
 if (!entry) throw new Error('No module entry in dist/index.html; run npm run build first');
+// The manual theme toggle must override the OS color scheme in the built CSS.
+const cssPath = html.match(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="([^"]+)"/)?.[1];
+if (!cssPath) throw new Error('No production stylesheet found');
+const css = await readFile(resolve(dist, cssPath.replace(/^\//, '')), 'utf8');
+if (!css.includes(':where(.dark,.dark *)')) throw new Error('Production dark variants do not follow the manual theme class');
+if (!css.includes('hind-siliguri-bengali-')) throw new Error('Production Bengali font is missing');
 const errors = [];
 const virtualConsole = new VirtualConsole();
 virtualConsole.on('jsdomError', error => errors.push(error));

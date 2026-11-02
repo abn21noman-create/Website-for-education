@@ -5,11 +5,15 @@ import {
   ChevronUp,
   Check,
   FileSpreadsheet,
+  BookOpen,
+  Layers,
+  ListFilter,
 } from 'lucide-react';
 import { Lang, SubjectKey, Theme } from '../types';
 import { CQ_QUESTIONS } from '../data/cqData';
 import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import { SectorStats } from './SectorStats';
 
 interface CqBankViewProps {
   lang: Lang;
@@ -92,6 +96,13 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
         </div>
       </div>
 
+      <SectorStats label={lang === 'bn' ? 'সৃজনশীল অনুশীলনের সারসংক্ষেপ' : 'Creative question overview'} items={[
+        { label: lang === 'bn' ? 'মোট প্রশ্ন' : 'Total questions', value: formatNum(CQ_QUESTIONS.length, lang), hint: lang === 'bn' ? 'প্রশ্ন ব্যাংকে' : 'In the question bank', icon: <BookOpen size={19} />, tone: 'purple' },
+        { label: lang === 'bn' ? 'সমাধান করা' : 'Solved', value: formatNum(CQ_QUESTIONS.filter(q => solvedCqs.includes(q.id)).length, lang), hint: lang === 'bn' ? 'তোমার অনুশীলন' : 'Your practice', icon: <Check size={19} />, tone: 'mint' },
+        { label: lang === 'bn' ? 'বিষয়' : 'Subjects', value: formatNum(subjectsWithCq.length, lang), hint: lang === 'bn' ? 'প্রশ্ন রয়েছে' : 'With questions', icon: <Layers size={19} />, tone: 'peach' },
+        { label: lang === 'bn' ? 'দেখানো হচ্ছে' : 'Showing', value: formatNum(filtered.length, lang), hint: lang === 'bn' ? 'বর্তমান খোঁজে' : 'Matching your filters', icon: <ListFilter size={19} />, tone: 'blue' },
+      ]} />
+
       {/* Filters */}
       <div className="space-y-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -133,6 +144,7 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
             type="text"
+            aria-label={lang === 'bn' ? 'সৃজনশীল প্রশ্ন খুঁজুন' : 'Search creative questions'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={
@@ -148,6 +160,13 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
           />
         </div>
       </div>
+
+      {filtered.length === 0 && <div className="sector-empty" role="status">
+        <Search size={21} aria-hidden="true" />
+        <strong>{lang === 'bn' ? 'কোনো প্রশ্ন পাওয়া যায়নি' : 'No questions found'}</strong>
+        <span>{lang === 'bn' ? 'অন্য শব্দ বা বিষয় দিয়ে আবার খোঁজ করো।' : 'Try a different search or subject.'}</span>
+        <button onClick={() => { setSearch(''); setSelectedSubject('all'); }}>{lang === 'bn' ? 'ফিল্টার সরাও' : 'Clear filters'}</button>
+      </div>}
 
       {/* CQ Cards */}
       <div className="space-y-5">

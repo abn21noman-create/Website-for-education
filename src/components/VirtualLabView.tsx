@@ -187,7 +187,7 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
       </div>
 
       {/* Lab Selector Tabs */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+      <div className="lab-switcher grid grid-cols-2 lg:grid-cols-3 gap-2.5" role="group" aria-label={lang === 'bn' ? 'ল্যাব নির্বাচন' : 'Choose a lab'}>
         {[
           {
             id: 'number' as LabTab,
@@ -231,6 +231,7 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveLab(tab.id)}
+              aria-pressed={active}
               className={`p-3.5 rounded-xl border text-left text-xs sm:text-sm font-bold flex items-center gap-2.5 cursor-pointer transition-all ${
                 active
                   ? isDark
@@ -242,7 +243,7 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
               }`}
             >
               {tab.icon}
-              <span className="truncate">{lang === 'bn' ? tab.bn : tab.en}</span>
+              <span className="min-w-0 leading-snug">{lang === 'bn' ? tab.bn : tab.en}</span>
             </button>
           );
         })}
@@ -270,6 +271,7 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
                 </label>
                 <input
                   type="number"
+                  aria-label={lang === 'bn' ? 'দশমিক সংখ্যা' : 'Decimal number'}
                   min={0}
                   max={65535}
                   value={safeDec}
@@ -288,6 +290,8 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
                 </label>
                 <input
                   type="text"
+                  aria-label={lang === 'bn' ? 'বাইনারি সংখ্যা' : 'Binary number'}
+                  inputMode="numeric"
                   value={binStr}
                   onChange={(e) => {
                     const clean = e.target.value.replace(/[^01]/g, '');

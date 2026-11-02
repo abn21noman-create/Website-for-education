@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Check, RotateCcw, Sparkles, Target, Trophy, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Check, Layers, RotateCcw, Sparkles, Target, Trophy, X } from 'lucide-react';
 import { Lang, Theme } from '../types';
 import type { DrillBankConfig, DrillItem } from '../data/drillBanks';
 import { formatNum } from '../lib/i18n';
+import { SectorStats } from './SectorStats';
 
 interface LastRound {
   score: number;
@@ -165,6 +166,13 @@ export const DrillView: React.FC<DrillViewProps> = ({ lang, theme, banks }) => {
         </div>
       </div>
 
+      {!round && <SectorStats label={bn ? 'ড্রিলের সারসংক্ষেপ' : 'Drill overview'} items={[
+        { label: bn ? 'প্রশ্ন' : 'Questions', value: formatNum(bank.questions.length, lang), hint: bn ? 'এই প্রশ্ন ব্যাংকে' : 'In this bank', icon: <BookOpen size={19} />, tone: 'purple' },
+        { label: bn ? 'বিভাগ' : 'Categories', value: formatNum(bank.categories.length, lang), hint: bn ? 'বিষয়ভিত্তিক অনুশীলন' : 'Practice by topic', icon: <Layers size={19} />, tone: 'mint' },
+        { label: bn ? 'প্রতি রাউন্ড' : 'Per round', value: formatNum(Math.min(bank.roundSize, bank.questions.length), lang), hint: bn ? 'মিশ্র রাউন্ডে' : 'In a mixed round', icon: <Target size={19} />, tone: 'peach' },
+        { label: bn ? 'শেষ ফলাফল' : 'Last result', value: lastRound ? `${formatNum(lastRound.score, lang)}/${formatNum(lastRound.total, lang)}` : '—', hint: lastRound ? (bn ? 'শেষ রাউন্ডের স্কোর' : 'Your last round') : (bn ? 'এখনও রাউন্ড নেই' : 'No rounds yet'), icon: <Trophy size={19} />, tone: 'blue' },
+      ]} />}
+
       {/* Bank switcher — only rendered when there is more than one bank. */}
       {banks.length > 1 && !round && (
         <div
@@ -178,6 +186,7 @@ export const DrillView: React.FC<DrillViewProps> = ({ lang, theme, banks }) => {
               <button
                 key={item.key}
                 onClick={() => switchBank(item.key)}
+                aria-pressed={active}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-colors ${
                   active
                     ? isDark
@@ -208,7 +217,7 @@ export const DrillView: React.FC<DrillViewProps> = ({ lang, theme, banks }) => {
                 }`}
               >
                 <div className="text-2xl font-extrabold tabular-nums">
-                  {formatNum(counts[cat.key] || 0, 'bn')}
+                  {formatNum(counts[cat.key] || 0, lang)}
                 </div>
                 <div className="text-xs font-bold mt-0.5">{bn ? cat.bn : cat.en}</div>
                 <div className={`text-[11px] mt-1 ${muted}`}>{bn ? 'প্রশ্ন আছে' : 'questions'}</div>

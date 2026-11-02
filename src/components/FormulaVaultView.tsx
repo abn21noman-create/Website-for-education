@@ -21,6 +21,7 @@ import { FORMULAS } from '../data/formulasData';
 import { EXCEPTION_SHEETS } from '../data/hsc28EcosystemData';
 import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import { SectorStats } from './SectorStats';
 
 interface FormulaVaultViewProps {
   lang: Lang;
@@ -128,7 +129,9 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <div
-            className={`inline-flex p-1 rounded-xl border ${
+            role="group"
+            aria-label={lang === 'bn' ? 'সূত্র ভল্টের বিভাগ' : 'Formula vault views'}
+            className={`formula-view-switcher inline-flex p-1 rounded-xl border ${
               isDark
                 ? 'bg-slate-800/70 border-slate-700/70'
                 : 'bg-white border-slate-200/85 shadow-2xs'
@@ -136,6 +139,7 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
           >
             <button
               onClick={() => setViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                 viewMode === 'grid'
                   ? isDark
@@ -149,6 +153,7 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
             </button>
 
             <button
+              aria-pressed={viewMode === 'flashcard'}
               onClick={() => {
                 setViewMode('flashcard');
                 setCardIndex(0);
@@ -168,6 +173,7 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
 
             <button
               onClick={() => setViewMode('exceptions')}
+              aria-pressed={viewMode === 'exceptions'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                 viewMode === 'exceptions'
                   ? isDark
@@ -182,6 +188,7 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
 
             <button
               onClick={() => setViewMode('my_notes')}
+              aria-pressed={viewMode === 'my_notes'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                 viewMode === 'my_notes'
                   ? isDark
@@ -225,6 +232,13 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
           </button>
         </div>
       </div>
+
+      <SectorStats label={lang === 'bn' ? 'সূত্র ভল্টের সারসংক্ষেপ' : 'Formula vault overview'} items={[
+        { label: lang === 'bn' ? 'মোট সূত্র' : 'Formula cards', value: formatNum(FORMULAS.length, lang), hint: lang === 'bn' ? 'প্রস্তুত রিভিশনের জন্য' : 'Ready for revision', icon: <Layers size={19} />, tone: 'purple' },
+        { label: lang === 'bn' ? 'বুকমার্ক' : 'Bookmarked', value: formatNum(bookmarks.length, lang), hint: lang === 'bn' ? 'পরে দেখে নাও' : 'Saved for later', icon: <Bookmark size={19} />, tone: 'mint' },
+        { label: lang === 'bn' ? 'আয়ত্তে এসেছে' : 'Mastered', value: formatNum(srsMasteredIds.length, lang), hint: lang === 'bn' ? 'মনে রাখার তালিকায়' : 'Marked as mastered', icon: <Check size={19} />, tone: 'peach' },
+        { label: lang === 'bn' ? 'ব্যক্তিগত নোট' : 'Personal notes', value: formatNum(personalNotes.length, lang), hint: lang === 'bn' ? 'নিজের নোট ও সূত্র' : 'Your notes & formulas', icon: <FileText size={19} />, tone: 'blue' },
+      ]} />
 
       {/* Subject Filter & Search */}
       {viewMode !== 'my_notes' && viewMode !== 'exceptions' && (
