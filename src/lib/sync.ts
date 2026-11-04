@@ -41,6 +41,8 @@ interface QueuedOp {
   op: SyncOp;
   attempts: number;
   queuedAt: string;
+  /** Reset generation captured when this mutation was created. */
+  resetToken: string | null;
 }
 
 /** Postgres/PostgREST codes that will never succeed on retry. */
@@ -56,13 +58,67 @@ const PERMANENT_CODES = new Set([
 ]);
 
 const QUEUE_KEY = 'hsc28_sync_queue';
+const RESET_BOOT_PREFIX = 'nokkhotro_cloud_reset_boot_v1_';
+const RESET_PENDING_PREFIX = 'nokkhotro_cloud_reset_pending_v1_';
+const USER_SYNC_LOCK_PREFIX = 'nokkhotro-user-sync:';
+
+export type UserSyncLockMode = 'shared' | 'exclusive';
+
+/** Raised when a tab tries to write using the pre-reset local snapshot. */
+export class StaleSyncGenerationError extends Error {
+  constructor() {
+    super('This tab is using data from before the account reset. Reload before syncing.');
+    this.name = 'StaleSyncGenerationError';
+  }
+}
+
+function readStoredResetToken(userId: string): string | null {
+  try {
+    return localStorage.getItem(RESET_BOOT_PREFIX + userId) || '';
+  } catch {
+    return null;
+  }
+}
+
+function resetAttemptIsPending(userId: string): boolean {
+  try {
+    return localStorage.getItem(RESET_PENDING_PREFIX + userId) !== null;
+  } catch {
+    // A reset is refused when local storage is unavailable, so an inaccessible
+    // pending flag cannot be created by this app in a supported reset flow.
+    return false;
+  }
+}
+
+function assertResetCoordinationStorage(userId: string): void {
+  if (readStoredResetToken(userId) === null) {
+    throw new Error('Cross-tab-safe reset requires browser storage to be available.');
+  }
+  if (resetAttemptIsPending(userId)) {
+    throw new Error('A previous reset is still being checked. Reload and try again.');
+  }
+  const probeKey = `nokkhotro_sync_reset_probe_${Math.random().toString(36).slice(2)}`;
+  try {
+    localStorage.setItem(probeKey, '1');
+    localStorage.removeItem(probeKey);
+  } catch {
+    try { localStorage.removeItem(probeKey); } catch { /* storage remains unavailable */ }
+    throw new Error('Cross-tab-safe reset requires writable browser storage.');
+  }
+}
 
 function loadQueue(): QueuedOp[] {
   try {
     const raw = localStorage.getItem(QUEUE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as QueuedOp[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => ({
+      ...item,
+      // Queued operations from older app versions predate reset generations.
+      // An empty generation is valid only before that account has ever reset.
+      resetToken: typeof item?.resetToken === 'string' ? item.resetToken : '',
+    })) as QueuedOp[];
   } catch {
     return [];
   }
@@ -72,6 +128,7 @@ let queue: QueuedOp[] = typeof window === 'undefined' ? [] : loadQueue();
 let currentUserId: string | null = null;
 const pausedUsers = new Set<string>();
 const discardedUsers = new Set<string>();
+const observedResetTokens = new Map<string, string | null>();
 let pending = 0;
 let lastSavedAt: string | null = null;
 let lastError: string | null = null;
@@ -122,6 +179,74 @@ function persistQueue(): void {
     lastError = "Could not save the sync queue on this device.";
     publish();
   }
+}
+
+function getObservedResetToken(userId: string): string | null {
+  if (!observedResetTokens.has(userId)) {
+    observedResetTokens.set(userId, readStoredResetToken(userId));
+  }
+  return observedResetTokens.get(userId) ?? null;
+}
+
+function resetGenerationIsCurrent(userId: string, expectedToken: string | null): boolean {
+  const currentToken = readStoredResetToken(userId);
+  return currentToken !== null && !resetAttemptIsPending(userId) && currentToken === expectedToken;
+}
+
+/**
+ * Coordinate all cloud writes for one account across same-origin tabs. Shared
+ * locks allow concurrent work; a reset takes the exclusive form and therefore
+ * waits for every already-started write before touching the server.
+ */
+export async function withUserSyncLock<T>(
+  userId: string,
+  mode: UserSyncLockMode,
+  operation: () => Promise<T> | T
+): Promise<T> {
+  if (typeof window === 'undefined') return operation();
+  const lockManager = typeof navigator !== 'undefined'
+    ? (navigator as Navigator & { locks?: LockManager }).locks
+    : undefined;
+  if (!lockManager) {
+    if (mode === 'exclusive') {
+      throw new Error('This browser cannot safely coordinate a reset across tabs. Update your browser and try again.');
+    }
+    return operation();
+  }
+  return lockManager.request(
+    `${USER_SYNC_LOCK_PREFIX}${userId}`,
+    { mode },
+    () => operation()
+  );
+}
+
+/** A serialized, generation-checked write for both queued and direct RPC paths. */
+export async function withUserSyncWriteLock<T>(
+  userId: string,
+  operation: () => Promise<T> | T,
+  expectedResetToken?: string | null
+): Promise<T> {
+  const expected = expectedResetToken === undefined
+    ? getObservedResetToken(userId)
+    : expectedResetToken;
+  return withUserSyncLock(userId, 'shared', async () => {
+    if (!resetGenerationIsCurrent(userId, expected)) {
+      pauseSyncUser(userId, true);
+      throw new StaleSyncGenerationError();
+    }
+    return operation();
+  });
+}
+
+/** Exclusive reset gate. Fail closed if locks or the shared epoch store are absent. */
+export async function withExclusiveSyncUserLock<T>(
+  userId: string,
+  operation: () => Promise<T> | T
+): Promise<T> {
+  return withUserSyncLock(userId, 'exclusive', async () => {
+    assertResetCoordinationStorage(userId);
+    return operation();
+  });
 }
 
 function errorInfo(error: unknown): { permanent: boolean; message: string } {
@@ -183,13 +308,14 @@ async function runOp(op: SyncOp): Promise<{ ok: boolean; permanent: boolean; mes
   }
 }
 
-function enqueue(op: SyncOp, userId: string): void {
+function enqueue(op: SyncOp, userId: string, resetToken: string | null): void {
   queue.push({
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     userId,
     op,
     attempts: 0,
     queuedAt: new Date().toISOString(),
+    resetToken,
   });
   persistQueue();
 }
@@ -200,12 +326,16 @@ function enqueue(op: SyncOp, userId: string): void {
  */
 export async function syncWrite(op: SyncOp, userId: string | null): Promise<boolean> {
   if (!userId) return false;
-  // Wait until Cloud Vault has read any account-wide reset marker. During the
-  // reset itself, discard stale in-memory writes rather than queueing them for
-  // replay after the page reloads.
+  const resetToken = getObservedResetToken(userId);
+  // A pending reset or changed generation means this tab's in-memory data is
+  // stale. Drop its queue rather than allowing it to recreate cleared rows.
+  if (!resetGenerationIsCurrent(userId, resetToken)) {
+    pauseSyncUser(userId, true);
+    return false;
+  }
   if (discardedUsers.has(userId)) return false;
   if (pausedUsers.has(userId)) {
-    enqueue(op, userId);
+    enqueue(op, userId, resetToken);
     publish();
     return false;
   }
@@ -213,7 +343,7 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
   // Preserve ordering: an older queued or in-flight mutation must never be
   // replayed after a newer write to the same record.
   if (pending > 0 || flushing || queue.some((item) => item.userId === userId)) {
-    enqueue(op, userId);
+    enqueue(op, userId, resetToken);
     publish();
     if (!pending && !flushing && userId === currentUserId) void flushSyncQueue();
     return false;
@@ -221,7 +351,17 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
   pending += 1;
   publish();
 
-  const result = await runOp(op);
+  let result: { ok: boolean; permanent: boolean; message: string };
+  try {
+    result = await withUserSyncWriteLock(userId, () => runOp(op), resetToken);
+  } catch (error) {
+    if (error instanceof StaleSyncGenerationError) {
+      pending -= 1;
+      publish();
+      return false;
+    }
+    result = { ok: false, permanent: false, message: String((error as Error)?.message || error) };
+  }
   pending -= 1;
 
   if (result.ok) {
@@ -233,30 +373,55 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
 
   // Even permanent errors must not discard the student's work.
   if (result.permanent) lastError = result.message;
-  enqueue(op, userId);
+  enqueue(op, userId, resetToken);
   publish();
   return false;
 }
 
 /** Replays queued writes for the active user, oldest first. */
 export async function flushSyncQueue(): Promise<void> {
+  const userId = currentUserId;
+  if (!userId) return;
+  const resetToken = getObservedResetToken(userId);
+  if (!resetGenerationIsCurrent(userId, resetToken)) {
+    pauseSyncUser(userId, true);
+    return;
+  }
   if (
     flushing ||
     pending > 0 ||
-    !currentUserId ||
-    pausedUsers.has(currentUserId) ||
-    discardedUsers.has(currentUserId)
+    pausedUsers.has(userId) ||
+    discardedUsers.has(userId)
   ) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
   flushing = true;
   let failed = false;
   try {
-    const userId = currentUserId;
     const mine = queue.filter((q) => q.userId === userId);
 
     for (const item of mine) {
-      const result = await runOp(item.op);
+      if (item.resetToken !== resetToken || !resetGenerationIsCurrent(userId, item.resetToken)) {
+        pauseSyncUser(userId, true);
+        failed = true;
+        break;
+      }
+
+      let result: { ok: boolean; permanent: boolean; message: string };
+      try {
+        result = await withUserSyncWriteLock(
+          userId,
+          () => runOp(item.op),
+          item.resetToken
+        );
+      } catch (error) {
+        if (error instanceof StaleSyncGenerationError) {
+          failed = true;
+          break;
+        }
+        result = { ok: false, permanent: false, message: String((error as Error)?.message || error) };
+      }
+
       if (result.ok) {
         queue = queue.filter((q) => q.key !== item.key);
         lastSavedAt = new Date().toISOString();
@@ -293,7 +458,16 @@ export function setSyncUser(userId: string | null): void {
     lastError = null;
     publish();
   }
-  if (userId) void flushSyncQueue();
+  if (userId) {
+    if (changed || !observedResetTokens.has(userId)) {
+      observedResetTokens.set(userId, readStoredResetToken(userId));
+    }
+    if (resetAttemptIsPending(userId)) {
+      pauseSyncUser(userId, true);
+      return;
+    }
+    void flushSyncQueue();
+  }
 }
 
 /** Drops queued writes for a specific account, preserving other accounts' work. */
@@ -321,6 +495,10 @@ export function pauseSyncUser(userId: string, discardQueued = false): void {
 
 /** Resume queued writes after a successful cloud reconciliation. */
 export function resumeSyncUser(userId: string): void {
+  if (resetAttemptIsPending(userId)) {
+    pauseSyncUser(userId, true);
+    return;
+  }
   pausedUsers.delete(userId);
   discardedUsers.delete(userId);
   publish();
@@ -341,12 +519,30 @@ export function useSyncStatus(): SyncSnapshot {
 }
 
 let networkHooked = false;
-/** Retries on reconnect. Safe to call repeatedly. */
+/** Retries on reconnect and observes queue changes made by sibling tabs. */
 export function initSyncNetworkWatcher(): void {
   if (networkHooked || typeof window === 'undefined') return;
   networkHooked = true;
   window.addEventListener('online', () => {
     void flushSyncQueue();
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key === QUEUE_KEY) {
+      queue = loadQueue();
+      publish();
+      return;
+    }
+    const resetUserId = event.key?.startsWith(RESET_PENDING_PREFIX)
+      ? event.key.slice(RESET_PENDING_PREFIX.length)
+      : event.key?.startsWith(RESET_BOOT_PREFIX)
+        ? event.key.slice(RESET_BOOT_PREFIX.length)
+        : null;
+    if (
+      resetUserId && resetUserId === currentUserId &&
+      !resetGenerationIsCurrent(resetUserId, getObservedResetToken(resetUserId))
+    ) {
+      pauseSyncUser(resetUserId, true);
+    }
   });
   window.setInterval(() => {
     if (navigator.onLine !== false && currentUserId) void flushSyncQueue();

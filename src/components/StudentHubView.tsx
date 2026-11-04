@@ -16,7 +16,7 @@ import {
   SubjectKey,
   Theme,
 } from '../types';
-import { syncWrite } from '../lib/sync';
+import { syncWrite, withUserSyncWriteLock } from '../lib/sync';
 import {
   CONCEPT_QA_CARDS,
   HSC28_NOTICES,
@@ -608,9 +608,11 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                         void (async () => {
                           try {
                             const client = await getSupabase();
-                            const { data, error } = await client.rpc(
-                              'hsc28_upvote_doubt',
-                              { p_doubt_id: d.id }
+                            const { data, error } = await withUserSyncWriteLock(authUserId, async () =>
+                              await client.rpc(
+                                'hsc28_upvote_doubt',
+                                { p_doubt_id: d.id }
+                              )
                             );
                             if (!error && typeof data === 'number') {
                               setDoubts((prev) =>
