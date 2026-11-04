@@ -87,6 +87,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
       chemistry: gpOf('chemistry'),
       math: gpOf('math'),
       biology: gpOf('biology'),
+      english: gpOf('english'),
     },
     group: 'science',
   });
@@ -358,8 +359,8 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
           >
             <h3 className="text-xs font-mono uppercase tracking-wider font-bold opacity-70">
               {lang === 'bn'
-                ? 'সম্ভাব্য ভর্তি পরীক্ষা যোগ্যতা বিশ্লেষণ'
-                : 'ADMISSION BENCHMARK CHECK'}
+                ? 'ভর্তি GPA শর্তের প্রাথমিক যাচাই (চূড়ান্ত যোগ্যতা নয়)'
+                : 'ADMISSION GPA SCREEN (NOT FINAL ELIGIBILITY)'}
             </h3>
 
             {/* Eligibility is combined SSC + HSC, so SSC has to be an input */}
@@ -369,7 +370,7 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
               }`}
             >
               <label className="flex items-center justify-between gap-2 text-[11px] font-bold">
-                <span>{lang === 'bn' ? 'SSC-র মোট GPA (৫.০০-এর মধ্যে)' : 'SSC combined GPA (out of 5.00)'}</span>
+                <span>{lang === 'bn' ? 'SSC GPA (৫.০০-এর মধ্যে)' : 'SSC GPA (out of 5.00)'}</span>
                 <span className="font-mono text-sm tabular-nums">
                   {formatNum(sscGpa.toFixed(2), lang)}
                 </span>
@@ -447,8 +448,8 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
 
             <p className="text-[10px] leading-relaxed opacity-55">
               {lang === 'bn'
-                ? `শর্তগুলো প্রকাশিত ২০২৬ সালের বিজ্ঞপ্তি অনুযায়ী (${ELIGIBILITY_VERIFIED_ON}); চূড়ান্ত যোগ্যতা অবশ্যই সংশ্লিষ্ট ওয়েবসাইটে যাচাই করুন।`
-                : `Rules follow the published 2026 circulars (${ELIGIBILITY_VERIFIED_ON}); always confirm the final criteria on the official site.`}
+                ? `সর্বশেষ প্রকাশিত GPA শর্ত যাচাই: ${ELIGIBILITY_VERIFIED_ON}। পাসের বছর, shortlist, quota ও বিভাগভিত্তিক সব শর্ত এই ক্যালকুলেটর যাচাই করে না; আবেদন করার আগে লক্ষ্য বিশ্ববিদ্যালয়ের নতুন সরকারি বিজ্ঞপ্তি দেখুন।`
+                : `Latest published GPA rules checked ${ELIGIBILITY_VERIFIED_ON}. This calculator does not check pass years, shortlisting, quotas or every department-specific rule; confirm the target university's current official circular before applying.`}
             </p>
           </div>
         </div>

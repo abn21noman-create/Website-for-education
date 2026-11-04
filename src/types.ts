@@ -31,6 +31,9 @@ export type SubjectKey =
   | 'bangla'
   | 'english';
 
+/** MCQ papers also include admission-only sections that are not HSC subjects. */
+export type McqSectionKey = SubjectKey | 'medical-gk';
+
 export interface BilingualText {
   bn: string;
   en: string;
@@ -104,7 +107,7 @@ export interface PersonalNote {
 
 export interface McqQuestion {
   id: string;
-  subjectKey: SubjectKey;
+  subjectKey: McqSectionKey;
   chapter: BilingualText;
   question: BilingualText;
   options: [BilingualText, BilingualText, BilingualText, BilingualText];

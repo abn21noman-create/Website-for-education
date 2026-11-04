@@ -52,8 +52,9 @@ export interface DrillBankConfig {
 /**
  * The quick-drill banks.
  *
- * Two very different subjects share one engine: GK for the medical paper's 10
- * marks and English grammar for both the HSC paper and the medical test. Adding
+ * Two very different subjects share one engine: GK practice for one part of
+ * the medical paper's 15-mark GK/aptitude/human-qualities section, and English
+ * grammar for both the HSC paper and the medical test. Adding
  * a third bank is data-only — the screen is generated from this array.
  */
 export const DRILL_BANKS: DrillBankConfig[] = [
@@ -61,14 +62,14 @@ export const DRILL_BANKS: DrillBankConfig[] = [
     key: 'gk',
     tabBn: 'সাধারণ জ্ঞান',
     tabEn: 'General Knowledge',
-    kickerBn: 'মেডিকেল প্রস্তুতি • ১০ নম্বর',
-    kickerEn: 'MEDICAL PREP • 10 MARKS',
+    kickerBn: 'মেডিকেল প্রস্তুতি • ১৫ নম্বর',
+    kickerEn: 'MEDICAL PREP • 15 MARKS',
     titleBn: 'সাধারণ জ্ঞান ড্রিল',
     titleEn: 'General Knowledge Drill',
     subtitleBn:
-      'MBBS ভর্তি পরীক্ষার ১০টি GK প্রশ্নের জন্য — {n}টি যাচাইযোগ্য তথ্যভিত্তিক প্রশ্ন, প্রতিটির ব্যাখ্যাসহ।',
+      'MBBS-এর GK/aptitude/human qualities-এর ১৫ নম্বর অংশ অনুশীলনে {n}টি তথ্যভিত্তিক প্রশ্ন; পুরো অংশের বিকল্প নয়।',
     subtitleEn:
-      '{n} fact-based questions with explanations, built for the 10 GK marks in the MBBS test.',
+      '{n} fact-based practice questions for the 15-mark MBBS GK/aptitude/human qualities section; they do not cover the whole section.',
     categories: GK_CATEGORIES,
     questions: GK_QUESTIONS,
     roundSize: GK_RAPID_ROUND_SIZE,
@@ -76,9 +77,9 @@ export const DRILL_BANKS: DrillBankConfig[] = [
     whyTitleBn: 'কেন আলাদা ড্রিল?',
     whyTitleEn: 'Why a separate drill?',
     whyBn:
-      'HSC-র ১১টি পত্রে সাধারণ জ্ঞান নেই, কিন্তু MBBS-তে ১০ নম্বর আসে এখান থেকে। এখানে তাই শুধু স্থায়ী তথ্য আছে — তারিখ, প্রতিষ্ঠাতা, স্থান, ধ্রুবক — যেগুলো প্রতিদিন বদলায় না।',
+      'HSC-র ১১টি পত্রে সাধারণ জ্ঞান নেই, কিন্তু সর্বশেষ ২০২৫–২৬ MBBS পরীক্ষায় GK/aptitude/human qualities মিলিয়ে ১৫ নম্বর ছিল। এই ড্রিলে শুধু স্থায়ী তথ্য আছে — তারিখ, প্রতিষ্ঠাতা, স্থান, ধ্রুবক — তাই এটি পুরো অংশের বিকল্প নয়।',
     whyEn:
-      'No HSC paper covers GK, yet it carries 10 marks in the MBBS test. Only durable facts live here — dates, founders, places, constants — so they do not go stale.',
+      'No HSC paper covers GK, while the latest published 2025–26 MBBS test assigned 15 marks to GK, aptitude and human qualities. This drill covers durable facts only — dates, founders, places and constants — so it is not a substitute for the whole section.',
   },
   {
     key: 'english',

@@ -10,6 +10,7 @@
  * Run with: node scripts/smoke-test.mjs
  */
 import { JSDOM } from 'jsdom';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 
 const routes = [
@@ -63,6 +64,7 @@ global.window = window;
 global.document = window.document;
 Object.defineProperty(global, 'navigator', { value: window.navigator, configurable: true });
 global.localStorage = window.localStorage;
+global.Storage = window.Storage;
 global.HTMLElement = window.HTMLElement;
 global.Node = window.Node;
 global.Event = window.Event;
@@ -121,7 +123,7 @@ for (const route of routes) {
       // Screen-specific surfaces added with the exam-pattern / eligibility work.
       const expectations = {
         mcq: ['HSC বোর্ড প্যাটার্ন', 'মেডিকেল (১০০ MCQ)', 'মিশ্র প্র্যাকটিস'],
-        gpa: ['SSC-র মোট GPA', 'সরকারি মেডিকেল'],
+        gpa: ['SSC GPA (৫.০০-এর মধ্যে)', 'মেডিকেল ও ডেন্টাল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
         life: ['রিমাইন্ডার'],
         routine: ['৩৯১', 'রুটিন'],
@@ -598,6 +600,7 @@ const mistakeTags = await vite.ssrLoadModule('/src/lib/mistakeTags.ts');
 const reminders = await vite.ssrLoadModule('/src/lib/reminders.ts');
 const mcqBank = await vite.ssrLoadModule('/src/data/mcqBank.ts');
 const allQuestions = await mcqBank.loadAllMcq();
+const allExamQuestions = await mcqBank.loadAllExamQuestions();
 
 const check = (ok, label, detail = '') => {
   console.log(ok ? `✓ ${label}` : `✗ ${label}${detail ? ` — ${detail}` : ''}`);
@@ -670,9 +673,24 @@ check(
 const patterns = await vite.ssrLoadModule('/src/lib/examPatterns.ts');
 const medical = patterns.getPatternById('medical-mbbs');
 check(
-  patterns.patternTimeFor(medical, 10) === 360,
-  'medical paper keeps the real 36s/question pace',
+  patterns.patternTimeFor(medical, 10) === 450 && medical.paperMinutes === 75,
+  'medical paper keeps the latest 45s/question pace (75 minutes total)',
   String(patterns.patternTimeFor(medical, 10))
+);
+check(
+  Object.values(medical.weights).reduce((sum, weight) => sum + weight, 0) === 100 &&
+    medical.weights['medical-gk'] === 15 &&
+    !('ict' in medical.weights) &&
+    medical.simulationOnly &&
+    /separate GK practice bank/i.test(medical.note.en),
+  'medical pattern keeps 30/25/15/15/15 weights and uses GK practice content, not ICT',
+  `${JSON.stringify(medical.weights)} / simulationOnly=${medical.simulationOnly}`
+);
+const buetPractice = patterns.getPatternById('buet-preli');
+check(
+  buetPractice.simulationOnly && !buetPractice.negativeMarking && /no MCQ preliminary/i.test(buetPractice.note.en),
+  'BUET MCQ pattern is clearly marked as practice-only, not the actual 2025–26 written format',
+  `${buetPractice.name.en} / ${buetPractice.note.en}`
 );
 
 const scored = patterns.scoreForPattern(medical, 8, 2, 10);
@@ -685,13 +703,146 @@ check(
 const boardScored = patterns.scoreForPattern(patterns.getPatternById('hsc-board'), 7, 3, 10);
 check(boardScored.score === 7, 'HSC board pattern never deducts', JSON.stringify(boardScored));
 
-const medicalPick = patterns.pickPatternQuestions(allQuestions, medical, 20);
+const medicalPick = patterns.pickPatternQuestions(allExamQuestions, medical, 20);
 const pickedSubjects = new Set(medicalPick.map((q) => q.subjectKey));
 check(
   medicalPick.length === 20 && pickedSubjects.size >= 3,
-  'medical paper draws from several subjects by weight',
-  `${medicalPick.length} questions / ${pickedSubjects.size} subjects`
+  'medical paper draws from several subjects and the GK section by weight',
+  `${medicalPick.length} questions / ${pickedSubjects.size} sections`
 );
+const fullMedicalPaper = patterns.pickPatternQuestions(allExamQuestions, medical, 100);
+const pickedMedicalGk = fullMedicalPaper.filter((q) => q.subjectKey === 'medical-gk');
+check(
+  fullMedicalPaper.length === 100 &&
+    pickedMedicalGk.length === 15 &&
+    fullMedicalPaper.every((q) => q.subjectKey !== 'ict'),
+  'a full medical mock draws 15 actual GK-bank questions and no ICT placeholders',
+  `${fullMedicalPaper.length} questions / ${pickedMedicalGk.length} GK / ${fullMedicalPaper.filter((q) => q.subjectKey === 'ict').length} ICT`
+);
+
+// Exercise the actual MCQ setup → paper → result UI, then the routine's GK
+// mistake-review button → targeted MCQ drill. The callbacks are local to jsdom.
+const { McqExamView } = await vite.ssrLoadModule('/src/components/McqExamView.tsx');
+const { MasterRoutineView } = await vite.ssrLoadModule('/src/components/MasterRoutineView.tsx');
+const findButton = (needle) =>
+  Array.from(container.querySelectorAll('button')).find((button) =>
+    (button.textContent || '').includes(needle)
+  );
+const waitForUi = (milliseconds = 400) =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+const medicalGkIds = new Set(mcqBank.MEDICAL_GK_MCQ.map((question) => question.id));
+let reportedMedicalMistakes = [];
+let completedMedicalAttempt = null;
+window.localStorage.removeItem('hsc28_chapter_drill_v1');
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(
+  React.createElement(McqExamView, {
+    lang: 'bn',
+    theme: 'light',
+    quizHistory: [],
+    mistakeIds: [],
+    onUpdateMistakeIds: (addIds) => { reportedMedicalMistakes = addIds; },
+    onCompleteQuiz: (attempt) => { completedMedicalAttempt = attempt; },
+  })
+);
+await waitForUi(700);
+const medicalPatternButton = findButton('মেডিকেল (১০০ MCQ)');
+medicalPatternButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(300);
+const medicalSetupText = container.textContent || '';
+check(
+  Boolean(medicalPatternButton) &&
+    medicalSetupText.includes('GK/অ্যাপটিটিউড') &&
+    medicalSetupText.includes('আলাদা GK অনুশীলনী ব্যাংক'),
+  'the medical setup UI names its real GK section and its practice-bank caveat'
+);
+const startMedicalButton = findButton('পরীক্ষা শুরু করুন');
+const medicalCanStart = Boolean(startMedicalButton && !startMedicalButton.disabled);
+startMedicalButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(700);
+const runningMedicalGkBadges = Array.from(container.querySelectorAll('span')).filter((span) =>
+  (span.textContent || '').trim().startsWith('মেডিকেল GK •')
+);
+check(
+  medicalCanStart &&
+    container.querySelectorAll('h3').length === 100 &&
+    runningMedicalGkBadges.length === 15,
+  'the live MCQ UI starts 100 questions and visibly labels exactly 15 as GK',
+  `${container.querySelectorAll('h3').length} questions / ${runningMedicalGkBadges.length} GK badges`
+);
+const submitMedicalButton = findButton('উত্তরপত্র জমা দিন');
+submitMedicalButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(900);
+const reviewedMedicalText = container.textContent || '';
+const reportedGkMistakes = reportedMedicalMistakes.filter((id) => medicalGkIds.has(id));
+check(
+  Boolean(submitMedicalButton) &&
+    reviewedMedicalText.includes('মেডিকেল ভর্তি অনুশীলন') &&
+    reportedMedicalMistakes.length === 100 &&
+    reportedGkMistakes.length === 15 &&
+    completedMedicalAttempt?.totalQuestions === 100,
+  'the medical answer review and skipped-question bank retain the GK section labels and IDs',
+  `${reportedMedicalMistakes.length} GK mistake IDs`
+);
+
+root.unmount();
+container.innerHTML = '';
+const reviewGkQuestion = mcqBank.MEDICAL_GK_MCQ[0];
+let routineMockOpens = 0;
+root = createRoot(container);
+root.render(
+  React.createElement(MasterRoutineView, {
+    lang: 'bn',
+    theme: 'light',
+    mistakeIds: [reviewGkQuestion.id],
+    quizHistory: [],
+    onOpenMock: () => { routineMockOpens += 1; },
+  })
+);
+await waitForUi(900);
+const routineGkText = container.textContent || '';
+check(
+  routineGkText.includes('GK/অ্যাপটিটিউড') && routineGkText.includes('ভর্তি অংশ'),
+  'the routine mistake report labels GK as an admission section, not ICT'
+);
+const routineGkDrillButton = findButton('১টি GK');
+routineGkDrillButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(100);
+const gkDrillRequest = JSON.parse(window.localStorage.getItem('hsc28_chapter_drill_v1') || 'null');
+check(
+  Boolean(routineGkDrillButton) &&
+    routineMockOpens === 1 &&
+    gkDrillRequest?.questionIds?.[0] === reviewGkQuestion.id &&
+    !gkDrillRequest?.subjectKey,
+  'a GK mistake-review button requests a targeted admission-section drill'
+);
+
+root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(
+  React.createElement(McqExamView, {
+    lang: 'bn',
+    theme: 'light',
+    quizHistory: [],
+    mistakeIds: [],
+    onUpdateMistakeIds: () => {},
+    onCompleteQuiz: () => {},
+  })
+);
+await waitForUi(900);
+const targetedGkText = container.textContent || '';
+check(
+  container.querySelectorAll('h3').length === 1 &&
+    targetedGkText.includes(reviewGkQuestion.question.bn) &&
+    targetedGkText.includes('মেডিকেল GK •') &&
+    window.localStorage.getItem('hsc28_chapter_drill_v1') === null,
+  'the targeted routine review opens the exact GK question in the MCQ UI and consumes the request'
+);
+root.unmount();
+container.innerHTML = '';
 
 const fullMock = patterns.pickPatternQuestions(
   allQuestions,
@@ -719,35 +870,90 @@ check(
 const ideal = eligibility.evaluateEligibility({
   sscGpa: 5,
   hscGpa: 5,
-  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5 },
+  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5, english: 5 },
   group: 'science',
 });
-check(ideal.every((r) => r.ok), 'a 5.00 student matches every track');
+check(ideal.length === 6 && ideal.every((r) => r.ok), 'a 5.00 science student matches each modeled GPA screen');
 
 const weakBiology = eligibility.evaluateEligibility({
   sscGpa: 5,
   hscGpa: 4.29,
-  subjectGps: { physics: 5, chemistry: 4, math: 5, biology: 3.5 },
+  subjectGps: { physics: 5, chemistry: 4, math: 5, biology: 3.49, english: 5 },
   group: 'science',
 });
 const medicalRule = weakBiology.find((r) => r.id === 'medical');
 check(
   !medicalRule.ok && medicalRule.missing.some((m) => m.bn.includes('জীববিজ্ঞান')),
-  'medical rules name the biology gap',
+  'medical GPA screen catches Biology below 3.50',
   medicalRule.missing.map((m) => m.bn).join(' | ')
 );
+for (const [subject, label] of [['physics', 'Physics'], ['chemistry', 'Chemistry']]) {
+  const subjectShortfall = eligibility.evaluateEligibility({
+    sscGpa: 5,
+    hscGpa: 5,
+    subjectGps: {
+      physics: subject === 'physics' ? 3.49 : 5,
+      chemistry: subject === 'chemistry' ? 3.49 : 5,
+      math: 5,
+      biology: 5,
+      english: 5,
+    },
+    group: 'science',
+  }).find((r) => r.id === 'medical');
+  check(
+    !subjectShortfall.ok && subjectShortfall.missing.some((m) => m.en.includes(label)),
+    `medical GPA screen catches ${label} below the 3.50 subject floor`,
+    subjectShortfall.missing.map((m) => m.en).join(' | ')
+  );
+}
 
 const weakCombined = eligibility.evaluateEligibility({
-  sscGpa: 4.5,
+  sscGpa: 4.49,
   hscGpa: 4,
-  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5 },
+  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5, english: 5 },
   group: 'science',
 });
 const combinedRule = weakCombined.find((r) => r.id === 'medical');
 check(
-  !combinedRule.ok && combinedRule.missing.some((m) => m.bn.includes('৯.০০')),
-  'combined SSC+HSC shortfall is explained',
+  !combinedRule.ok && combinedRule.missing.some((m) => m.bn.includes('৮.৫০')),
+  'combined SSC+HSC below the latest 8.50 threshold is explained',
   combinedRule.missing.map((m) => m.bn).join(' | ')
+);
+
+const medicalFloorPass = eligibility.evaluateEligibility({
+  sscGpa: 4,
+  hscGpa: 4.5,
+  subjectGps: { physics: 4, chemistry: 4, math: 4, biology: 3.5, english: 3 },
+  group: 'science',
+});
+check(
+  medicalFloorPass.find((r) => r.id === 'medical').ok,
+  'medical GPA screen accepts combined 8.50 with each GPA 4.00 and Biology 3.50'
+);
+
+const variedEngineering = eligibility.evaluateEligibility({
+  sscGpa: 4,
+  hscGpa: 3.5,
+  subjectGps: { physics: 5, chemistry: 5, math: 4, biology: 3, english: 3 },
+  group: 'science',
+});
+check(
+  variedEngineering.find((r) => r.id === 'cuet').ok &&
+    !variedEngineering.find((r) => r.id === 'kuet').ok &&
+    variedEngineering.find((r) => r.id === 'ruet').ok,
+  'CUET, KUET and RUET apply their distinct 2025–26 subject GPA rules (not a shared combined-8 rule)',
+  variedEngineering.map((r) => `${r.id}=${r.ok}`).join(', ')
+);
+
+const missingSsc = eligibility.evaluateEligibility({
+  sscGpa: 3.99,
+  hscGpa: 5,
+  subjectGps: { physics: 5, chemistry: 5, math: 5, biology: 5, english: 5 },
+  group: 'science',
+});
+check(
+  ['buet', 'cuet', 'kuet', 'ruet'].every((id) => !missingSsc.find((r) => r.id === id).ok),
+  'all modeled engineering screens reject SSC GPA below 4.00'
 );
 
 const routine = await vite.ssrLoadModule('/src/lib/masterRoutine.ts');
@@ -1034,10 +1240,10 @@ const syllabus = await vite.ssrLoadModule('/src/data/syllabusData.ts');
 
 check(
   trackProgress.ADMISSION_TRACKS.length === 3 &&
-    trackProgress.ADMISSION_TRACKS.every(
-      (track) => Math.abs(track.subjects.reduce((sum, s) => sum + s.weight, 0) - 1) < 1e-6
-    ),
-  'each admission track weights exactly 100% of its syllabus'
+    Math.abs(trackProgress.ADMISSION_TRACKS.find((track) => track.key === 'engineering').subjects.reduce((sum, s) => sum + s.weight, 0) - 1) < 1e-6 &&
+    Math.abs(trackProgress.ADMISSION_TRACKS.find((track) => track.key === 'varsity').subjects.reduce((sum, s) => sum + s.weight, 0) - 1) < 1e-6 &&
+    Math.abs(trackProgress.ADMISSION_TRACKS.find((track) => track.key === 'medical').subjects.reduce((sum, s) => sum + s.weight, 0) - 0.85) < 1e-6,
+  'engineering/varsity weights cover 100%; medical tracks only its 85% of HSC subjects (GK is separate)'
 );
 check(
   trackProgress.ADMISSION_TRACKS.every(
@@ -1148,6 +1354,35 @@ check(
   focusAfterBiology.subjectKey
 );
 
+const mistakeBank = await vite.ssrLoadModule('/src/lib/mistakeBank.ts');
+const attemptClassification = mistakeBank.classifyMistakeAttempt(
+  [
+    { id: 'attempt-correct', correctIndex: 1 },
+    { id: 'attempt-wrong', correctIndex: 1 },
+    { id: 'attempt-skipped', correctIndex: 1 },
+  ],
+  { 'attempt-correct': 1, 'attempt-wrong': 0 },
+  ['attempt-correct', 'attempt-wrong', 'attempt-skipped']
+);
+check(
+  attemptClassification.correctIds.length === 1 &&
+    attemptClassification.wrongIds.length === 1 &&
+    attemptClassification.skippedIds.length === 1 &&
+    attemptClassification.addIds.includes('attempt-wrong') &&
+    attemptClassification.addIds.includes('attempt-skipped') &&
+    attemptClassification.removeIds.length === 1 &&
+    attemptClassification.removeIds[0] === 'attempt-correct',
+  'wrong and skipped MCQs stay in the mistake bank; only a correct answer clears one'
+);
+const stillSkipped = mistakeBank.classifyMistakeAttempt(
+  [{ id: 'attempt-skipped', correctIndex: 1 }],
+  {},
+  ['attempt-skipped']
+);
+check(
+  stillSkipped.skippedIds[0] === 'attempt-skipped' && stillSkipped.removeIds.length === 0,
+  'skipping an existing mistake again does not clear it or count it as a wrong answer'
+);
 const mistakeLoop = await vite.ssrLoadModule('/src/lib/mistakeLoop.ts');
 const bioBank = (await vite.ssrLoadModule('/src/data/mcq/biology1.ts')).default;
 
@@ -1157,7 +1392,7 @@ const firstBioChapter = syllabus.CHAPTERS.find(
 );
 check(
   Boolean(firstBioChapter) && firstBioChapter.subjectKey === 'biology1',
-  'a wrongly answered question maps back to a real syllabus chapter',
+  'a missed question maps back to a real syllabus chapter',
   firstBio.id
 );
 
@@ -1169,8 +1404,8 @@ const grouped = mistakeLoop.mistakesByChapter(
   bioBank
 );
 check(
-  grouped.length === 1 && grouped[0].wrongCount === 2,
-  'two wrong answers from the same chapter collapse into one row'
+  grouped.length === 1 && grouped[0].missedCount === 2,
+  'two missed MCQs from the same chapter collapse into one row'
 );
 check(
   mistakeLoop.mistakesByChapter([], bioBank).length === 0,
@@ -1193,10 +1428,10 @@ const mistakeSuggestion = mistakeLoop.mainBlockSuggestion(
 );
 check(
   mistakeSuggestion.reason === 'mistakes' &&
-    mistakeSuggestion.wrongCount === 1 &&
+    mistakeSuggestion.missedCount === 1 &&
     mistakeSuggestion.chapterBn === firstBio.chapter.bn &&
     mistakeSuggestion.titleBn.includes(firstBio.chapter.bn),
-  'a wrong mock answer moves that chapter into the daily main block',
+  'a wrong or skipped MCQ moves that chapter into the daily main block',
   mistakeSuggestion.chapterBn
 );
 const physicsBank = (await vite.ssrLoadModule('/src/data/mcq/physics1.ts')).default;
@@ -1207,7 +1442,7 @@ const otherPaper = mistakeLoop.mainBlockSuggestion(
   [...bioBank, ...physicsBank]
 );
 check(
-  otherPaper.reason === 'gap' && otherPaper.wrongCount === 0,
+  otherPaper.reason === 'gap' && otherPaper.missedCount === 0,
   'mistakes in another paper do not hijack the medical block'
 );
 
@@ -1219,16 +1454,16 @@ const reportIds = [
 ];
 const report = mistakeLoop.mistakeReport(reportIds, [...bioBank, ...physicsBank], {});
 check(
-  report.totalWrong === reportIds.length &&
+  report.totalMissed === reportIds.length &&
     report.chapters.length === 2 &&
     report.chapters[0].repeated &&
-    report.papers.reduce((sum, paper) => sum + paper.count, 0) === report.totalWrong,
+    report.papers.reduce((sum, paper) => sum + paper.count, 0) === report.totalMissed,
   'the mistake report groups ids per chapter and per paper',
-  `${report.totalWrong} wrong / ${report.chapters.length} chapters`
+  `${report.totalMissed} missed / ${report.chapters.length} chapters`
 );
 const emptyReport = mistakeLoop.mistakeReport([], bioBank, {});
 check(
-  emptyReport.totalWrong === 0 &&
+  emptyReport.totalMissed === 0 &&
     emptyReport.chapters.length === 0 &&
     emptyReport.adviceBn.length > 0,
   'an empty mistake bank still explains where to start'
@@ -1561,6 +1796,24 @@ check(
   gkBank.GK_QUESTIONS.every((item) => item.options.length === 4 && item.options[item.correctIndex]),
   'every GK question has four options and a valid answer index'
 );
+const mappedGkQuestions = allExamQuestions.filter((item) => item.subjectKey === 'medical-gk');
+check(
+  mappedGkQuestions.length === gkBank.GK_QUESTIONS.length &&
+    mappedGkQuestions.every((item) => gkIds.includes(item.id) && item.options.length === 4),
+  'the medical exam bank maps every separate GK question without re-labeling it as ICT',
+  `${mappedGkQuestions.length} mapped questions`
+);
+const gkMistakeReport = mistakeLoop.mistakeReport(
+  [mappedGkQuestions[0]?.id].filter(Boolean),
+  mappedGkQuestions,
+  {}
+);
+check(
+  gkMistakeReport.chapters.length === 1 &&
+    gkMistakeReport.chapters[0].subjectKey === 'medical-gk' &&
+    gkMistakeReport.chapters[0].questionIds[0] === mappedGkQuestions[0]?.id,
+  'medical GK mistakes stay in their own section and can be targeted for review'
+);
 
 const englishBank = await vite.ssrLoadModule('/src/data/englishDrillBank.ts');
 const englishIds = englishBank.ENGLISH_DRILL_QUESTIONS.map((item) => item.id);
@@ -1679,8 +1932,9 @@ check(
   typeof vault.startCloudVault === 'function' &&
     typeof vault.pullFromCloud === 'function' &&
     typeof vault.flushVault === 'function' &&
-    typeof vault.takeRestoreNotice === 'function',
-  'the cloud vault exposes start, pull, flush and restore-notice'
+    typeof vault.takeRestoreNotice === 'function' &&
+    typeof vault.applyCloudResetLocally === 'function',
+  'the cloud vault exposes start, pull, flush, reset and restore-notice'
 );
 
 const restoreDecision = (over) =>
@@ -1730,6 +1984,231 @@ check(
 check(
   localStorage.getItem('hsc28_master_routine_v1') === JSON.stringify({ phase: 1, day: 1 }),
   'guest study data stays on the device and is never dropped'
+);
+
+const beforeResetStorage = Object.fromEntries(Array.from(
+  { length: localStorage.length },
+  (_, i) => { const key = localStorage.key(i); return [key, localStorage.getItem(key)]; }
+));
+localStorage.clear();
+localStorage.setItem('hsc28_profile', JSON.stringify({ xp: 999, bookmarks: ['old'] }));
+localStorage.setItem('hsc28_tasks', JSON.stringify([{ id: 'stale-task' }]));
+localStorage.setItem('nokkhotro_local_space_v1_reset-user', JSON.stringify({ hsc28_profile: 'stale' }));
+const resetBooted = vault.applyCloudResetLocally('reset-user', 'reset-token-1');
+check(
+  !resetBooted && !localStorage.getItem('hsc28_profile') && !localStorage.getItem('hsc28_tasks') &&
+    !localStorage.getItem('nokkhotro_local_space_v1_reset-user') &&
+    localStorage.getItem('hsc28_vault_meta')?.includes('reset-token-1') &&
+    localStorage.getItem('nokkhotro_cloud_reset_boot_v1_reset-user') === 'reset-token-1',
+  'a cloud reset clears stale local data and records a clean account boot token'
+);
+check(
+  vault.applyCloudResetLocally('reset-user', 'reset-token-1') === true &&
+    vault.applyCloudResetLocally('reset-user', 'reset-token-2') === false,
+  'a repeated reset token is stable, while a newer clear requires a fresh boot'
+);
+localStorage.clear();
+for (const [key, value] of Object.entries(beforeResetStorage)) if (value !== null) localStorage.setItem(key, value);
+
+const sync = await vite.ssrLoadModule('/src/lib/sync.ts');
+const queuedTestOp = { op: 'upsert', table: 'hsc28_test', payload: { id: 'test' }, onConflict: 'id' };
+sync.pauseSyncUser('queue-test-a');
+sync.pauseSyncUser('queue-test-b');
+await sync.syncWrite(queuedTestOp, 'queue-test-a');
+await sync.syncWrite(queuedTestOp, 'queue-test-b');
+sync.clearSyncQueueForUser('queue-test-a');
+let parkedQueue = JSON.parse(localStorage.getItem('hsc28_sync_queue') || '[]');
+check(
+  parkedQueue.length === 1 && parkedQueue[0].userId === 'queue-test-b',
+  'account reset removes only that account’s queued writes'
+);
+sync.pauseSyncUser('queue-test-b', true);
+await sync.syncWrite(queuedTestOp, 'queue-test-b');
+parkedQueue = JSON.parse(localStorage.getItem('hsc28_sync_queue') || '[]');
+check(parkedQueue.length === 0, 'stale writes are discarded while a reset reload is pending');
+sync.resumeSyncUser('queue-test-a');
+sync.resumeSyncUser('queue-test-b');
+
+// Exercise the reset/RPC boundary with a deferred network response. The final
+// preflight is followed by a local write barrier, so no new operation may be
+// queued while the reset transaction is in flight; another account's queue is
+// preserved, and a duplicate reset for the same owner is rejected.
+const studyDataReset = await vite.ssrLoadModule('/src/lib/studyDataReset.ts');
+sync.pauseSyncUser('reset-other-user');
+await sync.syncWrite(queuedTestOp, 'reset-other-user');
+const resetOrder = [];
+let resolveResetRpc;
+let announceResetRpc;
+const resetRpcStarted = new Promise((resolve) => { announceResetRpc = resolve; });
+const resetDeps = {
+  ensureVaultReady: async () => { resetOrder.push('vault-ready'); },
+  flushVault: async () => { resetOrder.push('flush-vault'); },
+  ensureSyncSaved: async () => { resetOrder.push('sync-saved'); return true; },
+  pauseSyncUser: (userId, discard) => { resetOrder.push(`pause:${userId}:${discard}`); sync.pauseSyncUser(userId, discard); },
+  startCloudVault: (userId) => { resetOrder.push(`vault:${userId}`); },
+  setSyncUser: (userId) => { resetOrder.push(`sync-user:${userId}`); },
+  clearSyncQueueForUser: (userId) => { resetOrder.push(`clear-queue:${userId}`); sync.clearSyncQueueForUser(userId); },
+  resetOnServer: () => {
+    resetOrder.push('rpc-start');
+    announceResetRpc();
+    return new Promise((resolve) => { resolveResetRpc = resolve; });
+  },
+  readCloudResetToken: async (userId) => { resetOrder.push(`read-token:${userId}`); return 'reset-rpc-token'; },
+  applyCloudResetLocally: (userId, token) => { resetOrder.push(`apply:${userId}:${token}`); return false; },
+  reload: () => { resetOrder.push('reload'); },
+  syncIncompleteMessage: 'Finish syncing first',
+};
+const resetInFlight = studyDataReset.performStudyDataReset('reset-rpc-user', resetDeps);
+await resetRpcStarted;
+const writeDuringReset = await sync.syncWrite(queuedTestOp, 'reset-rpc-user');
+let duplicateResetRejected = false;
+try { await studyDataReset.performStudyDataReset('reset-rpc-user', resetDeps); } catch (error) {
+  duplicateResetRejected = /already in progress/i.test(error.message);
+}
+resolveResetRpc();
+await resetInFlight;
+parkedQueue = JSON.parse(localStorage.getItem('hsc28_sync_queue') || '[]');
+check(
+  writeDuringReset === false && duplicateResetRejected &&
+    parkedQueue.length === 1 && parkedQueue[0].userId === 'reset-other-user',
+  'while reset RPC is pending, same-user writes and duplicate resets are blocked without discarding another account queue',
+  `write=${writeDuringReset} duplicate=${duplicateResetRejected} queued=${parkedQueue.map((item) => item.userId).join(',')}`
+);
+check(
+  resetOrder.join('|') === [
+    'vault-ready', 'flush-vault', 'sync-saved', 'pause:reset-rpc-user:true',
+    'vault:null', 'sync-user:null', 'rpc-start', 'read-token:reset-rpc-user',
+    'clear-queue:reset-rpc-user', 'apply:reset-rpc-user:reset-rpc-token', 'reload',
+  ].join('|'),
+  'reset RPC runs only after sync preflight and the local write barrier, then clears and reloads after the server token',
+  resetOrder.join(' → ')
+);
+sync.clearSyncQueueForUser('reset-other-user');
+sync.resumeSyncUser('reset-rpc-user');
+sync.resumeSyncUser('reset-other-user');
+
+let recoveryReads = 0;
+let recoveryReopenedWrites = false;
+let resetRpcErrorSurfaced = false;
+try {
+  await studyDataReset.performStudyDataReset('reset-error-user', {
+    ...resetDeps,
+    ensureVaultReady: async () => { recoveryReads += 1; },
+    resetOnServer: async () => { throw new Error('simulated lost RPC response'); },
+    readCloudResetToken: async () => { throw new Error('must be reconciled from vault'); },
+    setSyncUser: (userId) => { if (userId === 'reset-error-user') recoveryReopenedWrites = true; },
+    applyCloudResetLocally: () => false,
+    reload: () => { throw new Error('failed RPC must not reload before reconciliation'); },
+  });
+} catch (error) {
+  resetRpcErrorSurfaced = /lost RPC response/.test(error.message);
+}
+check(
+  resetRpcErrorSurfaced && recoveryReads === 2 && recoveryReopenedWrites,
+  'an ambiguous reset RPC error is surfaced only after a second vault reconciliation before writes resume',
+  `error=${resetRpcErrorSurfaced} reads=${recoveryReads} reopened=${recoveryReopenedWrites}`
+);
+sync.resumeSyncUser('reset-error-user');
+
+let finishSyncPreflight;
+let announceSyncPreflight;
+let resetRpcStartedBeforeSyncFinished = false;
+let resetPausedBeforeSyncFinished = false;
+const syncPreflightStarted = new Promise((resolve) => { announceSyncPreflight = resolve; });
+const delayedPreflight = studyDataReset.performStudyDataReset('reset-delayed-sync-user', {
+  ...resetDeps,
+  ensureSyncSaved: () => new Promise((resolve) => { finishSyncPreflight = resolve; announceSyncPreflight(); }),
+  pauseSyncUser: () => { resetPausedBeforeSyncFinished = true; },
+  resetOnServer: async () => { resetRpcStartedBeforeSyncFinished = true; },
+  applyCloudResetLocally: () => false,
+  reload() {},
+});
+await syncPreflightStarted;
+check(
+  !resetPausedBeforeSyncFinished && !resetRpcStartedBeforeSyncFinished,
+  'reset waits for the final in-flight/queued-write preflight before pausing or calling the RPC'
+);
+finishSyncPreflight(true);
+await delayedPreflight;
+
+let failedRecoveryReopenedWrites = false;
+let failedRecoveryErrorSurfaced = false;
+let failedRecoveryStages = 0;
+try {
+  await studyDataReset.performStudyDataReset('reset-unavailable-user', {
+    ...resetDeps,
+    ensureVaultReady: async () => {
+      failedRecoveryStages += 1;
+      if (failedRecoveryStages > 1) throw new Error('vault unavailable');
+    },
+    pauseSyncUser() {},
+    startCloudVault() {},
+    setSyncUser: (userId) => { if (userId === 'reset-unavailable-user') failedRecoveryReopenedWrites = true; },
+    resetOnServer: async () => { throw new Error('lost response'); },
+    applyCloudResetLocally: () => false,
+    reload() {},
+  });
+} catch (error) {
+  failedRecoveryErrorSurfaced = /lost response/.test(error.message);
+}
+check(
+  failedRecoveryErrorSurfaced && !failedRecoveryReopenedWrites && failedRecoveryStages === 2,
+  'a reset error keeps writes paused if server-marker reconciliation also fails',
+  `error=${failedRecoveryErrorSurfaced} reopened=${failedRecoveryReopenedWrites} reads=${failedRecoveryStages}`
+);
+
+let fallbackResetToken = '';
+let fallbackResetReloaded = false;
+await studyDataReset.performStudyDataReset('reset-token-fallback-user', {
+  ...resetDeps,
+  resetOnServer: async () => {},
+  readCloudResetToken: async () => { throw new Error('marker read unavailable'); },
+  applyCloudResetLocally: (_userId, token) => { fallbackResetToken = token; return false; },
+  reload: () => { fallbackResetReloaded = true; },
+  now: () => 123456,
+});
+check(
+  fallbackResetToken === 'pending-123456' && fallbackResetReloaded,
+  'a successful reset still clears and reloads locally when the immediate marker read fails'
+);
+sync.resumeSyncUser('reset-token-fallback-user');
+
+let resetStartedWithoutSync = false;
+let syncPreflightErrorSurfaced = false;
+try {
+  await studyDataReset.performStudyDataReset('reset-unsaved-user', {
+    ...resetDeps,
+    ensureSyncSaved: async () => false,
+    resetOnServer: async () => { resetStartedWithoutSync = true; },
+  });
+} catch (error) {
+  syncPreflightErrorSurfaced = error.message === 'Finish syncing first';
+}
+check(
+  syncPreflightErrorSurfaced && !resetStartedWithoutSync,
+  'the reset RPC is never called when pre-reset sync is incomplete'
+);
+
+const resetMigration = await readFile(
+  new URL('../supabase/migrations/2026-11-04-cloud-reset-marker.sql', import.meta.url),
+  'utf8'
+);
+const resetPrivateTables = [
+  'hsc28_kv', 'hsc28_life_data', 'hsc28_chapter_progress',
+  'hsc28_personal_notes', 'hsc28_quiz_attempts',
+  'hsc28_study_sessions', 'hsc28_study_tasks',
+];
+const resetDeletesOnlyOwner = resetPrivateTables.every((table) =>
+  resetMigration.includes(`DELETE FROM public.${table} WHERE user_id = uid;`)
+);
+const touchesCommunityRows = /(?:DELETE\s+FROM|UPDATE|TRUNCATE(?:\s+TABLE)?)\s+public\.hsc28_(?:student_doubts|doubt_replies|doubt_votes)\b/i.test(resetMigration);
+check(
+  resetMigration.includes('SECURITY DEFINER') && resetMigration.includes('auth.uid()') &&
+    resetMigration.includes("'hsc28_vault_reset_marker'") &&
+    resetMigration.includes('ON CONFLICT (user_id, key) DO UPDATE') &&
+    resetMigration.includes('GRANT EXECUTE ON FUNCTION public.hsc28_clear_my_study_data() TO authenticated') &&
+    resetDeletesOnlyOwner && !touchesCommunityRows,
+  'the reset SQL is owner-scoped, idempotently records its marker, and leaves community posts, replies and votes intact'
 );
 
 localStorage.setItem(
@@ -1922,10 +2401,10 @@ root = createRoot(container);
 root.render(React.createElement(AdmissionView, { lang: 'en', theme: 'dark', profile: backupFixture.profile, progressMap: {}, onNavigate() {}, onAwardXp() {} }));
 await new Promise(resolve => setTimeout(resolve, 80));
 const admissionChoices = container.querySelector('[aria-label="Choose an admission track"]');
-const engineering = [...admissionChoices.querySelectorAll('button')].find(button => button.textContent.includes('Engineering Track'));
+const engineering = [...admissionChoices.querySelectorAll('button')].find(button => button.textContent.includes('BUET / CUET / KUET / RUET'));
 engineering?.click();
 await new Promise(resolve => setTimeout(resolve, 30));
-check(admissionChoices.querySelectorAll('button').length === 3 && engineering?.getAttribute('aria-pressed') === 'true' && container.textContent.includes('at the point (5, 3)'), 'admission track switch selects the correct practice and exposes its state');
+check(admissionChoices.querySelectorAll('button').length === 3 && engineering?.getAttribute('aria-pressed') === 'true' && container.textContent.includes('CUET GPA screen (2025–26)'), 'admission track switch selects the engineering facts and exposes its state');
 root.unmount(); root = null;
 
 // Mobile sheet traps keyboard focus, restores it on Escape, and reaches every module.
@@ -1984,7 +2463,150 @@ await new Promise(resolve => setTimeout(resolve, 80));
 check(container.textContent.includes('Could not load the leaderboard') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard shows a load error instead of a false rank');
 root.unmount(); root = null;
 
-const { MasterRoutineView } = await vite.ssrLoadModule('/src/components/MasterRoutineView.tsx');
+// A cleared account must not quietly regain the guest XP, suggested bookmarks,
+// or starter tasks when its now-empty local keys are initialized.
+localStorage.clear();
+localStorage.setItem('nokkhotro_local_owner_v1', 'reset-boot-user');
+localStorage.setItem('nokkhotro_cloud_reset_boot_v1_reset-boot-user', 'reset-token');
+localStorage.setItem('hsc28_lang', JSON.stringify('en'));
+window.history.replaceState(null, '', '/#/planner');
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(App));
+await new Promise(resolve => setTimeout(resolve, 150));
+const clearedProfile = JSON.parse(localStorage.getItem('hsc28_profile') || '{}');
+const clearedTasks = JSON.parse(localStorage.getItem('hsc28_tasks') || 'null');
+check(
+  clearedProfile.xp === 0 && clearedProfile.bookmarks?.length === 0 &&
+    Array.isArray(clearedTasks) && clearedTasks.length === 0,
+  'a cloud-cleared account boots with zero XP, no bookmarks and no starter tasks'
+);
+root.unmount(); root = null;
+
+// State updater side effects must not award XP twice under React Strict Mode.
+const strictProfile = (xp) => ({
+  id: 'guest-local-hsc28', fullName: 'Strict Mode Student', collegeName: '',
+  board: 'Jashore', targetGoal: 'Medical', avatarColor: '#4f46e5', xp,
+  chaptersMastered: 0, quizzesTaken: 0, bestAccuracy: 0, studyMinutes: 0,
+  streakDays: 1, bookmarks: [], solvedCqs: [], mistakeIds: [],
+  srsMasteredIds: [], completedPracticals: [],
+});
+localStorage.clear();
+localStorage.setItem('hsc28_lang', JSON.stringify('en'));
+localStorage.setItem('hsc28_profile', JSON.stringify(strictProfile(100)));
+localStorage.setItem('hsc28_tasks', JSON.stringify([{
+  id: '11111111-1111-4111-8111-111111111111', title: 'Strict-mode task',
+  subjectKey: 'physics1', priority: 'high', completed: false,
+  dueDate: new Date().toISOString().slice(0, 10), createdAt: new Date().toISOString(),
+}]));
+window.history.replaceState(null, '', '/#/planner');
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+await new Promise(resolve => setTimeout(resolve, 900));
+const strictTaskButton = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Strict-mode task'));
+strictTaskButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 100));
+check(
+  !!strictTaskButton && JSON.parse(localStorage.getItem('hsc28_profile') || '{}').xp === 110,
+  'completing a task awards XP once in React Strict Mode'
+);
+root.unmount(); root = null;
+
+localStorage.clear();
+localStorage.setItem('hsc28_lang', JSON.stringify('en'));
+localStorage.setItem('hsc28_profile', JSON.stringify(strictProfile(200)));
+localStorage.setItem('hsc28_tasks', JSON.stringify([]));
+localStorage.setItem('hsc28_progress', JSON.stringify({}));
+window.history.replaceState(null, '', '/#/syllabus');
+container.innerHTML = '';
+root = createRoot(container);
+root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+await new Promise(resolve => setTimeout(resolve, 900));
+const strictStageButton = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Textbook / Theory'));
+strictStageButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 100));
+check(
+  !!strictStageButton && JSON.parse(localStorage.getItem('hsc28_profile') || '{}').xp === 215,
+  'completing a syllabus stage awards XP once in React Strict Mode'
+);
+root.unmount(); root = null;
+
+// Forum vote hints are account-scoped; old global votes migrate to guests only.
+const studentHubVotes = await vite.ssrLoadModule('/src/lib/studentHubVotes.ts');
+let voteLedger = studentHubVotes.parseStudentHubVoteLedger(
+  null,
+  JSON.stringify({ 'doubt-1': true })
+);
+voteLedger = studentHubVotes.updateStudentHubVoteLedger(
+  voteLedger,
+  studentHubVotes.studentHubVoteOwner('account-a'),
+  (previous) => ({ ...previous, 'doubt-2': true })
+);
+voteLedger = studentHubVotes.updateStudentHubVoteLedger(
+  voteLedger,
+  studentHubVotes.studentHubVoteOwner('account-b'),
+  (previous) => ({ ...previous, 'doubt-1': true })
+);
+check(
+  voteLedger.guest?.['doubt-1'] === true &&
+    voteLedger['user:account-a']?.['doubt-2'] === true &&
+    !voteLedger['user:account-a']?.['doubt-1'] &&
+    voteLedger['user:account-b']?.['doubt-1'] === true,
+  'guest and separate accounts keep independent forum-vote hints'
+);
+
+// A new doubt starts with zero votes; the author earns one only through a vote.
+localStorage.clear();
+localStorage.setItem('hsc28_peer_doubts', JSON.stringify([]));
+localStorage.setItem('hsc28_upvoted', JSON.stringify({}));
+const { StudentHubView } = await vite.ssrLoadModule('/src/components/StudentHubView.tsx');
+root = createRoot(container);
+root.render(React.createElement(StudentHubView, {
+  lang: 'en', theme: 'light', profile: { ...backupFixture.profile, fullName: 'Peer Student' },
+  isAuthenticated: false, authUserId: null, onAwardXp() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 120));
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Batch ’28 Peer Q&A'))?.click();
+await new Promise(resolve => setTimeout(resolve, 60));
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Ask Batchmates'))?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const doubtTitle = container.querySelector('input[placeholder="Short question title..."]');
+const doubtDetails = container.querySelector('textarea[placeholder="Describe where you are getting stuck..."]');
+if (doubtTitle && doubtDetails) {
+  setInput(doubtTitle, 'Smoke test doubt');
+  const textareaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+  textareaSetter.call(doubtDetails, 'A persisted forum test.');
+  doubtDetails.dispatchEvent(new window.Event('input', { bubbles: true }));
+  [...container.querySelectorAll('button')].find(button => button.textContent.includes('Publish (+10 XP)'))?.click();
+  await new Promise(resolve => setTimeout(resolve, 80));
+  const savedDoubts = JSON.parse(localStorage.getItem('hsc28_peer_doubts') || '[]');
+  const savedDoubt = savedDoubts.find(doubt => doubt.title === 'Smoke test doubt');
+  check(!!savedDoubt && savedDoubt.upvotes === 0, 'a new student doubt does not count an unrecorded self-vote');
+  const voteButton = [...container.querySelectorAll('button')].find(button => button.textContent.trim() === '0');
+  voteButton?.click();
+  await new Promise(resolve => setTimeout(resolve, 80));
+  const votedDoubt = JSON.parse(localStorage.getItem('hsc28_peer_doubts') || '[]').find(doubt => doubt.title === 'Smoke test doubt');
+  check(!!voteButton && votedDoubt?.upvotes === 1, 'one explicit peer-forum vote increments the doubt count once');
+
+  const replyInput = container.querySelector('input[placeholder="Write a helpful explanation for your batchmate..."]');
+  if (replyInput) {
+    setInput(replyInput, 'A reply is not automatically accepted as the solution.');
+    [...container.querySelectorAll('button')].find(button => button.textContent.trim() === 'Reply')?.click();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    const repliedDoubt = JSON.parse(localStorage.getItem('hsc28_peer_doubts') || '[]').find(doubt => doubt.title === 'Smoke test doubt');
+    check(
+      repliedDoubt?.solved === false && repliedDoubt?.replies?.[0]?.isHelpful === false,
+      'a peer reply is not silently marked solved or helpful before acceptance'
+    );
+  } else {
+    check(false, 'student hub reply field is available');
+  }
+} else {
+  check(false, 'student hub question form is available for the vote-count check');
+}
+root.unmount(); root = null;
+
 root = createRoot(container);
 root.render(React.createElement(MasterRoutineView, { lang: 'en', theme: 'light', progressMap: {} }));
 await new Promise(resolve => setTimeout(resolve, 80));

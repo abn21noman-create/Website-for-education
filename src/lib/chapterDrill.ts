@@ -67,7 +67,7 @@ export function takeChapterDrill(): ChapterDrillRequest | null {
 }
 
 /** The chapter's questions, capped at the requested count. */
-export function pickChapterQuestions<T extends { id: string; subjectKey: SubjectKey; chapter: { bn: string } }>(
+export function pickChapterQuestions<T extends { id: string; subjectKey: string; chapter: { bn: string } }>(
   questions: T[],
   request: ChapterDrillRequest
 ): T[] {

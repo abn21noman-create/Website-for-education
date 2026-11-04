@@ -1,5 +1,10 @@
 import { getSupabase } from './supabase';
-import { syncWrite } from './sync';
+import {
+  clearSyncQueueForUser,
+  pauseSyncUser,
+  resumeSyncUser,
+  syncWrite,
+} from './sync';
 
 /**
  * ক্লাউড ভল্ট (Cloud Vault) — Supabase-backed mirror of *every* local key.
@@ -30,7 +35,19 @@ const PREFIX = 'hsc28_';
 const META_KEY = 'hsc28_vault_meta';
 const NOTICE_KEY = 'hsc28_vault_notice';
 const RELOAD_KEY = 'hsc28_vault_reloaded';
-const SKIPPED = new Set([META_KEY, NOTICE_KEY, RELOAD_KEY, 'hsc28_sync_queue']);
+const RESET_MARKER_KEY = 'hsc28_vault_reset_marker';
+const RESET_META_KEY = '__cloud_reset_token__';
+const RESET_BOOT_PREFIX = 'nokkhotro_cloud_reset_boot_v1_';
+const LOCAL_SPACE_PREFIX = 'nokkhotro_local_space_v1_';
+const GUEST_PENDING_PREFIX = 'nokkhotro_guest_pending_v1_';
+const SYNC_QUEUE_KEY = 'hsc28_sync_queue';
+const SKIPPED = new Set([
+  META_KEY,
+  NOTICE_KEY,
+  RELOAD_KEY,
+  RESET_MARKER_KEY,
+  SYNC_QUEUE_KEY,
+]);
 
 /** ফোনের স্টোরেজ ও নেটওয়ার্ক বাঁচাতে একটা কি-এর সর্বোচ্চ আকার। */
 const MAX_VALUE_CHARS = 400_000;
@@ -93,14 +110,89 @@ function listLocalKeys(): string[] {
 }
 
 let activeUser: string | null = null;
+let vaultGeneration = 0;
 let reconciled = false;
 let hooked = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let vaultFlush: Promise<void> | null = null;
 const dirty = new Set<string>();
 const initialised = new Set<string>();
+const resetInProgress = new Set<string>();
 let initialSyncPromise: Promise<void> | null = null;
 let initialSyncError: unknown = null;
+
+/** Apply a server-authoritative clear to this browser before it can sync stale data. */
+export function applyCloudResetLocally(userId: string, token: string): boolean {
+  let alreadyBootedClean = false;
+  try {
+    alreadyBootedClean =
+      localStorage.getItem(RESET_BOOT_PREFIX + userId) === token;
+  } catch {
+    /* private browsing may deny local storage */
+  }
+
+  pauseSyncUser(userId, true);
+  dirty.clear();
+  const keys: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      // The sync queue can hold work for other accounts; clearSyncQueueForUser
+      // has already removed only this account's queued operations.
+      if (key?.startsWith(PREFIX) && key !== SYNC_QUEUE_KEY) keys.push(key);
+    }
+  } catch {
+    /* storage disabled */
+  }
+  for (const key of keys) {
+    try {
+      if (rawRemoveItem) rawRemoveItem.call(localStorage, key);
+      else localStorage.removeItem(key);
+    } catch {
+      /* continue clearing the remaining keys */
+    }
+  }
+
+  writeMeta({ [RESET_META_KEY]: token });
+  setLocalRaw(RESET_BOOT_PREFIX + userId, token);
+  for (const key of [
+    LOCAL_SPACE_PREFIX + userId,
+    'nokkhotro_pre_import_' + userId,
+    GUEST_PENDING_PREFIX + userId,
+  ]) {
+    try {
+      if (rawRemoveItem) rawRemoveItem.call(localStorage, key);
+      else localStorage.removeItem(key);
+    } catch {
+      /* continue */
+    }
+  }
+  return alreadyBootedClean;
+}
+
+/** Read the reset token just written by hsc28_clear_my_study_data(). */
+export async function readCloudResetToken(userId: string): Promise<string> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('hsc28_kv')
+    .select('value')
+    .eq('user_id', userId)
+    .eq('key', RESET_MARKER_KEY)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || typeof data.value !== 'string' || !data.value) {
+    throw new Error('Cloud reset marker is missing');
+  }
+  return data.value;
+}
+
+function reloadAfterCloudReset(): void {
+  try {
+    if (typeof window !== 'undefined') window.location.reload();
+  } catch {
+    /* the clean marker is stored; a manual reload will finish the reset */
+  }
+}
 
 function schedule(key: string): void {
   if (!activeUser || !isVaultKey(key)) return;
@@ -206,7 +298,10 @@ export function shouldRestore(input: RestoreDecision): boolean {
  * ক্লাউড থেকে ফিরিয়ে আনে। ফেরত দেয় কোন কোন কি বদলাতে হয়েছে তার তালিকা।
  * নিয়ম: লোকালে না থাকলে বসাও; অন্য ডিভাইসে নতুন করে লেখা হলে সেটাই জেতে।
  */
-export async function pullFromCloud(userId: string): Promise<string[]> {
+export async function pullFromCloud(
+  userId: string,
+  generation = vaultGeneration
+): Promise<string[]> {
   try {
     const supabase = await getSupabase();
     const { data, error } = await supabase
@@ -215,15 +310,28 @@ export async function pullFromCloud(userId: string): Promise<string[]> {
       .eq('user_id', userId);
 
     if (error || !Array.isArray(data)) throw error || new Error("Cloud vault returned invalid data");
-    if (activeUser !== userId) return [];
+    if (activeUser !== userId || generation !== vaultGeneration) return [];
 
     const meta = readMeta();
-    // এই ডিভাইস আগে কখনো সিঙ্ক করেনি? তাহলে অ্যাকাউন্টের (ক্লাউডের) ডেটাই
-    // সত্যি — নইলে নতুন ফোনে অ্যাপের ডিফল্ট ভ্যালু ক্লাউডের আসল ডেটা ঢেকে দিত।
-    const freshDevice = Object.keys(meta).length === 0;
+    const rows = data as { key: string; value: string; updated_at: string }[];
+    const resetMarker = rows.find(
+      (row) => row?.key === RESET_MARKER_KEY && typeof row.value === 'string' && row.value
+    );
+    if (resetMarker && meta[RESET_META_KEY] !== resetMarker.value) {
+      // A deleted cloud key is otherwise indistinguishable from a never-synced
+      // key; a reset marker makes the clear win over every stale device copy.
+      const alreadyBootedClean = applyCloudResetLocally(userId, resetMarker.value);
+      resetInProgress.add(userId);
+      if (!alreadyBootedClean) reloadAfterCloudReset();
+      return [];
+    }
+
+    // The reset token alone does not mean this device has synced any study keys.
+    // A clean cloud reset should still count as a fresh device for restore rules.
+    const freshDevice = Object.keys(meta).filter((key) => key !== RESET_META_KEY).length === 0;
     const restored: string[] = [];
 
-    for (const row of data as { key: string; value: string; updated_at: string }[]) {
+    for (const row of rows) {
       if (!row || typeof row.key !== 'string' || typeof row.value !== 'string') {
         continue;
       }
@@ -282,17 +390,22 @@ function installHooks(): void {
     if (document.visibilityState === 'hidden') void flushVault().catch(() => {});
   });
   window.addEventListener('online', () => {
+    if (activeUser) void ensureVaultReady().catch(() => { /* retry on the next connection */ });
     void flushVault().catch(() => { /* kept dirty for a later retry */ });
   });
 }
 
-async function initialSync(userId: string): Promise<void> {
-  if (initialised.has(userId)) return;
+async function initialSync(userId: string, generation: number): Promise<void> {
+  if (generation !== vaultGeneration || initialised.has(userId)) return;
+  pauseSyncUser(userId);
   initialised.add(userId);
 
-  const restored = await pullFromCloud(userId);
-  if (activeUser !== userId) return;
+  const restored = await pullFromCloud(userId, generation);
+  if (activeUser !== userId || generation !== vaultGeneration) return;
+  if (resetInProgress.delete(userId)) return;
   reconciled = true;
+  // The cloud snapshot has been checked, so ordered table writes may now resume.
+  resumeSyncUser(userId);
 
   // অতিথি অবস্থায় যা পড়া হয়েছে, বা এই ডিভাইসের সর্বশেষ অবস্থা — সবই তোলা হয়।
   for (const key of listLocalKeys()) dirty.add(key);
@@ -331,17 +444,24 @@ async function initialSync(userId: string): Promise<void> {
 /** লগইন/লগআউটের সাথে ভল্ট বাঁধে। গেস্ট হলে কিছুই হয় না। */
 export function startCloudVault(userId: string | null): void {
   if (activeUser !== userId) {
+    vaultGeneration += 1;
     if (timer) clearTimeout(timer);
     timer = null;
     dirty.clear();
     initialised.clear();
+    resetInProgress.clear();
     reconciled = false;
   }
   activeUser = userId;
   if (!userId) return;
   installHooks();
+  // Do not replace an in-flight promise with the resolved promise returned by
+  // initialSync's already-initialised fast path.
+  if (initialised.has(userId) && initialSyncPromise) return;
   initialSyncError = null;
-  initialSyncPromise = initialSync(userId).catch((error) => {
+  const generation = vaultGeneration;
+  initialSyncPromise = initialSync(userId, generation).catch((error) => {
+    if (generation !== vaultGeneration) return;
     initialised.delete(userId);
     if (activeUser === userId) { reconciled = false; initialSyncError = error; }
   });
@@ -368,11 +488,15 @@ export function takeRestoreNotice(): number {
 export async function ensureVaultReady(): Promise<void> {
   if (initialSyncPromise) await initialSyncPromise;
   if (initialSyncError && activeUser) {
+    const userId = activeUser;
+    const generation = vaultGeneration;
     initialSyncError = null;
-    await initialSync(activeUser).catch((error) => {
-      if (activeUser) initialised.delete(activeUser);
+    initialSyncPromise = initialSync(userId, generation).catch((error) => {
+      if (generation !== vaultGeneration) return;
+      initialised.delete(userId);
       initialSyncError = error;
     });
+    await initialSyncPromise;
   }
   if (initialSyncError) throw initialSyncError;
 }

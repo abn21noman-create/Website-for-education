@@ -1,4 +1,4 @@
-import type { BilingualText, McqQuestion, SubjectKey } from '../types';
+import type { BilingualText, McqQuestion, McqSectionKey } from '../types';
 
 /**
  * Exam patterns.
@@ -9,8 +9,9 @@ import type { BilingualText, McqQuestion, SubjectKey } from '../types';
  * duration, negative marking and subject weight. This module holds those
  * rules in one place so the UI and the question picker cannot drift apart.
  *
- * Numbers follow the published 2026 circulars. They are a study simulation,
- * not the official paper — the UI says so.
+ * Values follow each institution's latest published circular as of 2026-11-04.
+ * Some upcoming-cycle rules are not yet published; MCQ-only approximations are
+ * explicitly marked so they are not mistaken for the actual paper.
  */
 
 export type PatternKind = 'custom' | 'hsc' | 'admission' | 'mixed';
@@ -29,21 +30,24 @@ export interface ExamPattern {
   /** Marks per correct answer in the real paper. */
   markPerQuestion: number;
   subjectMode: 'single' | 'weighted' | 'interleaved';
-  /** Relative question weight per paper (only for `subjectMode: 'weighted'`). */
-  weights?: Partial<Record<SubjectKey, number>>;
+  /** Relative question weight per subject or admission section for weighted papers. */
+  weights?: Partial<Record<McqSectionKey, number>>;
   /** Shown under the pattern name when a rule needs a caveat. */
   note?: BilingualText;
+  /** This is a study drill, not a complete or official exam-format simulation. */
+  simulationOnly?: boolean;
   verifiedOn?: string;
   officialUrl?: string;
 }
 
-const scienceWeights: Partial<Record<SubjectKey, number>> = {
-  math1: 17,
-  math2: 17,
-  physics1: 16.5,
-  physics2: 16.5,
-  chemistry1: 16.5,
-  chemistry2: 16.5,
+const scienceWeights: Partial<Record<McqSectionKey, number>> = {
+  // A balanced MCQ practice mix, not an official BUET mark distribution.
+  math1: 1,
+  math2: 1,
+  physics1: 1,
+  physics2: 1,
+  chemistry1: 1,
+  chemistry2: 1,
 };
 
 export const EXAM_PATTERNS: ExamPattern[] = [
@@ -103,24 +107,27 @@ export const EXAM_PATTERNS: ExamPattern[] = [
     verifiedOn: '2026-10-30',
   },
   {
+    // Keep the old ID so saved routine links continue to resolve. This is now
+    // explicitly a practice-only MCQ drill, not a claim about BUET's exam format.
     id: 'buet-preli',
     kind: 'admission',
-    name: { bn: 'BUET প্রিলি (১০০ MCQ)', en: 'BUET Preliminary (100 MCQ)' },
+    name: { bn: 'BUET বিষয়ভিত্তিক MCQ ড্রিল (প্র্যাকটিস)', en: 'BUET Subject MCQ Drill (Practice)' },
     breakdown: {
-      bn: 'গণিত ৩৪ + পদার্থ ৩৩ + রসায়ন ৩৩ • ৬০ মিনিট • −০.২৫',
-      en: 'Math 34 + Physics 33 + Chemistry 33 • 60 min • −0.25',
+      bn: '১০০টি অনুশীলনী MCQ • ৬০ মিনিট • অফিসিয়াল পরীক্ষার ফরম্যাট নয়',
+      en: '100 practice MCQs • 60 min • not the official exam format',
     },
     paperQuestions: 100,
     paperMinutes: 60,
-    negativeMarking: true,
+    negativeMarking: false,
     markPerQuestion: 1,
     subjectMode: 'weighted',
     weights: scienceWeights,
     note: {
-      bn: 'প্রিলি পাস করলে ৪০০ নম্বরের লিখিত পরীক্ষা — এখানে সেটি নেই।',
-      en: 'Qualifying leads to the 400-mark written test, which is not simulated here.',
+      bn: 'প্রকাশিত সংবাদ-সারাংশ অনুযায়ী ২০২৫–২৬-এ MCQ প্রিলি ছিল না; সরাসরি লিখিত পরীক্ষা ছিল। এই যাচাইয়ে BUET-এর মূল PDF উদ্ধার হয়নি—সঠিক module/নম্বর/সময় সরকারি বিজ্ঞপ্তিতে দেখুন; এই MCQ ড্রিল লিখিত পরীক্ষা অনুকরণ করে না।',
+      en: 'Published reports say there was no MCQ preliminary in 2025–26 and candidates went directly to a written test. BUET’s primary PDF was not retrieved in this audit—check the official notice for exact modules, marks and timing; this MCQ drill does not simulate the written exam.',
     },
-    verifiedOn: '2026-10-30',
+    simulationOnly: true,
+    verifiedOn: '2026-11-04',
     officialUrl: 'https://www.buet.ac.bd/',
   },
   {
@@ -128,11 +135,11 @@ export const EXAM_PATTERNS: ExamPattern[] = [
     kind: 'admission',
     name: { bn: 'মেডিকেল (১০০ MCQ)', en: 'Medical MBBS (100 MCQ)' },
     breakdown: {
-      bn: 'জীব ৩০ + রসায়ন ২৫ + পদার্থ ২০ + ইংরেজি ১৫ + GK ১০ • ৬০ মিনিট • −০.২৫ • পাস ৪০',
-      en: 'Bio 30 + Chem 25 + Phys 20 + Eng 15 + GK 10 • 60 min • −0.25 • pass 40',
+      bn: 'জীববিজ্ঞান ৩০ + রসায়ন ২৫ + পদার্থ ১৫ + ইংরেজি ১৫ + GK/aptitude/human qualities ১৫ • ৭৫ মিনিট • −০.২৫ • পাস ৪০',
+      en: 'Biology 30 + Chemistry 25 + Physics 15 + English 15 + GK/aptitude/human qualities 15 • 75 min • −0.25 • pass 40',
     },
     paperQuestions: 100,
-    paperMinutes: 60,
+    paperMinutes: 75,
     negativeMarking: true,
     markPerQuestion: 1,
     subjectMode: 'weighted',
@@ -141,16 +148,17 @@ export const EXAM_PATTERNS: ExamPattern[] = [
       biology2: 15,
       chemistry1: 12.5,
       chemistry2: 12.5,
-      physics1: 10,
-      physics2: 10,
+      physics1: 7.5,
+      physics2: 7.5,
       english: 15,
-      ict: 10,
+      'medical-gk': 15,
     },
     note: {
-      bn: 'GK ১০ নম্বরের জন্য আলাদা “GK ড্রিল” স্ক্রিন আছে (৩০টি প্রশ্ন); এই মকে মোট ১০০ নম্বরের জন্য ওই জায়গায় ICT থেকে ১০টি প্রশ্ন আসছে।',
-      en: 'The 10 GK marks have their own “GK drill” screen (30 questions); inside this 100-mark mock, ICT still fills that slot.',
+      bn: '১৫ নম্বরের GK/aptitude/human qualities অংশে আলাদা GK অনুশীলনী ব্যাংক থেকে প্রশ্ন আসে—ICT আর বিকল্প নয়। এগুলো যাচাইকৃত সরকারি পুরোনো প্রশ্ন নয় এবং aptitude/human qualities পুরো মাপে না; তাই এটি practice-only, হুবহু সিমুলেশন নয়।',
+      en: 'The 15-mark GK/aptitude/human-qualities section now draws from the separate GK practice bank, not ICT. These are not verified official past-paper questions and cannot fully assess aptitude or human qualities, so this remains practice-only—not an exact simulation.',
     },
-    verifiedOn: '2026-10-30',
+    simulationOnly: true,
+    verifiedOn: '2026-11-04',
     officialUrl: 'https://dgme.gov.bd/',
   },
   {
@@ -229,7 +237,7 @@ export function getPatternById(id: string): ExamPattern {
  * Time budget for the questions we could actually supply.
  *
  * If the bank holds 8 of a 100-question paper we still give the student the
- * real per-question pace (36s for medical) instead of a flat 60s, because pace
+ * real per-question pace (45s for the latest medical pattern) instead of a flat 60s, because pace
  * is exactly what an admission test trains. A 30s floor stops tiny sets from
  * feeling absurd.
  */
@@ -297,11 +305,11 @@ function weightedPick(
   count: number
 ): McqQuestion[] {
   const weights = pattern.weights ?? {};
-  const subjectKeys = Object.keys(weights) as SubjectKey[];
+  const subjectKeys = Object.keys(weights) as McqSectionKey[];
   const totalWeight = subjectKeys.reduce((sum, key) => sum + (weights[key] ?? 0), 0);
   if (totalWeight <= 0) return shuffle(pool).slice(0, count);
 
-  const bySubject = new Map<SubjectKey, McqQuestion[]>();
+  const bySubject = new Map<McqSectionKey, McqQuestion[]>();
   subjectKeys.forEach((key) => {
     bySubject.set(key, shuffle(pool.filter((q) => q.subjectKey === key)));
   });
@@ -397,8 +405,8 @@ export function writtenSectionLabel(pattern: ExamPattern): BilingualText | null 
       };
     case 'buet-preli':
       return {
-        bn: 'লিখিত ৪০০ নম্বর (৪০টি প্রশ্ন) — অ্যাডমিশন হাবে লিখিত কৌশল দেখুন',
-        en: 'Written 400 marks (40 questions) — see the admission hub',
+        bn: 'সর্বশেষ প্রকাশিত চক্রে BUET-এ সরাসরি লিখিত পরীক্ষা ছিল; এই MCQ ড্রিল সেটি অনুকরণ করে না — সঠিক কাঠামোর জন্য সরকারি বিজ্ঞপ্তি দেখুন।',
+        en: 'The latest published cycle used a direct written BUET test; this MCQ drill does not simulate it — check the official notice for the exact format.',
       };
     case 'du-ka':
       return {

@@ -21,14 +21,23 @@ import {
 import { parseStudyBackup, prepareBackupForAccount, buildBackupSyncOps } from './lib/backup';
 import { getSupabase } from './lib/supabase';
 import {
+  clearSyncQueueForUser,
   ensureSyncSaved,
-  clearSyncQueueForCurrentUser,
   initSyncNetworkWatcher,
+  pauseSyncUser,
   setSyncUser,
   syncWrite,
   useSyncStatus,
 } from './lib/sync';
-import { ensureVaultReady, flushVault, startCloudVault, takeRestoreNotice } from './lib/cloudVault';
+import {
+  applyCloudResetLocally,
+  ensureVaultReady,
+  flushVault,
+  readCloudResetToken,
+  startCloudVault,
+  takeRestoreNotice,
+} from './lib/cloudVault';
+import { performStudyDataReset } from './lib/studyDataReset';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -125,6 +134,23 @@ const DEFAULT_GUEST_PROFILE: StudentProfile = {
   completedPracticals: [],
 };
 
+const CLEARED_PROFILE: StudentProfile = {
+  ...DEFAULT_GUEST_PROFILE,
+  xp: 0,
+  bookmarks: [],
+};
+const ACCOUNT_OWNER_KEY = 'nokkhotro_local_owner_v1';
+const RESET_BOOT_PREFIX = 'nokkhotro_cloud_reset_boot_v1_';
+
+function isCloudResetBoot(): boolean {
+  try {
+    const owner = localStorage.getItem(ACCOUNT_OWNER_KEY);
+    return !!owner && !!localStorage.getItem(RESET_BOOT_PREFIX + owner);
+  } catch {
+    return false;
+  }
+}
+
 function readLocal<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -141,7 +167,7 @@ const BACKUP_EXTRA_KEYS = [
   'hsc28_life_v1', 'hsc28_master_routine_v1', 'hsc28_confidence_v1',
   'hsc28_prediction_v1', 'hsc28_mistake_reasons_v1', 'hsc28_chapter_drill_v1',
   'hsc28_self_notes_v1', 'hsc28_reminder_log_v1', 'hsc28_english_drill_last_v1',
-  'hsc28_gk_last_v1', 'hsc28_upvoted', 'hsc28_peer_doubts',
+  'hsc28_gk_last_v1', 'hsc28_upvoted', 'hsc28_upvoted_by_owner_v1', 'hsc28_peer_doubts',
 ];
 function backupExtraStorage(): Record<string, string> {
   const data: Record<string, string> = {};
@@ -162,6 +188,7 @@ function validateExtraStorage(value: unknown, legacyLife: unknown): Record<strin
 }
 
 export function App() {
+  const resetBoot = isCloudResetBoot();
   const [lang, setLang] = useState<Lang>(() => readLocal<Lang>(STORAGE_KEYS.lang, 'bn'));
   const [theme, setTheme] = useState<Theme>(() =>
     readLocal<Theme>(STORAGE_KEYS.theme, 'light')
@@ -178,7 +205,7 @@ export function App() {
   });
 
   const [profile, setProfile] = useState<StudentProfile>(() =>
-    readLocal<StudentProfile>(STORAGE_KEYS.profile, DEFAULT_GUEST_PROFILE)
+    readLocal<StudentProfile>(STORAGE_KEYS.profile, resetBoot ? CLEARED_PROFILE : DEFAULT_GUEST_PROFILE)
   );
   const [progressMap, setProgressMap] = useState<
     Record<string, ChapterProgressState>
@@ -186,12 +213,14 @@ export function App() {
   const [quizHistory, setQuizHistory] = useState<QuizAttemptRecord[]>(() =>
     readLocal(STORAGE_KEYS.quizzes, [])
   );
-  const [tasks, setTasks] = useState<StudyTask[]>(() =>
-    readLocal<StudyTask[]>(STORAGE_KEYS.tasks, createStarterTasks()).map((task) =>
+  const [tasks, setTasks] = useState<StudyTask[]>(() => {
+    const saved = readLocal<StudyTask[] | null>(STORAGE_KEYS.tasks, null);
+    const initialTasks = saved ?? (resetBoot ? [] : createStarterTasks());
+    return initialTasks.map((task) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(task.id)
         ? task : { ...task, id: crypto.randomUUID() }
-    )
-  );
+    );
+  });
   const [sessions, setSessions] = useState<StudySessionRecord[]>(() =>
     readLocal(STORAGE_KEYS.sessions, [])
   );
@@ -229,16 +258,37 @@ export function App() {
     prefetchAllRoutes();
   }, []);
 
+  // Read/restore the vault before replaying table writes. In particular, a
+  // cloud-reset marker must be handled before an old queued write can recreate
+  // data that the student explicitly cleared.
   useEffect(() => {
-    setSyncUser(authUserId);
-    return () => setSyncUser(null);
-  }, [authUserId]);
+    let cancelled = false;
+    const activateSync = () => {
+      void ensureVaultReady()
+        .then(() => {
+          if (!cancelled && authUserId) setSyncUser(authUserId);
+        })
+        .catch(() => {
+          // Keep writes parked locally until the cloud snapshot can be checked.
+        });
+    };
 
-  // ক্লাউড ভল্ট: লগইন করা থাকলে প্রতিটি `store`-বদল Supabase-এর hsc28_kv-তে যায়,
-  // আর নতুন ডিভাইসে লগইন করলে পুরো অগ্রগতি ফিরে আসে।
-  useEffect(() => {
+    if (!authUserId) {
+      // AuthGate may already be reconciling the restored session before this
+      // state is hydrated; do not cancel that first vault read here.
+      setSyncUser(null);
+      return () => { cancelled = true; };
+    }
+
     startCloudVault(authUserId);
-    return () => startCloudVault(null);
+    activateSync();
+    window.addEventListener('online', activateSync);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', activateSync);
+      setSyncUser(null);
+      startCloudVault(null);
+    };
   }, [authUserId]);
 
   // অন্য ডিভাইস থেকে ফিরে আসা ডেটার সংখ্যা একবার জানিয়ে দিই।
@@ -258,9 +308,13 @@ export function App() {
   // otherwise close over the state as it was on the very first render. The
   // first-sign-in upload needs the *current* local data — a student may study
   // for an hour as a guest before creating an account.
+  const profileRef = useRef(profile);
   const tasksRef = useRef(tasks);
   const sessionsRef = useRef(sessions);
   const progressRef = useRef(progressMap);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
   useEffect(() => {
     tasksRef.current = tasks;
   }, [tasks]);
@@ -381,6 +435,15 @@ export function App() {
     []
   );
 
+  const commitProfile = useCallback(
+    (nextProfile: StudentProfile, userId: string | null = null) => {
+      profileRef.current = nextProfile;
+      setProfile(nextProfile);
+      if (userId) void syncProfileToCloud(userId, nextProfile);
+    },
+    [syncProfileToCloud]
+  );
+
   const hydrateFromCloud = useCallback(
     async (
       userId: string,
@@ -398,79 +461,74 @@ export function App() {
           .maybeSingle();
         if (existingProfileError) throw existingProfileError;
 
+        const prevProfile = profileRef.current;
         if (existingProfile) {
-          setProfile((prev) => {
-            const merged: StudentProfile = {
-              id: userId,
-              email,
-              fullName: existingProfile.full_name || prev.fullName,
-              collegeName: existingProfile.college_name || prev.collegeName,
-              board: existingProfile.board || prev.board,
-              targetGoal: existingProfile.target_goal || prev.targetGoal,
-              avatarColor: existingProfile.avatar_color || '#4f46e5',
-              xp: Math.max(Number(existingProfile.xp || 0), prev.xp),
-              chaptersMastered: Math.max(
-                Number(existingProfile.chapters_mastered || 0),
-                prev.chaptersMastered
-              ),
-              quizzesTaken: Math.max(
-                Number(existingProfile.quizzes_taken || 0),
-                prev.quizzesTaken
-              ),
-              bestAccuracy: Math.max(
-                Number(existingProfile.best_accuracy || 0),
-                prev.bestAccuracy
-              ),
-              studyMinutes: Math.max(
-                Number(existingProfile.study_minutes || 0),
-                prev.studyMinutes
-              ),
-              streakDays: Math.max(
-                Number(existingProfile.streak_days || 1),
-                prev.streakDays
-              ),
-              bookmarks:
-                existingProfile.bookmarks?.length > 0
-                  ? existingProfile.bookmarks
-                  : prev.bookmarks,
-              solvedCqs:
-                existingProfile.solved_cqs?.length > 0
-                  ? existingProfile.solved_cqs
-                  : prev.solvedCqs || [],
-              mistakeIds:
-                existingProfile.mistake_ids?.length > 0
-                  ? existingProfile.mistake_ids
-                  : prev.mistakeIds || [],
-              srsMasteredIds:
-                existingProfile.srs_mastered_ids?.length > 0
-                  ? existingProfile.srs_mastered_ids
-                  : prev.srsMasteredIds || [],
-              // Now a real column. Prefer the cloud list, fall back to whatever
-              // was logged locally before the student signed in.
-              completedPracticals:
-                existingProfile.completed_practicals?.length > 0
-                  ? existingProfile.completed_practicals
-                  : prev.completedPracticals || [],
-            };
-            syncProfileToCloud(userId, merged);
-            return merged;
-          });
+          const merged: StudentProfile = {
+            id: userId,
+            email,
+            fullName: existingProfile.full_name || prevProfile.fullName,
+            collegeName: existingProfile.college_name || prevProfile.collegeName,
+            board: existingProfile.board || prevProfile.board,
+            targetGoal: existingProfile.target_goal || prevProfile.targetGoal,
+            avatarColor: existingProfile.avatar_color || '#4f46e5',
+            xp: Math.max(Number(existingProfile.xp || 0), prevProfile.xp),
+            chaptersMastered: Math.max(
+              Number(existingProfile.chapters_mastered || 0),
+              prevProfile.chaptersMastered
+            ),
+            quizzesTaken: Math.max(
+              Number(existingProfile.quizzes_taken || 0),
+              prevProfile.quizzesTaken
+            ),
+            bestAccuracy: Math.max(
+              Number(existingProfile.best_accuracy || 0),
+              prevProfile.bestAccuracy
+            ),
+            studyMinutes: Math.max(
+              Number(existingProfile.study_minutes || 0),
+              prevProfile.studyMinutes
+            ),
+            streakDays: Math.max(
+              Number(existingProfile.streak_days || 1),
+              prevProfile.streakDays
+            ),
+            bookmarks:
+              existingProfile.bookmarks?.length > 0
+                ? existingProfile.bookmarks
+                : prevProfile.bookmarks,
+            solvedCqs:
+              existingProfile.solved_cqs?.length > 0
+                ? existingProfile.solved_cqs
+                : prevProfile.solvedCqs || [],
+            mistakeIds:
+              existingProfile.mistake_ids?.length > 0
+                ? existingProfile.mistake_ids
+                : prevProfile.mistakeIds || [],
+            srsMasteredIds:
+              existingProfile.srs_mastered_ids?.length > 0
+                ? existingProfile.srs_mastered_ids
+                : prevProfile.srsMasteredIds || [],
+            // Now a real column. Prefer the cloud list, fall back to whatever
+            // was logged locally before the student signed in.
+            completedPracticals:
+              existingProfile.completed_practicals?.length > 0
+                ? existingProfile.completed_practicals
+                : prevProfile.completedPracticals || [],
+          };
+          commitProfile(merged, userId);
         } else {
-          setProfile((prev) => {
-            const created: StudentProfile = {
-              ...prev,
-              id: userId,
-              email,
-              fullName: signupMeta?.fullName || prev.fullName,
-              collegeName: signupMeta?.collegeName ?? prev.collegeName,
-              board: signupMeta?.board || prev.board,
-              targetGoal: signupMeta?.targetGoal || prev.targetGoal,
-              avatarColor: '#4f46e5',
-              xp: Math.max(prev.xp, 100),
-            };
-            syncProfileToCloud(userId, created);
-            return created;
-          });
+          const created: StudentProfile = {
+            ...prevProfile,
+            id: userId,
+            email,
+            fullName: signupMeta?.fullName || prevProfile.fullName,
+            collegeName: signupMeta?.collegeName ?? prevProfile.collegeName,
+            board: signupMeta?.board || prevProfile.board,
+            targetGoal: signupMeta?.targetGoal || prevProfile.targetGoal,
+            avatarColor: '#4f46e5',
+            xp: Math.max(prevProfile.xp, 100),
+          };
+          commitProfile(created, userId);
         }
 
         const { data: chRows, error: chRowsError } = await supabase
@@ -652,7 +710,7 @@ export function App() {
     // upload; they are intentionally not dependencies to avoid re-hydrating on
     // every keystroke elsewhere in the app.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [syncProfileToCloud, showToast]
+    [commitProfile, showToast]
   );
 
   useEffect(() => {
@@ -675,177 +733,163 @@ export function App() {
 
   const handleToggleStage = useCallback(
     (chapterId: string, stage: keyof ChapterProgressState) => {
-      setProgressMap((prev) => {
-        const cur = prev[chapterId] || {
-          theoryDone: false,
-          notesDone: false,
-          mcqDone: false,
-          cqDone: false,
-        };
-        const turningOn = !cur[stage];
-        const updatedStage = { ...cur, [stage]: turningOn };
-        const nextMap = { ...prev, [chapterId]: updatedStage };
+      // Keep updater functions pure: React Strict Mode deliberately invokes
+      // them more than once in development to catch side effects.
+      const prev = progressRef.current;
+      const cur = prev[chapterId] || {
+        theoryDone: false,
+        notesDone: false,
+        mcqDone: false,
+        cqDone: false,
+      };
+      const turningOn = !cur[stage];
+      const updatedStage = { ...cur, [stage]: turningOn };
+      const nextMap = { ...prev, [chapterId]: updatedStage };
+      progressRef.current = nextMap;
+      setProgressMap(nextMap);
 
-        let mastered = 0;
-        CHAPTERS.forEach((c) => {
-          const s = nextMap[c.id];
-          if (s && s.theoryDone && s.notesDone && s.mcqDone && s.cqDone) {
-            mastered += 1;
-          }
-        });
-
-        const xpDelta = turningOn ? 15 : -15;
-        setProfile((p) => {
-          const nextProfile = {
-            ...p,
-            xp: Math.max(0, p.xp + xpDelta),
-            chaptersMastered: mastered,
-          };
-          if (authUserId) syncProfileToCloud(authUserId, nextProfile);
-          return nextProfile;
-        });
-
-        if (turningOn) {
-          showToast(
-            lang === 'bn'
-              ? 'ধাপ সম্পন্ন হয়েছে (+১৫ XP)'
-              : 'Stage marked complete (+15 XP)'
-          );
+      let mastered = 0;
+      CHAPTERS.forEach((c) => {
+        const s = nextMap[c.id];
+        if (s && s.theoryDone && s.notesDone && s.mcqDone && s.cqDone) {
+          mastered += 1;
         }
-
-        if (authUserId) {
-          void syncWrite(
-            {
-              op: 'upsert',
-              table: 'hsc28_chapter_progress',
-              onConflict: 'user_id,chapter_id',
-              payload: {
-                user_id: authUserId,
-                chapter_id: chapterId,
-                theory_done: updatedStage.theoryDone,
-                notes_done: updatedStage.notesDone,
-                mcq_done: updatedStage.mcqDone,
-                cq_done: updatedStage.cqDone,
-                updated_at: new Date().toISOString(),
-              },
-            },
-            authUserId
-          );
-        }
-
-        return nextMap;
       });
+
+      const xpDelta = turningOn ? 15 : -15;
+      const nextProfile = {
+        ...profileRef.current,
+        xp: Math.max(0, profileRef.current.xp + xpDelta),
+        chaptersMastered: mastered,
+      };
+      commitProfile(nextProfile, authUserId);
+
+      if (turningOn) {
+        showToast(
+          lang === 'bn'
+            ? 'ধাপ সম্পন্ন হয়েছে (+১৫ XP)'
+            : 'Stage marked complete (+15 XP)'
+        );
+      }
+
+      if (authUserId) {
+        void syncWrite(
+          {
+            op: 'upsert',
+            table: 'hsc28_chapter_progress',
+            onConflict: 'user_id,chapter_id',
+            payload: {
+              user_id: authUserId,
+              chapter_id: chapterId,
+              theory_done: updatedStage.theoryDone,
+              notes_done: updatedStage.notesDone,
+              mcq_done: updatedStage.mcqDone,
+              cq_done: updatedStage.cqDone,
+              updated_at: new Date().toISOString(),
+            },
+          },
+          authUserId
+        );
+      }
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleToggleBookmark = useCallback(
     (formulaId: string) => {
-      setProfile((p) => {
-        const exists = p.bookmarks.includes(formulaId);
-        const bookmarks = exists
-          ? p.bookmarks.filter((id) => id !== formulaId)
-          : [...p.bookmarks, formulaId];
-        const next = { ...p, bookmarks };
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      const exists = p.bookmarks.includes(formulaId);
+      const bookmarks = exists
+        ? p.bookmarks.filter((id) => id !== formulaId)
+        : [...p.bookmarks, formulaId];
+      commitProfile({ ...p, bookmarks }, authUserId);
     },
-    [authUserId, syncProfileToCloud]
+    [authUserId, commitProfile]
   );
 
   const handleToggleSrsMastered = useCallback(
     (formulaId: string) => {
-      setProfile((p) => {
-        const current = p.srsMasteredIds || [];
-        const exists = current.includes(formulaId);
-        const srsMasteredIds = exists
-          ? current.filter((id) => id !== formulaId)
-          : [...current, formulaId];
-        const xpDelta = exists ? -10 : 10;
-        const next: StudentProfile = {
-          ...p,
-          xp: Math.max(0, p.xp + xpDelta),
-          srsMasteredIds,
-        };
-        if (!exists) {
-          showToast(
-            lang === 'bn'
-              ? 'ফ্ল্যাশকার্ড SRS আয়ত্তকৃত (+১০ XP)'
-              : 'Flashcard marked SRS Mastered (+10 XP)'
-          );
-        }
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      const current = p.srsMasteredIds || [];
+      const exists = current.includes(formulaId);
+      const srsMasteredIds = exists
+        ? current.filter((id) => id !== formulaId)
+        : [...current, formulaId];
+      const xpDelta = exists ? -10 : 10;
+      const next: StudentProfile = {
+        ...p,
+        xp: Math.max(0, p.xp + xpDelta),
+        srsMasteredIds,
+      };
+      if (!exists) {
+        showToast(
+          lang === 'bn'
+            ? 'ফ্ল্যাশকার্ড SRS আয়ত্তকৃত (+১০ XP)'
+            : 'Flashcard marked SRS Mastered (+10 XP)'
+        );
+      }
+      commitProfile(next, authUserId);
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleUpdateMistakeIds = useCallback(
     (addIds: string[], removeIds: string[]) => {
-      setProfile((p) => {
-        const current = new Set(p.mistakeIds || []);
-        removeIds.forEach((id) => current.delete(id));
-        addIds.forEach((id) => current.add(id));
-        const bonusXp = removeIds.length * 15;
-        const next: StudentProfile = {
-          ...p,
-          xp: p.xp + bonusXp,
-          mistakeIds: Array.from(current),
-        };
-        if (removeIds.length > 0) {
-          showToast(
-            lang === 'bn'
-              ? `${removeIds.length}টি ভুল প্রশ্ন সংশোধিত হয়েছে (+${bonusXp} XP)`
-              : `${removeIds.length} mistake(s) cleared (+${bonusXp} XP)`
-          );
-        }
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      const current = new Set(p.mistakeIds || []);
+      removeIds.forEach((id) => current.delete(id));
+      addIds.forEach((id) => current.add(id));
+      const bonusXp = removeIds.length * 15;
+      const next: StudentProfile = {
+        ...p,
+        xp: p.xp + bonusXp,
+        mistakeIds: Array.from(current),
+      };
+      if (removeIds.length > 0) {
+        showToast(
+          lang === 'bn'
+            ? `${removeIds.length}টি ভুল প্রশ্ন সংশোধিত হয়েছে (+${bonusXp} XP)`
+            : `${removeIds.length} mistake(s) cleared (+${bonusXp} XP)`
+        );
+      }
+      commitProfile(next, authUserId);
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleAwardStudentXp = useCallback(
     (points: number, msgBn: string, msgEn: string) => {
-      setProfile((p) => {
-        const next = { ...p, xp: p.xp + points };
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      commitProfile({ ...p, xp: p.xp + points }, authUserId);
       showToast(lang === 'bn' ? msgBn : msgEn);
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleTogglePractical = useCallback(
     (pracId: string) => {
-      setProfile((p) => {
-        const cur = p.completedPracticals || [];
-        const exists = cur.includes(pracId);
-        const completedPracticals = exists
-          ? cur.filter((id) => id !== pracId)
-          : [...cur, pracId];
-        const xpDelta = exists ? -15 : 15;
-        const next: StudentProfile = {
-          ...p,
-          xp: Math.max(0, p.xp + xpDelta),
-          completedPracticals,
-        };
-        if (!exists) {
-          showToast(
-            lang === 'bn'
-              ? 'ব্যবহারিক খাতা সম্পন্ন (+১৫ XP)'
-              : 'Practical logged (+15 XP)'
-          );
-        }
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      const cur = p.completedPracticals || [];
+      const exists = cur.includes(pracId);
+      const completedPracticals = exists
+        ? cur.filter((id) => id !== pracId)
+        : [...cur, pracId];
+      const xpDelta = exists ? -15 : 15;
+      const next: StudentProfile = {
+        ...p,
+        xp: Math.max(0, p.xp + xpDelta),
+        completedPracticals,
+      };
+      if (!exists) {
+        showToast(
+          lang === 'bn'
+            ? 'ব্যবহারিক খাতা সম্পন্ন (+১৫ XP)'
+            : 'Practical logged (+15 XP)'
+        );
+      }
+      commitProfile(next, authUserId);
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleExportBackup = useCallback(() => {
@@ -900,10 +944,10 @@ export function App() {
             app: 'nokkhotro-hsc-2028', profile, progressMap, quizHistory, tasks, sessions, personalNotes, extraStorage: backupExtraStorage(),
           }));
           for (const [key, value] of Object.entries(extras)) localStorage.setItem(key, value);
-          setProfile(data.profile); setProgressMap(data.progressMap); setQuizHistory(data.quizHistory);
+          commitProfile(data.profile, authUserId);
+          setProgressMap(data.progressMap); setQuizHistory(data.quizHistory);
           setTasks(data.tasks); setSessions(data.sessions); setPersonalNotes(data.personalNotes);
           window.dispatchEvent(new Event('hsc28:life-data-changed'));
-          void syncProfileToCloud(authUserId, data.profile);
           for (const op of buildBackupSyncOps(data, authUserId, new Date().toISOString())) void syncWrite(op, authUserId);
           showToast(lang === 'bn' ? 'ডেটা রিস্টোর হয়েছে; ক্লাউড সিঙ্কের অবস্থা দেখুন।' : 'Restored locally; check cloud sync status.');
         } catch {
@@ -912,35 +956,33 @@ export function App() {
       };
       reader.readAsText(file);
     },
-    [authUserId, lang, personalNotes, profile, progressMap, quizHistory, sessions, showToast, syncProfileToCloud, tasks]
+    [authUserId, commitProfile, lang, personalNotes, profile, progressMap, quizHistory, sessions, showToast, tasks]
   );
 
   const handleToggleSolvedCq = useCallback(
     (cqId: string) => {
-      setProfile((p) => {
-        const current = p.solvedCqs || [];
-        const exists = current.includes(cqId);
-        const solvedCqs = exists
-          ? current.filter((id) => id !== cqId)
-          : [...current, cqId];
-        const xpDelta = exists ? -20 : 20;
-        const next: StudentProfile = {
-          ...p,
-          xp: Math.max(0, p.xp + xpDelta),
-          solvedCqs,
-        };
-        if (!exists) {
-          showToast(
-            lang === 'bn'
-              ? 'সৃজনশীল অনুশীলন সম্পন্ন (+২০ XP)'
-              : 'CQ practice logged (+20 XP)'
-          );
-        }
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      const current = p.solvedCqs || [];
+      const exists = current.includes(cqId);
+      const solvedCqs = exists
+        ? current.filter((id) => id !== cqId)
+        : [...current, cqId];
+      const xpDelta = exists ? -20 : 20;
+      const next: StudentProfile = {
+        ...p,
+        xp: Math.max(0, p.xp + xpDelta),
+        solvedCqs,
+      };
+      if (!exists) {
+        showToast(
+          lang === 'bn'
+            ? 'সৃজনশীল অনুশীলন সম্পন্ন (+২০ XP)'
+            : 'CQ practice logged (+20 XP)'
+        );
+      }
+      commitProfile(next, authUserId);
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleAddPersonalNote = useCallback(
@@ -953,11 +995,8 @@ export function App() {
       };
       setPersonalNotes((prev) => [created, ...prev]);
 
-      setProfile((p) => {
-        const next = { ...p, xp: p.xp + 10 };
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      commitProfile({ ...p, xp: p.xp + 10 }, authUserId);
 
       showToast(
         lang === 'bn'
@@ -985,7 +1024,7 @@ export function App() {
         );
       }
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleDeletePersonalNote = useCallback(
@@ -1012,16 +1051,13 @@ export function App() {
       setQuizHistory((prev) => [record, ...prev]);
 
       const earnedXp = attempt.correctAnswers * 10 + 15;
-      setProfile((p) => {
-        const next: StudentProfile = {
-          ...p,
-          xp: p.xp + earnedXp,
-          quizzesTaken: p.quizzesTaken + 1,
-          bestAccuracy: Math.max(p.bestAccuracy, attempt.accuracy),
-        };
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      commitProfile({
+        ...p,
+        xp: p.xp + earnedXp,
+        quizzesTaken: p.quizzesTaken + 1,
+        bestAccuracy: Math.max(p.bestAccuracy, attempt.accuracy),
+      }, authUserId);
 
       if (authUserId) {
         void syncWrite(
@@ -1046,7 +1082,7 @@ export function App() {
         );
       }
     },
-    [authUserId, syncProfileToCloud]
+    [authUserId, commitProfile]
   );
 
   const handleAddTask = useCallback(
@@ -1088,38 +1124,42 @@ export function App() {
 
   const handleToggleTask = useCallback(
     (id: string) => {
-      setTasks((prev) =>
-        prev.map((t) => {
-          if (t.id !== id) return t;
-          const nextCompleted = !t.completed;
-          if (nextCompleted) {
-            setProfile((p) => {
-              const next = { ...p, xp: p.xp + 10 };
-              if (authUserId) syncProfileToCloud(authUserId, next);
-              return next;
-            });
-            showToast(
-              lang === 'bn'
-                ? 'অধ্যয়ন লক্ষ্য সম্পন্ন (+১০ XP)'
-                : 'Study target completed (+10 XP)'
-            );
-          }
-          if (authUserId) {
-            void syncWrite(
-              {
-                op: 'update',
-                table: 'hsc28_study_tasks',
-                payload: { completed: nextCompleted },
-                eq: { id, user_id: authUserId },
-              },
-              authUserId
-            );
-          }
-          return { ...t, completed: nextCompleted };
-        })
+      // Resolve the click once, outside a state updater. The updater used to
+      // award XP and write to Supabase, so Strict Mode could replay both effects.
+      const task = tasksRef.current.find((item) => item.id === id);
+      if (!task) return;
+      const nextCompleted = !task.completed;
+      const nextTasks = tasksRef.current.map((item) =>
+        item.id === id ? { ...item, completed: nextCompleted } : item
       );
+      tasksRef.current = nextTasks;
+      setTasks(nextTasks);
+
+      if (nextCompleted) {
+        const nextProfile = {
+          ...profileRef.current,
+          xp: profileRef.current.xp + 10,
+        };
+        commitProfile(nextProfile, authUserId);
+        showToast(
+          lang === 'bn'
+            ? 'অধ্যয়ন লক্ষ্য সম্পন্ন (+১০ XP)'
+            : 'Study target completed (+10 XP)'
+        );
+      }
+      if (authUserId) {
+        void syncWrite(
+          {
+            op: 'update',
+            table: 'hsc28_study_tasks',
+            payload: { completed: nextCompleted },
+            eq: { id, user_id: authUserId },
+          },
+          authUserId
+        );
+      }
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   const handleDeleteTask = useCallback(
@@ -1147,15 +1187,12 @@ export function App() {
       };
       setSessions((prev) => [rec, ...prev]);
 
-      setProfile((p) => {
-        const next: StudentProfile = {
-          ...p,
-          xp: p.xp + 20,
-          studyMinutes: p.studyMinutes + durationMinutes,
-        };
-        if (authUserId) syncProfileToCloud(authUserId, next);
-        return next;
-      });
+      const p = profileRef.current;
+      commitProfile({
+        ...p,
+        xp: p.xp + 20,
+        studyMinutes: p.studyMinutes + durationMinutes,
+      }, authUserId);
 
       showToast(
         lang === 'bn'
@@ -1181,7 +1218,7 @@ export function App() {
         );
       }
     },
-    [authUserId, lang, showToast, syncProfileToCloud]
+    [authUserId, commitProfile, lang, showToast]
   );
 
   // Filtering the syllabus by paper is a refinement, not a new destination, so
@@ -1235,6 +1272,7 @@ export function App() {
     const { error } = await client.auth.signOut();
     if (error) throw error;
     setAuthUserId(null);
+    profileRef.current = DEFAULT_GUEST_PROFILE;
     setProfile(DEFAULT_GUEST_PROFILE);
   };
 
@@ -1243,30 +1281,31 @@ export function App() {
     if (!window.confirm(lang === 'bn'
       ? 'আপনার ব্যক্তিগত পড়াশোনার ডেটা ক্লাউড ও এই ডিভাইস থেকে স্থায়ীভাবে মুছে যাবে। কমিউনিটি পোস্ট থাকবে। নিশ্চিত?'
       : 'Permanently delete your private study data from the cloud and this device? Community posts remain.')) return;
-    await ensureVaultReady();
-    await flushVault();
-    if (!(await ensureSyncSaved())) throw new Error(lang === 'bn' ? 'প্রথমে সিঙ্ক সম্পন্ন করুন।' : 'Complete syncing first.');
-    startCloudVault(null);
-    const client = await getSupabase();
-    const { error } = await client.rpc('hsc28_clear_my_study_data');
-    if (error) { startCloudVault(authUserId); throw error; }
-    clearSyncQueueForCurrentUser();
-    setSyncUser(null);
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key?.startsWith('hsc28_')) keys.push(key); }
-    for (const key of keys) localStorage.removeItem(key);
-    localStorage.removeItem('nokkhotro_local_space_v1_' + authUserId);
-    localStorage.removeItem('nokkhotro_pre_import_' + authUserId);
-    localStorage.removeItem('nokkhotro_guest_pending_v1_' + authUserId);
-    window.location.reload();
+
+    await performStudyDataReset(authUserId, {
+      ensureVaultReady,
+      flushVault,
+      ensureSyncSaved,
+      pauseSyncUser,
+      startCloudVault,
+      setSyncUser,
+      clearSyncQueueForUser,
+      resetOnServer: async () => {
+        const client = await getSupabase();
+        const { error } = await client.rpc('hsc28_clear_my_study_data');
+        if (error) throw error;
+      },
+      readCloudResetToken,
+      applyCloudResetLocally,
+      reload: () => window.location.reload(),
+      syncIncompleteMessage: lang === 'bn'
+        ? 'প্রথমে সিঙ্ক সম্পন্ন করুন।'
+        : 'Complete syncing first.',
+    });
   };
 
   const handleUpdateProfileMeta = async (updates: Partial<StudentProfile>) => {
-    setProfile((prev) => {
-      const next = { ...prev, ...updates };
-      if (authUserId) syncProfileToCloud(authUserId, next);
-      return next;
-    });
+    commitProfile({ ...profileRef.current, ...updates }, authUserId);
   };
 
   const isDark = theme === 'dark';

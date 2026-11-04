@@ -6,10 +6,11 @@ import type { MockKind } from './mockPlan';
  * Three admission tracks, measured against the syllabus the app already tracks.
  *
  * Every chapter in the syllabus carries four stages (theory → notes → MCQ → CQ),
- * so a track's readiness is simply: how much of the weighted syllabus for that
- * track is actually done. The weights are the app's reading of the published
- * marks distribution, trimmed to exactly 100% — they are a planning guide, not
- * an official statement, and the UI says so.
+ * so a track's readiness is how much of the tracked syllabus is actually done.
+ * Medical weights map the latest published 2025–26 HSC subject marks and omit
+ * the separate 15-mark GK/aptitude/human-qualities section. Engineering uses a balanced study-
+ * planning mix rather than claiming one official paper distribution; university
+ * exams differ. The varsity mix is likewise a study-planning estimate.
  */
 
 export type TrackKey = 'engineering' | 'medical' | 'varsity';
@@ -41,23 +42,25 @@ export const ADMISSION_TRACKS: AdmissionTrack[] = [
     key: 'engineering',
     nameBn: 'Engineering',
     nameEn: 'Engineering',
-    examBn: 'BUET প্রিলি + ইঞ্জিনিয়ারিং বিশ্ববিদ্যালয়',
-    examEn: 'BUET preliminary + engineering universities',
+    examBn: 'BUET লিখিত প্রস্তুতি + লক্ষ্য বিশ্ববিদ্যালয়ের নিজস্ব ইঞ্জিনিয়ারিং পরীক্ষা',
+    examEn: 'BUET written practice + target university’s own engineering test',
     patternId: 'buet-preli',
     mockKind: 'engineering',
-    requiresBn: 'SSC+HSC মিলিয়ে ৮.০০, পদার্থ-রসায়ন-গণিত প্রতিটিতে ৪.০০',
-    requiresEn: 'Combined 8.00, with 4.00 in each of physics, chemistry and maths',
+    requiresBn: 'SSC GPA ≥ ৪.০০; HSC বিষয়ভিত্তিক GP-শর্ত CUET/KUET/RUET/BUET অনুযায়ী আলাদা',
+    requiresEn: 'SSC GPA ≥ 4.00; HSC subject-GP rules differ across CUET/KUET/RUET/BUET',
     subjects: [
-      { subjectKey: 'math1', weight: 0.18 },
-      { subjectKey: 'math2', weight: 0.17 },
-      { subjectKey: 'physics1', weight: 0.18 },
-      { subjectKey: 'physics2', weight: 0.17 },
-      { subjectKey: 'chemistry1', weight: 0.12 },
-      { subjectKey: 'chemistry2', weight: 0.1 },
-      { subjectKey: 'english', weight: 0.08 },
+      // These are deliberately broad study-planning weights, not a claim about
+      // any one university's subject distribution or written-test blueprint.
+      { subjectKey: 'math1', weight: 0.15 },
+      { subjectKey: 'math2', weight: 0.15 },
+      { subjectKey: 'physics1', weight: 0.15 },
+      { subjectKey: 'physics2', weight: 0.15 },
+      { subjectKey: 'chemistry1', weight: 0.15 },
+      { subjectKey: 'chemistry2', weight: 0.15 },
+      { subjectKey: 'english', weight: 0.1 },
     ],
-    tipBn: 'গণিত আর পদার্থ আগে — BUET-এ ওই দুটোতেই সবচেয়ে বেশি নম্বর, আর সময়ও সবচেয়ে কম।',
-    tipEn: 'Maths and physics first — they carry the most marks and the tightest time.',
+    tipBn: 'প্রকাশিত প্রতিবেদন অনুযায়ী BUET-এর ২০২৫–২৬ ভর্তি পরীক্ষায় MCQ প্রিলি ছিল না; লিখিত পরীক্ষার জন্য Math, Physics ও Chemistry-তে ভারসাম্যপূর্ণ প্রস্তুতি নাও। এখানে বিষয়-ভাগটি শুধু study-planning estimate, কোনো একক official pattern নয়; CUET/KUET/RUET-এর নিজস্ব প্যাটার্নে English-ও আছে।',
+    tipEn: 'Published reports say BUET had no MCQ preliminary in 2025–26; prepare Math, Physics and Chemistry evenly for the written test. This subject mix is only a study-planning estimate, not one official pattern; CUET/KUET/RUET have their own patterns, including English.',
   },
   {
     key: 'medical',
@@ -67,19 +70,21 @@ export const ADMISSION_TRACKS: AdmissionTrack[] = [
     examEn: 'MBBS medical admission',
     patternId: 'medical-mbbs',
     mockKind: 'medical',
-    requiresBn: 'SSC+HSC মিলিয়ে ৯.০০, প্রতিটি বিষয়ে ৪.০০, জীববিজ্ঞানে ৪.০০',
-    requiresEn: 'Combined 9.00, at least 4.00 in every subject including biology',
+    requiresBn: 'সর্বশেষ ২০২৫–২৬: SSC+HSC মোট GPA ≥ ৮.৫০; প্রতিটিতে ≥ ৪.০০; HSC পদার্থ, রসায়ন ও জীববিজ্ঞানে GP ≥ ৩.৫০ করে',
+    requiresEn: 'Latest 2025–26: combined GPA ≥ 8.50; each exam ≥ 4.00; HSC Physics, Chemistry and Biology each GP ≥ 3.50',
     subjects: [
-      { subjectKey: 'biology1', weight: 0.24 },
-      { subjectKey: 'biology2', weight: 0.24 },
-      { subjectKey: 'chemistry1', weight: 0.14 },
-      { subjectKey: 'chemistry2', weight: 0.14 },
-      { subjectKey: 'physics1', weight: 0.12 },
-      { subjectKey: 'physics2', weight: 0.1 },
-      { subjectKey: 'english', weight: 0.02 },
+      // The app has no separate GK/aptitude syllabus bank, so track only the
+      // 85% of the paper represented by tracked HSC subjects.
+      { subjectKey: 'biology1', weight: 0.15 },
+      { subjectKey: 'biology2', weight: 0.15 },
+      { subjectKey: 'chemistry1', weight: 0.125 },
+      { subjectKey: 'chemistry2', weight: 0.125 },
+      { subjectKey: 'physics1', weight: 0.075 },
+      { subjectKey: 'physics2', weight: 0.075 },
+      { subjectKey: 'english', weight: 0.15 },
     ],
-    tipBn: 'জীববিজ্ঞান দুই পত্র মিলিয়ে প্রায় অর্ধেক — এখানেই সবার আগে সময় দাও।',
-    tipEn: 'Biology is nearly half the paper — it earns first priority.',
+    tipBn: '২০২৫–২৬ পরীক্ষায় জীববিজ্ঞান ৩০, রসায়ন ২৫, পদার্থ ১৫ ও ইংরেজি ১৫ নম্বর; বাকি ১৫ নম্বর GK/aptitude/human qualities, যা এই HSC সিলেবাস ট্র্যাকার মাপে না—আলাদা GK ড্রিলও করো।',
+    tipEn: 'The 2025–26 paper weights Biology 30, Chemistry 25, Physics 15 and English 15. The remaining 15 marks are GK/aptitude/human qualities, which this HSC syllabus tracker does not measure—use the separate GK drill.',
   },
   {
     key: 'varsity',
@@ -213,7 +218,11 @@ export function trackReadiness(
   const subjects = track.subjects.map((item) =>
     subjectReadiness(item.subjectKey, progressMap, item.weight)
   );
-  const percent = clampPercent(subjects.reduce((sum, s) => sum + s.weightedPercent, 0));
+  const trackedWeight = subjects.reduce((sum, subject) => sum + subject.weight, 0);
+  const weightedCompletion = subjects.reduce((sum, subject) => sum + subject.weightedPercent, 0);
+  // Some exam sections (e.g. medical GK/aptitude) are not in the HSC syllabus
+  // tracker. Normalize against the subjects we can actually measure.
+  const percent = clampPercent(trackedWeight ? weightedCompletion / trackedWeight : 0);
   const sorted = [...subjects].sort((a, b) => a.percent - b.percent);
   const weakest = sorted[0] ?? null;
   const strongest = sorted[sorted.length - 1] ?? null;
@@ -299,9 +308,10 @@ export interface DailyFocus {
 /**
  * Which paper the daily focus block should carry.
  *
- * Among the two heaviest papers of the main track it picks the one furthest
- * behind, so the priority block keeps moving to where the gap is — Medical
- * starts with biology, then shifts to chemistry once biology is ahead.
+ * Among the first four subjects carrying at least 12% of the main-track mix
+ * (or the two heaviest if none qualify), it picks the one furthest behind, so
+ * the priority block follows the biggest gap — Medical starts with biology,
+ * then shifts to chemistry once biology is ahead.
  */
 export function dailyFocus(
   primary: TrackKey,

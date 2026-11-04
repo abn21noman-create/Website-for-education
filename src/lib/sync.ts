@@ -70,6 +70,8 @@ function loadQueue(): QueuedOp[] {
 
 let queue: QueuedOp[] = typeof window === 'undefined' ? [] : loadQueue();
 let currentUserId: string | null = null;
+const pausedUsers = new Set<string>();
+const discardedUsers = new Set<string>();
 let pending = 0;
 let lastSavedAt: string | null = null;
 let lastError: string | null = null;
@@ -88,6 +90,7 @@ function computePhase(): SyncPhase {
   if (!currentUserId) return 'guest';
   if (pending > 0) return 'saving';
   if (lastError) return 'error';
+  if (pausedUsers.has(currentUserId)) return 'offline';
   if (queue.some((q) => q.userId === currentUserId)) return 'offline';
   return 'idle';
 }
@@ -197,6 +200,15 @@ function enqueue(op: SyncOp, userId: string): void {
  */
 export async function syncWrite(op: SyncOp, userId: string | null): Promise<boolean> {
   if (!userId) return false;
+  // Wait until Cloud Vault has read any account-wide reset marker. During the
+  // reset itself, discard stale in-memory writes rather than queueing them for
+  // replay after the page reloads.
+  if (discardedUsers.has(userId)) return false;
+  if (pausedUsers.has(userId)) {
+    enqueue(op, userId);
+    publish();
+    return false;
+  }
 
   // Preserve ordering: an older queued or in-flight mutation must never be
   // replayed after a newer write to the same record.
@@ -228,7 +240,13 @@ export async function syncWrite(op: SyncOp, userId: string | null): Promise<bool
 
 /** Replays queued writes for the active user, oldest first. */
 export async function flushSyncQueue(): Promise<void> {
-  if (flushing || pending > 0 || !currentUserId) return;
+  if (
+    flushing ||
+    pending > 0 ||
+    !currentUserId ||
+    pausedUsers.has(currentUserId) ||
+    discardedUsers.has(currentUserId)
+  ) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
   flushing = true;
@@ -278,12 +296,35 @@ export function setSyncUser(userId: string | null): void {
   if (userId) void flushSyncQueue();
 }
 
-/** Drops queued writes for the current user (used on explicit sign-out). */
-export function clearSyncQueueForCurrentUser(): void {
-  if (!currentUserId) return;
-  queue = queue.filter((q) => q.userId !== currentUserId);
+/** Drops queued writes for a specific account, preserving other accounts' work. */
+export function clearSyncQueueForUser(userId: string): void {
+  queue = queue.filter((q) => q.userId !== userId);
   persistQueue();
   publish();
+}
+
+/** Drops queued writes for the current user (used on explicit sign-out). */
+export function clearSyncQueueForCurrentUser(): void {
+  if (currentUserId) clearSyncQueueForUser(currentUserId);
+}
+
+/** Hold a user's table writes until their first Cloud Vault read is complete. */
+export function pauseSyncUser(userId: string, discardQueued = false): void {
+  pausedUsers.add(userId);
+  if (discardQueued) {
+    discardedUsers.add(userId);
+    clearSyncQueueForUser(userId);
+  } else {
+    publish();
+  }
+}
+
+/** Resume queued writes after a successful cloud reconciliation. */
+export function resumeSyncUser(userId: string): void {
+  pausedUsers.delete(userId);
+  discardedUsers.delete(userId);
+  publish();
+  if (currentUserId === userId) void flushSyncQueue();
 }
 
 function subscribe(listener: () => void): () => void {

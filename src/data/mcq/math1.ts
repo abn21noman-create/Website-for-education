@@ -317,8 +317,8 @@ const QUESTIONS: McqQuestion[] = [
       "en": "Shortcut: lim(x→0) (1 - cos ax) / x² = a² / 2 = 4² / 2 = 8."
     },
     "boardTag": {
-      "bn": "ঢাবি ক ও BUET প্রিলি",
-      "en": "DU Ka & BUET Preli"
+        "bn": "ঢাবি ক ও BUET অনুশীলন",
+        "en": "DU Ka & BUET practice"
     },
     "difficulty": "medium"
   },
