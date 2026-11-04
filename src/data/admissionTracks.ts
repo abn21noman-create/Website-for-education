@@ -3,10 +3,10 @@ import type { BilingualText } from '../types';
 /**
  * What each admission test actually is.
  *
- * The admission hub used to describe the three tracks in prose with no source
- * and no date, so a student could not tell whether a rule was from this year or
- * three years ago. Every figure below is shown with the date it was checked and
- * a link to the body that publishes it.
+ * The admission hub used to describe tracks in prose with no source or cycle.
+ * Each fact now names the session it describes and links to the institution's
+ * official admission site; users must still check the newest circular before
+ * applying, because published requirements can change by cycle.
  */
 
 export type AdmissionTrackId = 'buet' | 'medical' | 'du';
@@ -14,6 +14,7 @@ export type AdmissionTrackId = 'buet' | 'medical' | 'du';
 export interface TrackFact {
   label: BilingualText;
   value: BilingualText;
+  officialUrl?: string;
 }
 
 export interface AdmissionTrackInfo {
@@ -30,7 +31,7 @@ export interface AdmissionTrackInfo {
   checkedOn: string;
 }
 
-export const ADMIN_VERIFIED_ON = '2026-10-30';
+export const ADMIN_VERIFIED_ON = '2026-11-04';
 
 export const ADMISSION_TRACK_INFO: Record<AdmissionTrackId, AdmissionTrackInfo> = {
   buet: {
@@ -40,91 +41,118 @@ export const ADMISSION_TRACK_INFO: Record<AdmissionTrackId, AdmissionTrackInfo> 
       en: 'BUET & Engineering (BUET / CUET / KUET / RUET)',
     },
     structure: {
-      bn: 'প্রিলি ১০০ MCQ (৬০ মিনিট, −০.২৫) → লিখিত ৪০০',
-      en: 'Prelims 100 MCQ (60 min, −0.25) → 400-mark written',
+      bn: '২০২৫–২৬ সংবাদ-সারাংশে BUET সরাসরি লিখিত; CUET/KUET/RUET-এর আলাদা পরীক্ষা ও নিয়ম',
+      en: '2025–26 reports describe BUET as direct written; CUET/KUET/RUET have separate tests and rules',
     },
     facts: [
       {
-        label: { bn: 'প্রিলি নম্বর বণ্টন', en: 'Prelims distribution' },
-        value: { bn: 'গণিত ৩৪ + পদার্থ ৩৩ + রসায়ন ৩৩', en: 'Math 34 + Physics 33 + Chemistry 33' },
+        label: { bn: 'BUET পরীক্ষা (২০২৫–২৬ প্রতিবেদন)', en: 'BUET test (2025–26 reports)' },
+        value: { bn: 'প্রকাশিত সংবাদ-সারাংশে MCQ প্রিলি নেই — সরাসরি লিখিত পরীক্ষা বলা হয়েছে', en: 'Published reports say no MCQ preliminary — direct written admission test' },
+        officialUrl: 'https://www.buet.ac.bd/web/#/ugAdmission',
       },
       {
-        label: { bn: 'নেগেটিভ মার্কিং', en: 'Negative marking' },
-        value: { bn: 'প্রতি ভুলে −০.২৫', en: '−0.25 per wrong answer' },
-      },
-      {
-        label: { bn: 'লিখিত পরীক্ষা', en: 'Written test' },
+        label: { bn: 'BUET GPA শর্ত (২০২৫–২৬ সারাংশ)', en: 'BUET GPA rule (2025–26 summaries)' },
         value: {
-          bn: '৪০টি প্রশ্ন × ১০ = ৪০০ নম্বর, ২ ঘণ্টা',
-          en: '40 questions × 10 = 400 marks, 2 hours',
+          bn: 'SSC GPA ≥ ৪.০০; HSC GPA ৫.০০; উচ্চতর গণিত, পদার্থ ও রসায়নে GP ৫.০০',
+          en: 'SSC GPA ≥ 4.00; HSC GPA 5.00; GP 5.00 in Higher Math, Physics and Chemistry',
         },
+        officialUrl: 'https://www.buet.ac.bd/web/#/ugAdmission',
       },
       {
-        label: { bn: 'আসন (প্রায়)', en: 'Seats (approx.)' },
-        value: { bn: '১,৩০৫', en: '1,305' },
+        label: { bn: 'CUET GPA শর্ত (২০২৫–২৬)', en: 'CUET GPA screen (2025–26)' },
+        value: {
+          bn: 'SSC ≥ ৪.০০; HSC পদার্থ+রসায়ন+গণিত ≥ ১৪.০০; ইংরেজি ≥ ৩.০০',
+          en: 'SSC ≥ 4.00; HSC Physics+Chemistry+Math ≥ 14.00; English ≥ 3.00',
+        },
+        officialUrl: 'https://app.cuet.ac.bd/storage/Notices/69314898a5ea4.pdf',
+      },
+      {
+        label: { bn: 'KUET GPA শর্ত (২০২৫–২৬)', en: 'KUET GPA screen (2025–26)' },
+        value: {
+          bn: 'SSC ≥ ৪.০০; HSC পদার্থ+রসায়ন+গণিত+ইংরেজি ≥ ১৮.০০; PCM প্রতিটিতে ≥ ৪.০০',
+          en: 'SSC ≥ 4.00; HSC Physics+Chemistry+Math+English ≥ 18.00; each PCM ≥ 4.00',
+        },
+        officialUrl: 'https://web.archive.org/web/20251216215521id_/http://admission.kuet.ac.bd/adm/fNotice/AdmissionNotice2026.pdf',
+      },
+      {
+        label: { bn: 'RUET GPA শর্ত (২০২৫–২৬)', en: 'RUET GPA screen (2025–26)' },
+        value: {
+          bn: 'SSC ≥ ৪.০০; HSC পদার্থ+রসায়ন+গণিত ≥ ১৪.০০',
+          en: 'SSC ≥ 4.00; HSC Physics+Chemistry+Math ≥ 14.00',
+        },
+        officialUrl: 'https://admission.ruet.ac.bd/notices/admission-circular-for-ruet-2025-2026-session.pdf',
+      },
+      {
+        label: { bn: 'BUET আসন (২০২৫–২৬ secondary summary)', en: 'BUET places (2025–26 secondary summary)' },
+        value: { bn: 'প্রকাশিত সারাংশ অনুযায়ী ১,৩০৯ (সংরক্ষিতসহ)', en: '1,309 including reserved seats, per published summaries' },
+        officialUrl: 'https://www.buet.ac.bd/web/#/ugAdmission',
       },
     ],
     eligibility: {
-      bn: 'বিজ্ঞান বিভাগে HSC GPA ৫.০০, গণিত-পদার্থ-রসায়নে A+',
-      en: 'Science group, HSC GPA 5.00 with A+ in Math, Physics and Chemistry',
+      bn: 'শুধু BUET: ২০২৫–২৬-এর প্রকাশিত সারাংশে SSC GPA ≥ ৪.০০, HSC GPA ৫.০০ এবং PCM-এ GP ৫.০০ বলা হয়েছে; এই যাচাইয়ে BUET-এর মূল PDF উদ্ধার হয়নি। CUET/KUET/RUET-এর শর্ত আলাদা।',
+      en: 'BUET only: published 2025–26 summaries report SSC GPA ≥ 4.00, HSC GPA 5.00 and PCM GP 5.00; BUET’s primary PDF was not retrieved in this audit. CUET/KUET/RUET rules differ.',
     },
     pitfalls: [
       {
-        bn: 'প্রিলিতে ভুলের কর্তন আছে — অন্ধকারে অনুমান করা সবচেয়ে বড় ক্ষতি।',
-        en: 'Prelims deduct for wrong answers — blind guessing costs you dearly.',
+        bn: 'প্রকাশিত প্রতিবেদন অনুযায়ী BUET-এর ২০২৫–২৬ পরীক্ষায় MCQ প্রিলি ছিল না; আগের বছরের ১০০-MCQ ফরম্যাট ধরে নেবেন না, নতুন অফিসিয়াল বিজ্ঞপ্তি মিলিয়ে নিন।',
+        en: 'Published reports say BUET had no MCQ preliminary in 2025–26; do not assume the previous 100-MCQ format and recheck the official notice.',
       },
       {
-        bn: 'প্রিলি পাস মানেই ভর্তি নয়; চূড়ান্ত মেধা লিখিত পরীক্ষার ওপর।',
-        en: 'Passing prelims is not admission; the written test decides the merit list.',
+        bn: 'CUET, KUET ও RUET আলাদা ভর্তি পরীক্ষা নেয়; GPA-শর্ত, pass year ও shortlist এক নয়—প্রতিটির নতুন বিজ্ঞপ্তি দেখুন।',
+        en: 'CUET, KUET and RUET run separate admissions; GPA rules, pass years and shortlists differ. Check each current circular.',
       },
     ],
-    officialUrl: 'https://www.buet.ac.bd/',
-    officialLabel: { bn: 'BUET ভর্তি সাইট', en: 'BUET admission site' },
+    officialUrl: 'https://www.buet.ac.bd/web/#/ugAdmission',
+    officialLabel: { bn: 'BUET ভর্তি বিজ্ঞপ্তি', en: 'BUET admission notices' },
     checkedOn: ADMIN_VERIFIED_ON,
   },
   medical: {
     id: 'medical',
     fullName: { bn: 'মেডিকেল ও ডেন্টাল (MBBS / BDS)', en: 'Medical & Dental (MBBS / BDS)' },
     structure: {
-      bn: '১০০ MCQ • ১০০ নম্বর • ৬০ মিনিট • −০.২৫ • পাস ৪০',
-      en: '100 MCQ • 100 marks • 60 min • −0.25 • pass 40',
+      bn: 'সর্বশেষ প্রকাশিত ২০২৫–২৬: ১০০ MCQ • ১০০ নম্বর • ৭৫ মিনিট • −০.২৫ • পাস ৪০',
+      en: 'Latest published 2025–26: 100 MCQs • 100 marks • 75 min • −0.25 • pass 40',
     },
     facts: [
       {
-        label: { bn: 'বিষয়ভার', en: 'Subject weight' },
+        label: { bn: 'বিষয়ভার (২০২৫–২৬)', en: 'Subject weight (2025–26)' },
         value: {
-          bn: 'জীব ৩০ + রসায়ন ২৫ + পদার্থ ২০ + ইংরেজি ১৫ + GK ১০',
-          en: 'Bio 30 + Chem 25 + Phys 20 + Eng 15 + GK 10',
+          bn: 'জীববিজ্ঞান ৩০ + রসায়ন ২৫ + পদার্থ ১৫ + ইংরেজি ১৫ + GK/aptitude/human qualities ১৫',
+          en: 'Biology 30 + Chemistry 25 + Physics 15 + English 15 + GK/aptitude/human qualities 15',
         },
+        officialUrl: 'https://dgme.gov.bd/',
       },
       {
         label: { bn: 'নেগেটিভ মার্কিং', en: 'Negative marking' },
         value: { bn: 'প্রতি ভুলে −০.২৫ (৪ ভুলে ১ নম্বর)', en: '−0.25 per wrong (4 wrong = 1 mark lost)' },
+        officialUrl: 'https://dgme.gov.bd/',
       },
       {
-        label: { bn: 'মেধার হিসাব', en: 'Merit formula' },
+        label: { bn: 'মেধার হিসাব (২০২৫–২৬)', en: 'Merit formula (2025–26)' },
         value: {
-          bn: 'টেস্ট + SSC GPA×৮ + HSC GPA×১২ = ২০০',
-          en: 'Test + SSC GPA×8 + HSC GPA×12 = 200',
+          bn: 'টেস্ট + SSC GPA×৮ + HSC GPA×১২ = ২০০; পুনরায় পরীক্ষার্থীর কর্তন প্রযোজ্য',
+          en: 'Test + SSC GPA×8 + HSC GPA×12 = 200; repeat-candidate deductions apply',
         },
+        officialUrl: 'https://dgme.gov.bd/',
       },
       {
-        label: { bn: 'সরকারি আসন (প্রায়)', en: 'Government seats (approx.)' },
-        value: { bn: '১১,৬০০', en: '11,600' },
+        label: { bn: 'সরকারি MBBS আসন (২০২৫–২৬ প্রতিবেদন)', en: 'Government MBBS seats (2025–26 reports)' },
+        value: { bn: 'প্রকাশিত প্রতিবেদন অনুযায়ী ৫,১০০', en: '5,100, as reported' },
+        officialUrl: 'https://dgme.gov.bd/',
       },
     ],
     eligibility: {
-      bn: 'SSC + HSC মোট GPA ৯.০০ (প্রতিটিতে ≥ ৪.০০), জীববিজ্ঞানে ≥ ৪.০০',
-      en: 'SSC + HSC combined GPA 9.00 (each ≥ 4.00), Biology ≥ 4.00',
+      bn: 'সাধারণ প্রার্থী (২০২৫–২৬): SSC + HSC মোট GPA ≥ ৮.৫০, প্রতিটিতে ≥ ৪.০০; HSC পদার্থ, রসায়ন ও জীববিজ্ঞানে প্রত্যেকটিতে GP ≥ ৩.৫০।',
+      en: 'General applicants (2025–26): combined GPA ≥ 8.50, each exam ≥ 4.00; HSC Physics, Chemistry and Biology each need GP ≥ 3.50.',
     },
     pitfalls: [
       {
-        bn: 'জীববিজ্ঞানে GPA ৪.০০ না হলে অন্য সব ঠিক থাকলেও আবেদন করা যায় না।',
-        en: 'Without GPA 4.00 in Biology you cannot apply, even if everything else is fine.',
+        bn: 'HSC পদার্থ, রসায়ন ও জীববিজ্ঞানে GP ৩.৫০ করে এবং SSC/HSC-তে GPA ৪.০০-এর শর্ত আলাদা — শুধু মোট GPA মিললেই হবে না।',
+        en: 'HSC Physics, Chemistry and Biology each need GP 3.50, plus the 4.00 floor in both exams; a combined GPA alone is not enough.',
       },
       {
-        bn: 'SSC-র GPA-ও মেধাতালিকায় যোগ হয় — একাদশে অবহেলা করলে পরে ক্ষতি।',
-        en: 'SSC GPA counts in the merit list — a weak SSC still costs you marks.',
+        bn: 'উপজাতি/পার্বত্য এলাকার প্রার্থীদের জন্য কিছু শর্ত শিথিল; ২০২৬–২৭ বিজ্ঞপ্তি এই যাচাইয়ে ২০২৬-১০-৩১ পর্যন্ত পাওয়া যায়নি—নতুন বিজ্ঞপ্তি না দেখে ২০২৫–২৬ নিয়ম ধরে নেবেন না।',
+        en: 'Some thresholds are relaxed for tribal/hill-district applicants. This audit had not found the 2026–27 circular by 2026-10-31; recheck the official notice instead of carrying over 2025–26 rules.',
       },
     ],
     officialUrl: 'https://dgme.gov.bd/',

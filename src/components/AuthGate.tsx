@@ -62,8 +62,14 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         if (saveError) throw saveError;
         finishGuestMigration(next.user.id);
       }
-      localStorage.setItem('hsc28_lang', JSON.stringify(lang));
-      if (run === sequence.current) setStatus('ready');
+      // Start reconciliation before App mounts. Cloud Vault pauses table writes
+      // until it has checked for a server reset marker, while login stays usable
+      // if the network is slow or unavailable.
+      startCloudVault(next.user.id);
+      if (run === sequence.current) {
+        localStorage.setItem('hsc28_lang', JSON.stringify(lang));
+        setStatus('ready');
+      }
     } catch (e) { if (run === sequence.current) { setError(message(e, bn)); setStatus('error'); } }
   }
 
@@ -75,7 +81,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
       const { data } = client.auth.onAuthStateChange((event, next) => {
         if (cancelled) return;
         if (event === 'PASSWORD_RECOVERY') { recovery.current = true; setMode('recovery'); setSession(next); setStatus('signed-out'); return; }
-        if (event === 'SIGNED_OUT') { preparingUser.current = null; sequence.current++; setSession(null); setStatus('signed-out'); return; }
+        if (event === 'SIGNED_OUT') { preparingUser.current = null; sequence.current++; startCloudVault(null); setSyncUser(null); setSession(null); setStatus('signed-out'); return; }
         if (next && !recovery.current && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
           // Supabase may deliver both events for one session.
           if (preparingUser.current !== next.user.id) void prepare(next);

@@ -3,7 +3,7 @@ import type { BilingualText } from '../types';
 /**
  * General-knowledge bank for the medical admission test.
  *
- * The MBBS paper carries 10 GK marks and the HSC syllabus has no such paper, so
+ * The latest published 2025–26 MBBS paper carries a 15-mark GK/aptitude/human-qualities section and the HSC syllabus has no such paper, so
  * this bank lives outside `SubjectKey` on purpose: it is an admission section,
  * not one of the 11 HSC papers. Every fact below is one that does not change
  * with the news cycle — dates, founders, places, constants — so the bank cannot
@@ -17,7 +17,7 @@ export interface GkQuestion {
   category: GkCategory;
   question: BilingualText;
   options: BilingualText[];
-  correctIndex: number;
+  correctIndex: 0 | 1 | 2 | 3;
   explanation: BilingualText;
 }
 
@@ -34,7 +34,7 @@ const q = (
   questionBn: string,
   questionEn: string,
   options: [string, string][],
-  correctIndex: number,
+  correctIndex: 0 | 1 | 2 | 3,
   explanationBn: string,
   explanationEn: string
 ): GkQuestion => ({

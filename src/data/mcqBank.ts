@@ -1,4 +1,5 @@
 import type { McqQuestion, SubjectKey } from '../types';
+import { GK_CATEGORIES, GK_QUESTIONS } from './gkBank';
 
 /**
  * MCQ bank, split per paper.
@@ -42,6 +43,30 @@ export const MCQ_COUNTS: Record<SubjectKey, number> = {
 
 export const MCQ_TOTAL = Object.values(MCQ_COUNTS).reduce((sum, n) => sum + n, 0);
 
+/**
+ * Map the separate medical GK practice bank into the common exam-question
+ * shape. It stays an admission section rather than borrowing ICT's subject key.
+ */
+export const MEDICAL_GK_MCQ: McqQuestion[] = GK_QUESTIONS.map((question) => {
+  const category = GK_CATEGORIES.find((item) => item.key === question.category)!;
+  return {
+    id: question.id,
+    subjectKey: 'medical-gk',
+    chapter: { bn: category.bn, en: category.en },
+    question: question.question,
+    options: [
+      question.options[0],
+      question.options[1],
+      question.options[2],
+      question.options[3],
+    ],
+    correctIndex: question.correctIndex,
+    explanation: question.explanation,
+    boardTag: { bn: 'মেডিকেল ভর্তি অনুশীলন', en: 'Medical admission practice' },
+    difficulty: 'medium',
+  };
+});
+
 type SubjectModule = { default: McqQuestion[] };
 
 const LOADERS: Record<SubjectKey, () => Promise<SubjectModule>> = {
@@ -79,6 +104,11 @@ export async function loadMcqSubjects(keys: SubjectKey[]): Promise<McqQuestion[]
 /** The whole bank — only used when a paper genuinely spans every subject. */
 export async function loadAllMcq(): Promise<McqQuestion[]> {
   return loadMcqSubjects(ALL_SUBJECT_KEYS);
+}
+
+/** Whole practice bank, including the separate medical-admission GK section. */
+export async function loadAllExamQuestions(): Promise<McqQuestion[]> {
+  return [...(await loadAllMcq()), ...MEDICAL_GK_MCQ];
 }
 
 /** Test-only cache reset. */

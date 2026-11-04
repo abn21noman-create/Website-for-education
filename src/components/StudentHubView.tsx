@@ -6,7 +6,6 @@ import {
   Search,
   Send,
   ThumbsUp,
-  CheckCircle2,
   Plus,
   BookOpen,
 } from 'lucide-react';
@@ -27,6 +26,12 @@ import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { FORMULAS } from '../data/formulasData';
 import { getSupabase } from '../lib/supabase';
 import { formatNum, getBoardLabel } from '../lib/i18n';
+import {
+  loadStudentHubVoteLedger,
+  STUDENT_HUB_VOTES_KEY,
+  studentHubVoteOwner,
+  updateStudentHubVoteLedger,
+} from '../lib/studentHubVotes';
 
 interface StudentHubViewProps {
   lang: Lang;
@@ -65,23 +70,30 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   const [askTitle, setAskTitle] = useState('');
   const [askDetails, setAskDetails] = useState('');
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
-  // Persisted so a reload cannot be used to vote the same doubt repeatedly.
-  const [upvotedMap, setUpvotedMap] = useState<Record<string, boolean>>(() => {
-    try {
-      const raw = localStorage.getItem('hsc28_upvoted');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Local vote hints are kept per account. The server ledger is authoritative
+  // for signed-in students; guest/legacy votes must not block another account.
+  const [upvotesByOwner, setUpvotesByOwner] = useState(loadStudentHubVoteLedger);
+  const voteOwner = studentHubVoteOwner(authUserId);
+  const upvotedMap = upvotesByOwner[voteOwner] || {};
+  const setUpvotedMap = (
+    update: (previous: Record<string, boolean>) => Record<string, boolean>
+  ) => setUpvotesByOwner((previous) => updateStudentHubVoteLedger(previous, voteOwner, update));
 
   useEffect(() => {
-    localStorage.setItem('hsc28_peer_doubts', JSON.stringify(doubts));
+    try {
+      localStorage.setItem('hsc28_peer_doubts', JSON.stringify(doubts));
+    } catch {
+      /* storage full or blocked */
+    }
   }, [doubts]);
 
   useEffect(() => {
-    localStorage.setItem('hsc28_upvoted', JSON.stringify(upvotedMap));
-  }, [upvotedMap]);
+    try {
+      localStorage.setItem(STUDENT_HUB_VOTES_KEY, JSON.stringify(upvotesByOwner));
+    } catch {
+      /* storage full or blocked */
+    }
+  }, [upvotesByOwner]);
 
   // Hydrate peer doubts from Supabase
   useEffect(() => {
@@ -122,11 +134,9 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                 createdAt: r.created_at,
               })),
           }));
-          // Merge instead of replacing. `setDoubts(mapped)` used to throw away
-          // two things: questions the student posted while offline (the local
-          // insert only happens when authenticated and reachable), and any
-          // upvote they had cast, since upvote counts are never written back to
-          // the cloud. Preserve cached posts, including any offline replies.
+          // Merge instead of replacing: keep local-only questions/replies, and
+          // preserve an optimistic vote count only when this account's local
+          // vote ledger says it cast that vote while the RPC was offline.
           setDoubts((prevLocal) => {
             const cloudIds = new Set(mapped.map((d) => d.id));
             const localOnly = prevLocal.filter(
@@ -134,7 +144,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             );
             const merged = mapped.map((cloud) => {
               const local = prevLocal.find((d) => d.id === cloud.id);
-              return local && local.upvotes > cloud.upvotes
+              return local && upvotedMap[cloud.id] && local.upvotes > cloud.upvotes
                 ? { ...cloud, upvotes: local.upvotes }
                 : cloud;
             });
@@ -179,7 +189,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
       subjectKey: askSubject,
       title: askTitle.trim(),
       details: askDetails.trim(),
-      upvotes: 1,
+      upvotes: 0,
       solved: false,
       createdAt: new Date().toISOString(),
       replies: [],
@@ -191,23 +201,29 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
     onAwardXp(10, 'প্রশ্ন পোস্ট করা হয়েছে (+১০ XP)', 'Question posted (+10 XP)');
 
     if (isAuthenticated && authUserId) {
-      try {
-        const client = await getSupabase();
-        await client.from('hsc28_student_doubts').insert({
-          id,
-          user_id: authUserId,
-          author_name: newPost.authorName,
-          college_name: newPost.collegeName,
-          board: newPost.board,
-          subject_key: newPost.subjectKey,
-          title: newPost.title,
-          details: newPost.details,
-          upvotes: 1,
-          solved: false,
-        });
-      } catch {
-        // Offline safe
-      }
+      // Use an idempotent upsert through the durable queue. Supabase may return
+      // an `{ error }` result without throwing; direct `insert` silently lost
+      // posts in that case and could not safely replay an uncertain request.
+      void syncWrite(
+        {
+          op: 'upsert',
+          table: 'hsc28_student_doubts',
+          onConflict: 'id',
+          payload: {
+            id,
+            user_id: authUserId,
+            author_name: newPost.authorName,
+            college_name: newPost.collegeName,
+            board: newPost.board,
+            subject_key: newPost.subjectKey,
+            title: newPost.title,
+            details: newPost.details,
+            upvotes: 0,
+            solved: false,
+          },
+        },
+        authUserId
+      );
     }
   };
 
@@ -221,7 +237,6 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
           ? d
           : {
               ...d,
-              solved: true,
               replies: [
                 ...d.replies,
                 {
@@ -230,7 +245,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                   authorName: profile.fullName,
                   collegeName: profile.collegeName || 'HSC ’28 Batchmate',
                   content: text,
-                  isHelpful: true,
+                  isHelpful: false,
                   createdAt: new Date().toISOString(),
                 },
               ],
@@ -245,20 +260,23 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
     );
 
     if (isAuthenticated && authUserId) {
-      try {
-        const client = await getSupabase();
-        await client.from('hsc28_doubt_replies').insert({
-          id: replyId,
-          doubt_id: doubtId,
-          user_id: authUserId,
-          author_name: profile.fullName,
-          college_name: profile.collegeName || 'HSC ’28 Science',
-          content: text,
-          is_helpful: true,
-        });
-      } catch {
-        // Offline safe
-      }
+      void syncWrite(
+        {
+          op: 'upsert',
+          table: 'hsc28_doubt_replies',
+          onConflict: 'id',
+          payload: {
+            id: replyId,
+            doubt_id: doubtId,
+            user_id: authUserId,
+            author_name: profile.fullName,
+            college_name: profile.collegeName || 'HSC ’28 Science',
+            content: text,
+            is_helpful: false,
+          },
+        },
+        authUserId
+      );
     }
   };
 
@@ -467,7 +485,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             <p className="text-xs sm:text-sm opacity-75">
               {lang === 'bn'
                 ? 'HSC ২০২৮ ব্যাচের সহপাঠীদের সাথে অংক, সূত্র বা অনুধাবনমূলক প্রশ্ন নিয়ে আলোচনা করুন — উত্তর দিলে +১৫ XP!'
-                : 'Collaborate strictly with fellow HSC 2028 Science students — earn +15 XP per helpful solution!'}
+                : 'Collaborate with fellow HSC 2028 Science students — earn +15 XP for contributing a reply.'}
             </p>
             <button
               onClick={() => setShowAskBox(!showAskBox)}
@@ -652,12 +670,12 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                           key={r.id}
                           className={`p-3.5 rounded-xl border text-xs sm:text-sm space-y-1 ${
                             isDark
-                              ? 'bg-emerald-500/8 border-emerald-400/20'
-                              : 'bg-emerald-50/55 border-emerald-200/80'
+                              ? 'bg-slate-900/50 border-slate-700/70'
+                              : 'bg-slate-50/70 border-slate-200/80'
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                            <MessageSquare className="w-3.5 h-3.5" />
                             <span>{r.authorName}</span>
                             <span className="font-normal opacity-70">
                               • {r.collegeName}

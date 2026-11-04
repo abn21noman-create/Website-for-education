@@ -51,7 +51,7 @@ import {
   mockTestsBetween,
   upcomingMocks,
 } from '../lib/mockPlan';
-import { loadAllMcq } from '../data/mcqBank';
+import { loadAllExamQuestions } from '../data/mcqBank';
 import { getSubjectByKey } from '../data/syllabusData';
 import type { Chronotype } from '../lib/studyScience';
 import type { McqQuestion, QuizAttemptRecord, SubjectKey } from '../types';
@@ -80,7 +80,7 @@ interface MasterRoutineViewProps {
   onToggleStage?: (chapterId: string, stage: keyof ChapterProgressState) => void;
   /** Jump to the mock-test screen when the student taps a scheduled test. */
   onOpenMock?: () => void;
-  /** Ids of every question answered wrongly — feeds the daily main-track block. */
+  /** IDs of wrong or skipped questions — feed the daily main-track block. */
   mistakeIds?: string[];
   /** Past attempts — last week's scores decide this week's quotas. */
   quizHistory?: QuizAttemptRecord[];
@@ -111,6 +111,12 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const useBn = lang === 'bn';
+  const paperLabel = (subjectKey: string): string =>
+    subjectKey === 'medical-gk'
+      ? useBn
+        ? 'GK/অ্যাপটিটিউড'
+        : 'GK / aptitude'
+      : getSubjectByKey(subjectKey as SubjectKey).shortName[lang];
 
   const [state, setState] = useState<RoutineState>(() => loadRoutineState());
   const [tab, setTab] = useState<Tab>('today');
@@ -123,8 +129,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
   const slots = useMemo(() => (dayNumber ? classSlotsForDay(dayNumber) : []), [dayNumber, state.startDate]);
   const revisionDay = dayNumber ? isRevisionDay(dayNumber) : weekday === 6;
   const phase = dayNumber ? phaseForDay(dayNumber) : null;
-  // Wrong answers from mocks: only the main track's papers are loaded, and only
-  // when there is actually something in the mistake bank.
+  // Wrong/skipped IDs from mocks: load the HSC bank plus admission-only
+  // sections only when the mistake bank contains something.
   const [mistakeQuestions, setMistakeQuestions] = useState<McqQuestion[]>([]);
   const mistakeSignature = mistakeIds.join('|');
   useEffect(() => {
@@ -135,7 +141,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
     // The weekly report spans every paper, so the whole bank is loaded once
     // (session-cached) — only when the mistake bank actually holds something.
     let cancelled = false;
-    loadAllMcq()
+    loadAllExamQuestions()
       .then((list) => {
         if (!cancelled) setMistakeQuestions(list);
       })
@@ -248,14 +254,24 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
     return out;
   }, [dateKey, state.minutes]);
 
-  /** Hand a chapter to the MCQ screen and jump there. */
-  const startChapterDrill = (row: { subjectKey: string; chapterBn: string; chapterEn: string; chapterId?: string | null }) => {
+  /** Hand a chapter or admission-only section to MCQ review and jump there. */
+  const startChapterDrill = (row: {
+    subjectKey: string;
+    chapterBn: string;
+    chapterEn: string;
+    chapterId?: string | null;
+    questionIds?: string[];
+  }) => {
+    const isMedicalGk = row.subjectKey === 'medical-gk';
     requestChapterDrill({
-      subjectKey: row.subjectKey as SubjectKey,
+      subjectKey: isMedicalGk ? undefined : (row.subjectKey as SubjectKey),
       chapterBn: row.chapterBn,
       chapterEn: row.chapterEn,
       chapterId: row.chapterId ?? undefined,
-      count: 10,
+      count: isMedicalGk ? Math.max(1, Math.min(30, row.questionIds?.length ?? 1)) : 10,
+      questionIds: isMedicalGk ? row.questionIds : undefined,
+      titleBn: isMedicalGk ? `মেডিকেল ${row.chapterBn} — ভুলের রিভিশন` : undefined,
+      titleEn: isMedicalGk ? `Medical ${row.chapterEn} — missed-question review` : undefined,
     });
     onOpenMock?.();
   };
@@ -635,8 +651,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                     >
                       {focus.reason === 'mistakes'
                         ? useBn
-                          ? `মক-এর ভুল ${bn(focus.wrongCount)}`
-                          : `${focus.wrongCount} mock mistakes`
+                          ? `মক-এ মিস ${bn(focus.missedCount)}`
+                          : `${focus.missedCount} mock misses`
                         : useBn
                           ? 'ট্র্যাকারে পিছিয়ে'
                           : 'behind in tracker'}
@@ -753,7 +769,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               </p>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                  mistakeStats.totalWrong > 0
+                  mistakeStats.totalMissed > 0
                     ? isDark
                       ? 'bg-amber-500/20 text-amber-200'
                       : 'bg-amber-100 text-amber-800'
@@ -761,8 +777,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                 }`}
               >
                 {useBn
-                  ? `${bn(mistakeStats.totalWrong)}টি ভুল`
-                  : `${mistakeStats.totalWrong} wrong`}
+                  ? `${bn(mistakeStats.totalMissed)}টি মিস হওয়া প্রশ্ন`
+                  : `${mistakeStats.totalMissed} missed`}
               </span>
             </div>
             <p className={`text-[11px] mt-1 leading-relaxed ${muted}`}>
@@ -783,13 +799,15 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                         {useBn ? row.chapterBn : row.chapterEn}
                       </p>
                       <p className={`text-[10px] mt-0.5 ${muted}`}>
-                        {useBn
-                          ? getSubjectByKey(row.subjectKey as SubjectKey).shortName.bn
-                          : getSubjectByKey(row.subjectKey as SubjectKey).shortName.en}
+                        {paperLabel(row.subjectKey)}
                         {' · '}
-                        {useBn
-                          ? `${bn(row.wrongCount)}টি ভুল · ${bn(row.stagesDone)}/৪ ধাপ`
-                          : `${row.wrongCount} wrong · ${row.stagesDone}/4 stages`}
+                        {row.subjectKey === 'medical-gk'
+                          ? useBn
+                            ? `${bn(row.missedCount)}টি মিস · ভর্তি অংশ`
+                            : `${row.missedCount} missed · admission section`
+                          : useBn
+                          ? `${bn(row.missedCount)}টি মিস · ${bn(row.stagesDone)}/৪ ধাপ`
+                          : `${row.missedCount} missed · ${row.stagesDone}/4 stages`}
                         {row.repeated && (
                           <span className="ml-1 font-bold text-amber-600 dark:text-amber-400">
                             {useBn ? '· বারবার ফিরছে' : '· repeating'}
@@ -806,7 +824,13 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                             : 'border-slate-200 hover:border-slate-400'
                         }`}
                       >
-                        {useBn ? '১০ প্রশ্ন' : '10 Q'}
+                        {row.subjectKey === 'medical-gk'
+                          ? useBn
+                            ? `${bn(row.questionIds.length)}টি GK`
+                            : `${row.questionIds.length} GK`
+                          : useBn
+                          ? '১০ প্রশ্ন'
+                          : '10 Q'}
                       </button>
                     )}
                   </li>
@@ -821,9 +845,7 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                     key={paper.subjectKey}
                     className={`text-[10px] px-2 py-0.5 rounded ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}
                   >
-                    {useBn
-                      ? getSubjectByKey(paper.subjectKey as SubjectKey).shortName.bn
-                      : getSubjectByKey(paper.subjectKey as SubjectKey).shortName.en}
+                    {paperLabel(paper.subjectKey)}
                     {' '}
                     {bn(paper.count)}
                   </span>

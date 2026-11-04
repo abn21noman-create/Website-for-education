@@ -4,22 +4,26 @@ import type { DailyFocus, TrackKey } from './trackProgress';
 import type { ChapterProgressState, McqQuestion } from '../types';
 
 /**
- * From "wrong in a mock" to "this is tomorrow's main block".
+ * From a wrong or skipped MCQ to "this is tomorrow's main block".
  *
- * The mistake bank keeps the ids of every question answered wrongly. This module
+ * The mistake bank keeps ids for questions answered incorrectly or skipped. This module
  * turns those ids into chapters, so the daily main-track block can start with the
- * chapter the student is actually getting wrong instead of a generic suggestion.
+ * chapter the student is missing most often instead of a generic suggestion.
  * When a track has no mistakes yet, the block falls back to the chapter furthest
  * behind in the tracker.
  */
 
 export interface ChapterMistake {
-  /** Null when the question's chapter title has no match in the syllabus. */
+  /** Null when the question's chapter title has no match in the HSC syllabus. */
   chapterId: string | null;
+  /** HSC paper key or an admission-only section such as `medical-gk`. */
   subjectKey: string;
   chapterBn: string;
   chapterEn: string;
-  wrongCount: number;
+  /** IDs support a targeted review when an admission section has no HSC chapter. */
+  questionIds: string[];
+  /** Count of questions answered wrongly or left blank in the mistake bank. */
+  missedCount: number;
 }
 
 const normalise = (text: string) =>
@@ -29,6 +33,7 @@ const normalise = (text: string) =>
 
 /** Looks up the syllabus chapter for a question, by exact title then by name. */
 export function chapterIdForQuestion(question: McqQuestion): string | null {
+  if (question.subjectKey === 'medical-gk') return null;
   const bn = normalise(question.chapter.bn);
   const en = normalise(question.chapter.en);
   const match = CHAPTERS.find(
@@ -39,7 +44,7 @@ export function chapterIdForQuestion(question: McqQuestion): string | null {
   return match ? match.id : null;
 }
 
-/** Groups wrongly answered questions by chapter, worst chapter first. */
+/** Groups wrong and skipped questions by chapter, highest miss count first. */
 export function mistakesByChapter(
   questionIds: string[],
   questions: McqQuestion[]
@@ -54,27 +59,29 @@ export function mistakesByChapter(
     const key = chapterId || `${question.subjectKey}::${normalise(question.chapter.bn)}`;
     const existing = buckets.get(key);
     if (existing) {
-      existing.wrongCount += 1;
+      existing.missedCount += 1;
+      existing.questionIds.push(question.id);
     } else {
       buckets.set(key, {
         chapterId,
         subjectKey: question.subjectKey,
         chapterBn: question.chapter.bn,
         chapterEn: question.chapter.en,
-        wrongCount: 1,
+        questionIds: [question.id],
+        missedCount: 1,
       });
     }
   }
 
   return [...buckets.values()].sort(
-    (a, b) => b.wrongCount - a.wrongCount || a.chapterBn.localeCompare(b.chapterBn)
+    (a, b) => b.missedCount - a.missedCount || a.chapterBn.localeCompare(b.chapterBn)
   );
 }
 
 export interface MainBlockSuggestion extends DailyFocus {
-  /** Why this chapter: it is being answered wrongly, or it is simply furthest behind. */
+  /** Why this chapter: it has the most wrong/skipped MCQs, or is furthest behind. */
   reason: 'mistakes' | 'gap';
-  wrongCount: number;
+  missedCount: number;
   chapterId?: string;
   chapterBn?: string;
   chapterEn?: string;
@@ -124,26 +131,26 @@ export function mainBlockSuggestion(
     return {
       ...base,
       reason: 'mistakes',
-      wrongCount: worst.wrongCount,
+      missedCount: worst.missedCount,
       chapterId: worst.chapterId ?? undefined,
       chapterBn: worst.chapterBn,
       chapterEn: worst.chapterEn,
       titleBn: `মূল ট্র্যাক ব্লক — ${worst.chapterBn}`,
       titleEn: `Main-track block — ${worst.chapterEn}`,
-      subtitleBn: `মক-এ ${worst.wrongCount}টি ভুল এই অধ্যায়ে — তাই এটাই আজকের প্রথম ব্লক।`,
-      subtitleEn: `${worst.wrongCount} wrong answer${worst.wrongCount === 1 ? '' : 's'} here in mocks — so this chapter opens the day.`,
+      subtitleBn: `মকে ${worst.missedCount}টি ভুল/ছেড়ে আসা MCQ এই অধ্যায়ে — তাই এটাই আজকের প্রথম ব্লক।`,
+      subtitleEn: `${worst.missedCount} missed MCQ${worst.missedCount === 1 ? '' : 's'} here in mocks — so this chapter opens the day.`,
       whyBn: `${base.whyBn} ভুলের জায়গাটা আগে ঠিক না করলে একই ভুল পরের মকেও ফিরে আসে।`,
       whyEn: `${base.whyEn} Fixing the exact place you slip is what stops the same mistake returning in the next mock.`,
     };
   }
 
   const gap = furthestBehind(base.subjectKey, progressMap);
-  if (!gap) return { ...base, reason: 'gap', wrongCount: 0, subtitleBn: '', subtitleEn: '' };
+  if (!gap) return { ...base, reason: 'gap', missedCount: 0, subtitleBn: '', subtitleEn: '' };
 
   return {
     ...base,
     reason: 'gap',
-    wrongCount: 0,
+    missedCount: 0,
     chapterId: gap.id,
     chapterBn: gap.title.bn,
     chapterEn: gap.title.en,
@@ -155,14 +162,14 @@ export function mainBlockSuggestion(
 }
 
 export interface MistakeReportRow extends ChapterMistake {
-  /** Two or more wrong answers in the same chapter — it keeps coming back. */
+  /** Two or more missed MCQs in the same chapter — it keeps coming back. */
   repeated: boolean;
   /** How many of the four syllabus stages are already done. */
   stagesDone: number;
 }
 
 export interface MistakeReport {
-  totalWrong: number;
+  totalMissed: number;
   chapters: MistakeReportRow[];
   papers: { subjectKey: string; count: number }[];
   repeatedChapters: number;
@@ -181,32 +188,32 @@ export function mistakeReport(
 ): MistakeReport {
   const chapters = mistakesByChapter(questionIds, questions).map((row) => ({
     ...row,
-    repeated: row.wrongCount >= 2,
+    repeated: row.missedCount >= 2,
     stagesDone: row.chapterId ? stagesDone(progressMap[row.chapterId]) : 0,
   }));
 
   const perPaper = new Map<string, number>();
   for (const row of chapters) {
-    perPaper.set(row.subjectKey, (perPaper.get(row.subjectKey) || 0) + row.wrongCount);
+    perPaper.set(row.subjectKey, (perPaper.get(row.subjectKey) || 0) + row.missedCount);
   }
   const papers = [...perPaper.entries()]
     .map(([subjectKey, count]) => ({ subjectKey, count }))
     .sort((a, b) => b.count - a.count);
 
-  const totalWrong = chapters.reduce((sum, row) => sum + row.wrongCount, 0);
+  const totalMissed = chapters.reduce((sum, row) => sum + row.missedCount, 0);
   const repeatedChapters = chapters.filter((row) => row.repeated).length;
   const worst = chapters[0];
 
-  let adviceBn = 'ভুলের খাতা খালি — কোনো প্রশ্ন এখনো ভুল হয়নি। মক দিয়ে শুরু করো।';
-  let adviceEn = 'The mistake bank is empty — nothing wrong yet. Start with a mock.';
+  let adviceBn = 'ভুল/ছেড়ে আসা প্রশ্নের ব্যাংক খালি — আবার অনুশীলনের কিছু নেই। মক দিয়ে শুরু করো।';
+  let adviceEn = 'The mistake bank is empty — no MCQs to revisit. Start with a mock.';
   if (worst) {
-    adviceBn = `সবচেয়ে বেশি ভুল “${worst.chapterBn}” (${worst.wrongCount}টি)${
+    adviceBn = `সবচেয়ে বেশি মিস “${worst.chapterBn}” (${worst.missedCount}টি ভুল/ছেড়ে আসা MCQ)${
       repeatedChapters > 0 ? `; ${repeatedChapters}টি অধ্যায়ে ভুল ফিরে আসছে` : ''
     }। ১০টি প্রশ্নের ড্রিল দিয়ে ওটাই আগে সারাও।`;
-    adviceEn = `Most misses are in “${worst.chapterEn}” (${worst.wrongCount})${
+    adviceEn = `Most missed MCQs are in “${worst.chapterEn}” (${worst.missedCount})${
       repeatedChapters > 0 ? `; ${repeatedChapters} chapter(s) keep repeating` : ''
     }. Clear it with a 10-question drill first.`;
   }
 
-  return { totalWrong, chapters, papers, repeatedChapters, adviceBn, adviceEn };
+  return { totalMissed, chapters, papers, repeatedChapters, adviceBn, adviceEn };
 }

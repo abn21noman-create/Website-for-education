@@ -275,26 +275,20 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
           {
             id: 'buet' as AdmissionTrack,
             icon: <Compass className="w-4 h-4" />,
-            bn: 'BUET / CKRUET ইঞ্জিনিয়ারিং',
-            en: 'BUET / Engineering Track',
-            subBn: 'প্রিলি ১০০ MCQ + লিখিত ৪০০ নম্বর (ক্যালকুলেটর অনুমোদিত)',
-            subEn: 'Prelim 100 MCQ + 400 Written (Sci. Calculator Allowed)',
+            bn: 'BUET / CUET / KUET / RUET',
+            en: 'BUET / CUET / KUET / RUET',
           },
           {
             id: 'medical' as AdmissionTrack,
             icon: <Stethoscope className="w-4 h-4" />,
             bn: 'মেডিকেল ও ডেন্টাল (MBBS/BDS)',
             en: 'Medical & Dental Track',
-            subBn: '১০০ MCQ (জীব ৩০, রসা ২৫, পদা ২০, ইং ১৫, GK ১০ • ক্যালকুলেটর নিষিদ্ধ)',
-            subEn: '100 MCQ • -0.25 Negative Marking • NO Calculator',
           },
           {
             id: 'du' as AdmissionTrack,
             icon: <GraduationCap className="w-4 h-4" />,
-            bn: 'ঢাকা বিশ্ববিদ্যালয় ‘ক’ ও GST',
-            en: 'DU Ka-Unit & GST Science',
-            subBn: '৬০ MCQ + ৪০ লিখিত = ১০০ নম্বর (ক্যালকুলেটর সম্পূর্ণ নিষিদ্ধ!)',
-            subEn: '60 MCQ + 40 Written • Strictly NO Calculator!',
+            bn: 'ঢাকা বিশ্ববিদ্যালয় ‘ক’ ইউনিট',
+            en: 'DU Ka-Unit',
           },
         ].map((item) => {
           const active = track === item.id;
@@ -372,6 +366,16 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
                 {fact.label[lang]}
               </div>
               <div className="text-xs font-bold mt-0.5 leading-relaxed">{fact.value[lang]}</div>
+              {fact.officialUrl && (
+                <a
+                  href={fact.officialUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 mt-1 text-[10px] opacity-65 hover:opacity-100 underline underline-offset-2"
+                >
+                  {lang === 'bn' ? 'সরকারি বিজ্ঞপ্তি ↗' : 'Official notice ↗'}
+                </a>
+              )}
             </div>
           ))}
         </div>
@@ -421,7 +425,7 @@ export const AdmissionView: React.FC<AdmissionViewProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{lang === 'bn' ? 'GK ড্রিল (১০ নম্বর)' : 'GK drill (10 marks)'}</span>
+              <span>{lang === 'bn' ? 'GK ড্রিল (১৫ নম্বরের অংশ)' : 'GK drill (part of 15-mark section)'}</span>
             </button>
           )}
           <button

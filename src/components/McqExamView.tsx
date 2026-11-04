@@ -23,7 +23,8 @@ import {
   ALL_SUBJECT_KEYS,
   MCQ_COUNTS,
   MCQ_TOTAL,
-  loadAllMcq,
+  MEDICAL_GK_MCQ,
+  loadAllExamQuestions,
   loadMcqSubjects,
 } from '../data/mcqBank';
 import { SUBJECTS, getSubjectByKey } from '../data/syllabusData';
@@ -38,6 +39,7 @@ import {
   writtenSectionLabel,
 } from '../lib/examPatterns';
 import { MISTAKE_REASONS, MistakeReason, loadMistakeReasons, mistakeSummary, saveMistakeReason } from '../lib/mistakeTags';
+import { classifyMistakeAttempt } from '../lib/mistakeBank';
 import { SelfExplainBox } from './SelfExplainBox';
 import { SectorStats } from './SectorStats';
 import { selfNoteCount } from '../lib/selfNotes';
@@ -198,13 +200,10 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    if (bank.length > 0) {
-      start(bank);
-      return;
-    }
-    // Deep-link from another screen may beat the loader — fetch then start.
-    loadAllMcq().then(start).catch(() => undefined);
-  }, [mistakeIds, bank]);
+    // Mistake IDs may include a medical GK question from a prior run, so load
+    // the complete exam bank rather than only the papers in the current setup.
+    loadAllExamQuestions().then(start).catch(() => undefined);
+  }, [mistakeIds]);
 
   useEffect(() => {
     if (autoStartMistakeExam && mistakeIds.length > 0 && bank.length > 0) {
@@ -219,23 +218,35 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     onConsumedMistakeExam,
   ]);
 
-  /** Deep link from the routine: a timed drill on one chapter. */
+  /** Deep link from the routine: a timed drill on one chapter or saved IDs. */
   useEffect(() => {
-    if (!chapterDrill || stage !== 'setup' || bank.length === 0) return;
-    const picked = pickChapterQuestions(bank, chapterDrill);
-    if (picked.length === 0) return;
-    setSelectedSubject(chapterDrill.subjectKey ?? 'all');
-    setExamQuestions(picked);
-    setIsMistakeRun(false);
-    setIsChapterRun(true);
-    setAnswers({});
-    setFlagged({});
-    setFocusTabSwitches(0);
-    setSecondsLeft(picked.length * 60);
-    setStartedAt(Date.now());
-    setLastResult(null);
-    setStage('running');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!chapterDrill || stage !== 'setup') return;
+    const hasExplicitIds = Boolean(chapterDrill.questionIds?.length);
+    if (!hasExplicitIds && bank.length === 0) return;
+    let cancelled = false;
+    const source = hasExplicitIds ? loadAllExamQuestions() : Promise.resolve(bank);
+    source
+      .then((questions) => {
+        if (cancelled) return;
+        const picked = pickChapterQuestions(questions, chapterDrill);
+        if (picked.length === 0) return;
+        setSelectedSubject(chapterDrill.subjectKey ?? 'all');
+        setExamQuestions(picked);
+        setIsMistakeRun(false);
+        setIsChapterRun(true);
+        setAnswers({});
+        setFlagged({});
+        setFocusTabSwitches(0);
+        setSecondsLeft(picked.length * 60);
+        setStartedAt(Date.now());
+        setLastResult(null);
+        setStage('running');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [chapterDrill, bank, stage]);
 
   /**
@@ -253,7 +264,14 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   useEffect(() => {
     let cancelled = false;
     const missing = requiredSubjects.filter((key) => !bankCache.current.has(key));
-    const publish = () => setBank([...bankCache.current.values()].flat());
+    const publish = () => {
+      const hscQuestions = [...bankCache.current.values()].flat();
+      setBank(
+        patternId === 'medical-mbbs'
+          ? [...hscQuestions, ...MEDICAL_GK_MCQ]
+          : hscQuestions
+      );
+    };
 
     if (missing.length === 0) {
       publish();
@@ -280,9 +298,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     return () => {
       cancelled = true;
     };
-    // `requiredKey` captures the subject list; `requiredSubjects` is rebuilt each render.
+    // `requiredKey` captures the subject list; `patternId` adds admission-only banks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiredKey]);
+  }, [requiredKey, patternId]);
 
   useEffect(() => {
     if (stage !== 'running' || examMode !== 'timed') return;
@@ -331,29 +349,12 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   const finishExam = React.useCallback(() => {
     if (stage !== 'running') return;
-    let correct = 0;
-    let wrong = 0;
-    let skipped = 0;
-    const newMistakes: string[] = [];
-    const fixedMistakes: string[] = [];
+    const classification = classifyMistakeAttempt(examQuestions, answers, mistakeIds);
+    const correct = classification.correctIds.length;
+    const wrong = classification.wrongIds.length;
+    const skipped = classification.skippedIds.length;
 
-    examQuestions.forEach((q) => {
-      const ans = answers[q.id];
-      if (ans === undefined) {
-        skipped += 1;
-        newMistakes.push(q.id);
-      } else if (ans === q.correctIndex) {
-        correct += 1;
-        if (mistakeIds.includes(q.id)) {
-          fixedMistakes.push(q.id);
-        }
-      } else {
-        wrong += 1;
-        newMistakes.push(q.id);
-      }
-    });
-
-    onUpdateMistakeIds(newMistakes, fixedMistakes);
+    onUpdateMistakeIds(classification.addIds, classification.removeIds);
 
     const scored = scoreForPattern(scoringPattern, correct, wrong, examQuestions.length);
     const score = scored.score;
@@ -543,8 +544,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                         ? 'আগের পরীক্ষায় ভুল বা ছেড়ে আসা প্রশ্নগুলো এখানে জমা আছে। সঠিক উত্তর দিলে তালিকা থেকে মুছে যাবে (+১৫ XP)।'
                         : 'Wrong/skipped MCQs are saved automatically. Answer right to clear them (+15 XP).'
                       : lang === 'bn'
-                      ? 'দারুণ! আপনার মিস্টেক ব্যাংকে বর্তমানে কোনো ভুল প্রশ্ন জমে নেই।'
-                      : 'Awesome! Your Mistake Bank currently has zero pending errors.'}
+                      ? 'দারুণ! মিস্টেক ব্যাংকে আবার অনুশীলনের জন্য কোনো প্রশ্ন নেই।'
+                      : 'Awesome! No missed MCQs are waiting to be revisited.'}
                   </p>
                 </div>
               </div>
@@ -625,9 +626,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                       : 'bg-amber-50/80 border-amber-200 text-amber-900'
                   }`}
                 >
-                  {lang === 'bn'
-                    ? `প্রকৃত কাগজে ${formatNum(activePattern.paperQuestions, lang)}টি প্রশ্ন থাকে; ব্যাংকে এখন ${formatNum(availablePoolCount, lang)}টি আছে — সবগুলো দিয়েই পূর্ণ সময়ে অনুশীলন হবে।`
-                    : `The real paper has ${activePattern.paperQuestions} questions; the bank currently holds ${availablePoolCount} — you will practise all of them at the real pace.`}
+                  {activePattern.simulationOnly
+                    ? lang === 'bn'
+                      ? `এই প্র্যাকটিস সেটে ${formatNum(activePattern.paperQuestions, lang)}টি প্রশ্নের লক্ষ্য; ব্যাংকে এখন ${formatNum(availablePoolCount, lang)}টি আছে — সবগুলো দিয়েই অনুশীলন হবে।`
+                      : `This practice set targets ${activePattern.paperQuestions} questions; the bank currently holds ${availablePoolCount} — you will practise all of them.`
+                    : lang === 'bn'
+                      ? `প্রকৃত কাগজে ${formatNum(activePattern.paperQuestions, lang)}টি প্রশ্ন থাকে; ব্যাংকে এখন ${formatNum(availablePoolCount, lang)}টি আছে — সবগুলো দিয়েই পূর্ণ সময়ে অনুশীলন হবে।`
+                      : `The real paper has ${activePattern.paperQuestions} questions; the bank currently holds ${availablePoolCount} — you will practise all of them at the real pace.`}
                 </p>
               )}
             </div>
@@ -698,13 +703,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                 <div className="text-xs font-bold flex items-center gap-1.5">
                   <Scale className="w-3.5 h-3.5 text-indigo-500" />
                   <span>
-                    {lang === 'bn' ? 'প্রকৃত কাগজের বিষয়-ভার' : 'REAL PAPER SUBJECT WEIGHT'}
+                    {lang === 'bn' ? 'প্রকৃত কাগজের বিষয়/বিভাগের ওজন' : 'REAL PAPER SECTION WEIGHT'}
                   </span>
                 </div>
                 <p className="text-[11px] opacity-70 leading-relaxed">
                   {lang === 'bn'
-                    ? `প্রশ্নগুলো ওজন অনুযায়ীই আসবে — ${formatNum(questionCount, lang)}টি প্রশ্নে কোন বিষয় কতটি, নিচে দেখা যাচ্ছে।`
-                    : `Questions follow the official weight — see how many of the ${questionCount} come from each paper.`}
+                    ? `ওজন অনুযায়ী ${formatNum(questionCount, lang)}টি প্রশ্নে প্রতিটি বিষয়/বিভাগের সম্ভাব্য সংখ্যা নিচে দেখা যাচ্ছে।`
+                    : `The section weights below show the target mix for ${questionCount} questions.`}
                 </p>
                 {Object.entries(activePattern.weights ?? {}).map(([key, w]) => {
                   const totalWeight = Object.values(activePattern.weights ?? {}).reduce(
@@ -716,7 +721,11 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                   return (
                     <div key={key} className="flex items-center gap-2 text-[11px]">
                       <span className="w-20 sm:w-24 truncate font-semibold">
-                        {getSubjectByKey(key as SubjectKey).shortName[lang]}
+                        {key === 'medical-gk'
+                          ? lang === 'bn'
+                            ? 'GK/অ্যাপটিটিউড'
+                            : 'GK / aptitude'
+                          : getSubjectByKey(key as SubjectKey).shortName[lang]}
                       </span>
                       <span
                         className={`flex-1 h-1.5 rounded-full overflow-hidden ${
@@ -1206,7 +1215,17 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
         {/* Questions List */}
         <div className="space-y-4">
           {examQuestions.map((q, idx) => {
-            const subj = getSubjectByKey(q.subjectKey);
+            const subj =
+              q.subjectKey === 'medical-gk' ? null : getSubjectByKey(q.subjectKey);
+            const subjLabel =
+              subj?.shortName[lang] ?? (lang === 'bn' ? 'মেডিকেল GK' : 'Medical GK');
+            const subjBadge = subj
+              ? isDark
+                ? subj.bgDark
+                : subj.bgLight
+              : isDark
+              ? 'bg-amber-500/12 text-amber-300 border-amber-400/20'
+              : 'bg-amber-50/90 text-amber-800 border-amber-200/80';
             const selected = answers[q.id];
             const isFlagged = !!flagged[q.id];
             const showInstantFeedback =
@@ -1233,11 +1252,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                       {formatNum(idx + 1, lang)}
                     </span>
                     <span
-                      className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-md border ${
-                        isDark ? subj.bgDark : subj.bgLight
-                      }`}
+                      className={`text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-md border ${subjBadge}`}
                     >
-                      {subj.shortName[lang]} • {q.chapter[lang]}
+                      {subjLabel} • {q.chapter[lang]}
                     </span>
                     <span className="text-[11px] opacity-55">
                       [{q.boardTag[lang]}]
@@ -1356,7 +1373,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   // STAGE 3: RESULT & DETAILED SOLUTION SHEET
   const labels = lang === 'bn' ? OPTION_LABELS_BN : OPTION_LABELS_EN;
   const wrongQuestionIds = examQuestions
-    .filter((q) => answers[q.id] !== q.correctIndex)
+    .filter((q) => answers[q.id] !== undefined && answers[q.id] !== q.correctIndex)
     .map((q) => q.id);
   const reasonSummary = mistakeSummary(wrongQuestionIds, reasonStore);
 
@@ -1751,7 +1768,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
               <SelfExplainBox questionId={q.id} lang={lang} theme={theme} />
 
-              {!isCorrect && (
+              {userAns !== undefined && !isCorrect && (
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-wider font-bold opacity-60 mb-1.5">
                     {lang === 'bn' ? 'কেন ভুল হলো?' : 'WHY WAS IT WRONG?'}
