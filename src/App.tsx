@@ -28,11 +28,15 @@ import {
   setSyncUser,
   syncWrite,
   useSyncStatus,
+  withExclusiveSyncUserLock,
 } from './lib/sync';
 import {
   applyCloudResetLocally,
+  beginCloudResetAttempt,
+  clearCloudResetAttempt,
   ensureVaultReady,
   flushVault,
+  readCloudResetMarker,
   readCloudResetToken,
   startCloudVault,
   takeRestoreNotice,
@@ -1286,6 +1290,9 @@ export function App() {
       ensureVaultReady,
       flushVault,
       ensureSyncSaved,
+      withExclusiveUserLock: withExclusiveSyncUserLock,
+      beginCloudResetAttempt,
+      clearCloudResetAttempt,
       pauseSyncUser,
       startCloudVault,
       setSyncUser,
@@ -1295,6 +1302,7 @@ export function App() {
         const { error } = await client.rpc('hsc28_clear_my_study_data');
         if (error) throw error;
       },
+      readCloudResetMarker,
       readCloudResetToken,
       applyCloudResetLocally,
       reload: () => window.location.reload(),

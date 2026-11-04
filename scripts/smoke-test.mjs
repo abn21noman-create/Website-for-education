@@ -41,6 +41,52 @@ const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></
 
 const { window } = dom;
 
+class FakeLockManager {
+  constructor() {
+    this.locks = new Map();
+  }
+
+  request(name, options, callback) {
+    return new Promise((resolve, reject) => {
+      const state = this.locks.get(name) || { shared: 0, exclusive: false, queue: [] };
+      this.locks.set(name, state);
+      state.queue.push({ mode: options?.mode || 'exclusive', callback, resolve, reject });
+      this.drain(name, state);
+    });
+  }
+
+  drain(name, state) {
+    if (state.exclusive) return;
+    if (state.shared > 0) {
+      while (state.queue[0]?.mode === 'shared') this.grant(name, state, state.queue.shift());
+      return;
+    }
+    if (state.queue[0]?.mode === 'exclusive') {
+      this.grant(name, state, state.queue.shift());
+      return;
+    }
+    while (state.queue[0]?.mode === 'shared') this.grant(name, state, state.queue.shift());
+  }
+
+  grant(name, state, request) {
+    if (request.mode === 'exclusive') state.exclusive = true;
+    else state.shared += 1;
+    Promise.resolve()
+      .then(() => request.callback({ name, mode: request.mode }))
+      .then(request.resolve, request.reject)
+      .finally(() => {
+        if (request.mode === 'exclusive') state.exclusive = false;
+        else state.shared -= 1;
+        this.drain(name, state);
+      });
+  }
+}
+
+Object.defineProperty(window.navigator, 'locks', {
+  value: new FakeLockManager(),
+  configurable: true,
+});
+
 // Minimal browser surface the app touches during mount.
 window.matchMedia =
   window.matchMedia ||
@@ -2012,6 +2058,91 @@ for (const [key, value] of Object.entries(beforeResetStorage)) if (value !== nul
 
 const sync = await vite.ssrLoadModule('/src/lib/sync.ts');
 const queuedTestOp = { op: 'upsert', table: 'hsc28_test', payload: { id: 'test' }, onConflict: 'id' };
+
+const lockUser = 'cross-tab-reset-lock-user';
+localStorage.removeItem(`nokkhotro_cloud_reset_boot_v1_${lockUser}`);
+localStorage.removeItem(`nokkhotro_cloud_reset_pending_v1_${lockUser}`);
+sync.setSyncUser(lockUser);
+const lockOrder = [];
+let releaseActiveWrite;
+let announceActiveWrite;
+const activeWriteStarted = new Promise((resolve) => { announceActiveWrite = resolve; });
+const activeTabWrite = sync.withUserSyncWriteLock(lockUser, async () => {
+  lockOrder.push('write-start');
+  announceActiveWrite();
+  await new Promise((resolve) => { releaseActiveWrite = resolve; });
+  lockOrder.push('write-finish');
+});
+await activeWriteStarted;
+const exclusiveReset = sync.withExclusiveSyncUserLock(lockUser, async () => {
+  lockOrder.push('reset-start');
+  localStorage.setItem(`nokkhotro_cloud_reset_boot_v1_${lockUser}`, 'cross-tab-reset-token');
+  lockOrder.push('reset-finish');
+});
+let staleWriteReachedCloud = false;
+const staleTabWrite = sync.withUserSyncWriteLock(lockUser, async () => {
+  staleWriteReachedCloud = true;
+});
+releaseActiveWrite();
+await activeTabWrite;
+await exclusiveReset;
+let staleGenerationRejected = false;
+try { await staleTabWrite; } catch (error) {
+  staleGenerationRejected = error instanceof sync.StaleSyncGenerationError;
+}
+check(
+  lockOrder.join('|') === 'write-start|write-finish|reset-start|reset-finish' &&
+    staleGenerationRejected && !staleWriteReachedCloud,
+  'the exclusive reset lock waits for in-flight tab writes and rejects stale writes queued behind the reset',
+  `${lockOrder.join(' → ')} staleRejected=${staleGenerationRejected} staleReachedCloud=${staleWriteReachedCloud}`
+);
+sync.setSyncUser(null);
+localStorage.removeItem(`nokkhotro_cloud_reset_boot_v1_${lockUser}`);
+
+const originalLocks = window.navigator.locks;
+Object.defineProperty(window.navigator, 'locks', { value: undefined, configurable: true });
+let unsupportedLockRejected = false;
+let unsafeResetRan = false;
+try {
+  await sync.withExclusiveSyncUserLock('unsupported-lock-user', async () => { unsafeResetRan = true; });
+} catch (error) {
+  unsupportedLockRejected = /cannot safely coordinate/i.test(error.message);
+}
+Object.defineProperty(window.navigator, 'locks', { value: originalLocks, configurable: true });
+check(
+  unsupportedLockRejected && !unsafeResetRan,
+  'the destructive reset fails closed when the browser has no cross-tab lock support'
+);
+
+const pendingResetUser = 'pending-reset-fence-user';
+const pendingBootKey = `nokkhotro_cloud_reset_boot_v1_${pendingResetUser}`;
+const pendingResetKey = `nokkhotro_cloud_reset_pending_v1_${pendingResetUser}`;
+localStorage.setItem(pendingBootKey, 'before-reset');
+const previousPendingToken = vault.beginCloudResetAttempt(pendingResetUser);
+let pendingWriteReachedCloud = false;
+let pendingWriteBlocked = false;
+try {
+  await sync.withUserSyncWriteLock(pendingResetUser, async () => { pendingWriteReachedCloud = true; });
+} catch (error) {
+  pendingWriteBlocked = error instanceof sync.StaleSyncGenerationError;
+}
+vault.clearCloudResetAttempt(pendingResetUser);
+sync.resumeSyncUser(pendingResetUser);
+let writeAfterConfirmedAbort = false;
+try {
+  writeAfterConfirmedAbort = await sync.withUserSyncWriteLock(
+    pendingResetUser,
+    async () => true,
+    previousPendingToken
+  );
+} catch { /* test below verifies the fail-closed state */ }
+check(
+  previousPendingToken === 'before-reset' && !localStorage.getItem(pendingResetKey) &&
+    pendingWriteBlocked && !pendingWriteReachedCloud && writeAfterConfirmedAbort,
+  'a persisted pending-reset fence blocks sibling writes and can reopen them only after abort confirmation'
+);
+localStorage.removeItem(pendingBootKey);
+
 sync.pauseSyncUser('queue-test-a');
 sync.pauseSyncUser('queue-test-b');
 await sync.syncWrite(queuedTestOp, 'queue-test-a');
@@ -2044,6 +2175,12 @@ const resetDeps = {
   ensureVaultReady: async () => { resetOrder.push('vault-ready'); },
   flushVault: async () => { resetOrder.push('flush-vault'); },
   ensureSyncSaved: async () => { resetOrder.push('sync-saved'); return true; },
+  withExclusiveUserLock: async (_userId, operation) => {
+    resetOrder.push('lock:start');
+    try { await operation(); } finally { resetOrder.push('lock:end'); }
+  },
+  beginCloudResetAttempt: (userId) => { resetOrder.push(`begin-reset:${userId}`); return null; },
+  clearCloudResetAttempt: (userId) => { resetOrder.push(`clear-reset-attempt:${userId}`); },
   pauseSyncUser: (userId, discard) => { resetOrder.push(`pause:${userId}:${discard}`); sync.pauseSyncUser(userId, discard); },
   startCloudVault: (userId) => { resetOrder.push(`vault:${userId}`); },
   setSyncUser: (userId) => { resetOrder.push(`sync-user:${userId}`); },
@@ -2053,6 +2190,7 @@ const resetDeps = {
     announceResetRpc();
     return new Promise((resolve) => { resolveResetRpc = resolve; });
   },
+  readCloudResetMarker: async (userId) => { resetOrder.push(`read-marker:${userId}`); return null; },
   readCloudResetToken: async (userId) => { resetOrder.push(`read-token:${userId}`); return 'reset-rpc-token'; },
   applyCloudResetLocally: (userId, token) => { resetOrder.push(`apply:${userId}:${token}`); return false; },
   reload: () => { resetOrder.push('reload'); },
@@ -2076,11 +2214,12 @@ check(
 );
 check(
   resetOrder.join('|') === [
-    'vault-ready', 'flush-vault', 'sync-saved', 'pause:reset-rpc-user:true',
+    'vault-ready', 'flush-vault', 'sync-saved', 'lock:start',
+    'begin-reset:reset-rpc-user', 'pause:reset-rpc-user:true',
     'vault:null', 'sync-user:null', 'rpc-start', 'read-token:reset-rpc-user',
-    'clear-queue:reset-rpc-user', 'apply:reset-rpc-user:reset-rpc-token', 'reload',
+    'clear-queue:reset-rpc-user', 'apply:reset-rpc-user:reset-rpc-token', 'reload', 'lock:end',
   ].join('|'),
-  'reset RPC runs only after sync preflight and the local write barrier, then clears and reloads after the server token',
+  'reset takes the exclusive cross-tab lock after preflight and keeps it through server marker application and reload',
   resetOrder.join(' → ')
 );
 sync.clearSyncQueueForUser('reset-other-user');
@@ -2109,6 +2248,58 @@ check(
   `error=${resetRpcErrorSurfaced} reads=${recoveryReads} reopened=${recoveryReopenedWrites}`
 );
 sync.resumeSyncUser('reset-error-user');
+
+let ambiguousLockReleased = false;
+let ambiguousMarkerReadUnderLock = false;
+let ambiguousResetToken = '';
+let ambiguousResetReloaded = false;
+let ambiguousResetThrew = false;
+try {
+  await studyDataReset.performStudyDataReset('reset-ambiguous-user', {
+    ...resetDeps,
+    withExclusiveUserLock: async (_userId, operation) => {
+      try { await operation(); } finally { ambiguousLockReleased = true; }
+    },
+    beginCloudResetAttempt: () => 'old-marker',
+    resetOnServer: async () => { throw new Error('response lost after commit'); },
+    readCloudResetMarker: async () => {
+      ambiguousMarkerReadUnderLock = !ambiguousLockReleased;
+      return 'new-marker';
+    },
+    clearSyncQueueForUser() {},
+    applyCloudResetLocally: (_userId, token) => { ambiguousResetToken = token; return false; },
+    reload: () => { ambiguousResetReloaded = true; },
+  });
+} catch { ambiguousResetThrew = true; }
+check(
+  !ambiguousResetThrew && ambiguousMarkerReadUnderLock && ambiguousResetToken === 'new-marker' &&
+    ambiguousResetReloaded && ambiguousLockReleased,
+  'a lost reset response is reconciled under the exclusive lock before stale tabs can resume'
+);
+
+let uncertainFenceCleared = false;
+let uncertainSyncReopened = false;
+let uncertainResetErrorSurfaced = false;
+let uncertainRecoveryCalls = 0;
+try {
+  await studyDataReset.performStudyDataReset('reset-uncertain-user', {
+    ...resetDeps,
+    beginCloudResetAttempt: () => 'old-marker',
+    clearCloudResetAttempt: () => { uncertainFenceCleared = true; },
+    resetOnServer: async () => { throw new Error('offline after request'); },
+    readCloudResetMarker: async () => { throw new Error('marker read also offline'); },
+    ensureVaultReady: async () => {
+      uncertainRecoveryCalls += 1;
+      if (uncertainRecoveryCalls > 1) throw new Error('still offline');
+    },
+    setSyncUser: (uid) => { if (uid === 'reset-uncertain-user') uncertainSyncReopened = true; },
+  });
+} catch (error) { uncertainResetErrorSurfaced = /offline after request/.test(error.message); }
+check(
+  uncertainResetErrorSurfaced && !uncertainFenceCleared && !uncertainSyncReopened &&
+    uncertainRecoveryCalls === 2,
+  'when reset outcome cannot be read, the pending fence remains and sync stays paused'
+);
 
 let finishSyncPreflight;
 let announceSyncPreflight;

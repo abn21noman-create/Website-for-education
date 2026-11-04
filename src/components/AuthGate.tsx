@@ -3,7 +3,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Eye, EyeOff, GraduationCap, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { getSupabase } from '../lib/supabase';
 import { startCloudVault } from '../lib/cloudVault';
-import { setSyncUser } from '../lib/sync';
+import { setSyncUser, withUserSyncWriteLock } from '../lib/sync';
 import { finishGuestMigration, selectAccountSpace } from '../lib/accountSpace';
 import App from '../App';
 
@@ -53,12 +53,14 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         // choose the cloud version of any conflicting key. Do not expose the app
         // until this succeeds; the original guest copy also stays on the device.
         const client = await clientFactory();
-        const { error: saveError } = await client.from('hsc28_kv').upsert({
-          user_id: next.user.id,
-          key: 'nokkhotro_guest_archive_v1',
-          value: JSON.stringify({ version: 1, createdAt: new Date().toISOString(), values: guestData }),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,key' });
+        const { error: saveError } = await withUserSyncWriteLock(next.user.id, async () =>
+          await client.from('hsc28_kv').upsert({
+            user_id: next.user.id,
+            key: 'nokkhotro_guest_archive_v1',
+            value: JSON.stringify({ version: 1, createdAt: new Date().toISOString(), values: guestData }),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'user_id,key' })
+        );
         if (saveError) throw saveError;
         finishGuestMigration(next.user.id);
       }

@@ -38,6 +38,7 @@ const RELOAD_KEY = 'hsc28_vault_reloaded';
 const RESET_MARKER_KEY = 'hsc28_vault_reset_marker';
 const RESET_META_KEY = '__cloud_reset_token__';
 const RESET_BOOT_PREFIX = 'nokkhotro_cloud_reset_boot_v1_';
+const RESET_PENDING_PREFIX = 'nokkhotro_cloud_reset_pending_v1_';
 const LOCAL_SPACE_PREFIX = 'nokkhotro_local_space_v1_';
 const GUEST_PENDING_PREFIX = 'nokkhotro_guest_pending_v1_';
 const SYNC_QUEUE_KEY = 'hsc28_sync_queue';
@@ -118,6 +119,7 @@ let vaultFlush: Promise<void> | null = null;
 const dirty = new Set<string>();
 const initialised = new Set<string>();
 const resetInProgress = new Set<string>();
+const pendingResetTabs = new Map<string, string | null>();
 let initialSyncPromise: Promise<void> | null = null;
 let initialSyncError: unknown = null;
 
@@ -159,6 +161,7 @@ export function applyCloudResetLocally(userId: string, token: string): boolean {
     LOCAL_SPACE_PREFIX + userId,
     'nokkhotro_pre_import_' + userId,
     GUEST_PENDING_PREFIX + userId,
+    RESET_PENDING_PREFIX + userId,
   ]) {
     try {
       if (rawRemoveItem) rawRemoveItem.call(localStorage, key);
@@ -170,8 +173,8 @@ export function applyCloudResetLocally(userId: string, token: string): boolean {
   return alreadyBootedClean;
 }
 
-/** Read the reset token just written by hsc28_clear_my_study_data(). */
-export async function readCloudResetToken(userId: string): Promise<string> {
+/** Read the reset marker (or its absence) from the authenticated cloud vault. */
+export async function readCloudResetMarker(userId: string): Promise<string | null> {
   const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('hsc28_kv')
@@ -180,10 +183,69 @@ export async function readCloudResetToken(userId: string): Promise<string> {
     .eq('key', RESET_MARKER_KEY)
     .maybeSingle();
   if (error) throw error;
-  if (!data || typeof data.value !== 'string' || !data.value) {
-    throw new Error('Cloud reset marker is missing');
+  if (!data) return null;
+  if (typeof data.value !== 'string' || !data.value) {
+    throw new Error('Cloud reset marker is invalid');
   }
   return data.value;
+}
+
+/** Read the reset token just written by hsc28_clear_my_study_data(). */
+export async function readCloudResetToken(userId: string): Promise<string> {
+  const token = await readCloudResetMarker(userId);
+  if (!token) throw new Error('Cloud reset marker is missing');
+  return token;
+}
+
+interface PendingCloudReset {
+  version: 1;
+  previousToken: string | null;
+}
+
+function readPendingCloudReset(userId: string): PendingCloudReset | null | false {
+  try {
+    const raw = localStorage.getItem(RESET_PENDING_PREFIX + userId);
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingCloudReset>;
+    if (
+      parsed?.version !== 1 ||
+      !(parsed.previousToken === null || typeof parsed.previousToken === 'string')
+    ) return false;
+    return { version: 1, previousToken: parsed.previousToken };
+  } catch {
+    return false;
+  }
+}
+
+/** Persist an in-flight reset fence before its RPC can race sibling tabs. */
+export function beginCloudResetAttempt(userId: string): string | null {
+  const key = RESET_PENDING_PREFIX + userId;
+  if (!rawSetItem) throw new Error('Browser storage is unavailable for a safe reset.');
+  try {
+    if (localStorage.getItem(key) !== null) {
+      throw new Error('A previous reset is still being checked. Reload and try again.');
+    }
+    const previousToken = localStorage.getItem(RESET_BOOT_PREFIX + userId);
+    const value = JSON.stringify({ version: 1, previousToken } satisfies PendingCloudReset);
+    rawSetItem.call(localStorage, key, value);
+    if (localStorage.getItem(key) !== value) {
+      throw new Error('Could not persist the cross-tab reset fence.');
+    }
+    return previousToken;
+  } catch (error) {
+    if (error instanceof Error && /previous reset|persist the cross-tab/i.test(error.message)) throw error;
+    throw new Error('Browser storage is unavailable for a safe reset.');
+  }
+}
+
+/** Clear a reset fence only after the server confirms the reset did not commit. */
+export function clearCloudResetAttempt(userId: string): void {
+  try {
+    if (rawRemoveItem) rawRemoveItem.call(localStorage, RESET_PENDING_PREFIX + userId);
+    else localStorage.removeItem(RESET_PENDING_PREFIX + userId);
+  } catch {
+    // Leaving the fence in place is safer than reopening stale writes.
+  }
 }
 
 function reloadAfterCloudReset(): void {
@@ -234,11 +296,12 @@ async function flushVaultNow(): Promise<void> {
     }
 
     if (value === null) {
-      await syncWrite(
+      const saved = await syncWrite(
         { op: 'delete', table: 'hsc28_kv', eq: { user_id: userId, key } },
         userId
       );
-      delete meta[key];
+      if (saved) delete meta[key];
+      else dirty.add(key);
       continue;
     }
 
@@ -258,6 +321,7 @@ async function flushVaultNow(): Promise<void> {
       userId
     );
     if (saved) meta[key] = now;
+    else dirty.add(key);
   }
 
   writeMeta(meta);
@@ -317,6 +381,27 @@ export async function pullFromCloud(
     const resetMarker = rows.find(
       (row) => row?.key === RESET_MARKER_KEY && typeof row.value === 'string' && row.value
     );
+    const remoteResetToken = resetMarker?.value || null;
+    const pendingReset = readPendingCloudReset(userId);
+    if (pendingReset === false) {
+      throw new Error('The pending cloud reset could not be validated; keeping sync paused.');
+    }
+    if (pendingReset) {
+      if (remoteResetToken !== pendingReset.previousToken) {
+        if (!remoteResetToken) {
+          throw new Error('The pending cloud reset marker is missing; keeping sync paused.');
+        }
+        // The RPC committed even if its caller lost the response. Apply its
+        // marker before any queued writes can be resumed in this tab.
+        const alreadyBootedClean = applyCloudResetLocally(userId, remoteResetToken);
+        resetInProgress.add(userId);
+        if (!alreadyBootedClean) reloadAfterCloudReset();
+        return [];
+      }
+      // The server marker is unchanged, so the interrupted reset did not
+      // commit. It is now safe to keep the student's existing data and resume.
+      clearCloudResetAttempt(userId);
+    }
     if (resetMarker && meta[RESET_META_KEY] !== resetMarker.value) {
       // A deleted cloud key is otherwise indistinguishable from a never-synced
       // key; a reset marker makes the clear win over every stale device copy.
@@ -392,6 +477,55 @@ function installHooks(): void {
   window.addEventListener('online', () => {
     if (activeUser) void ensureVaultReady().catch(() => { /* retry on the next connection */ });
     void flushVault().catch(() => { /* kept dirty for a later retry */ });
+  });
+  window.addEventListener('storage', (event) => {
+    const key = event.key || '';
+    if (key.startsWith(RESET_PENDING_PREFIX)) {
+      const userId = key.slice(RESET_PENDING_PREFIX.length);
+      if (event.newValue !== null) {
+        const pending = readPendingCloudReset(userId);
+        if (pending) pendingResetTabs.set(userId, pending.previousToken);
+        if (activeUser === userId) pauseSyncUser(userId, true);
+        return;
+      }
+
+      if (!pendingResetTabs.has(userId)) return;
+      const previousToken = pendingResetTabs.get(userId) ?? null;
+      pendingResetTabs.delete(userId);
+      if (activeUser !== userId) return;
+
+      let currentToken: string | null = null;
+      let tokenReadable = false;
+      try {
+        currentToken = localStorage.getItem(RESET_BOOT_PREFIX + userId);
+        tokenReadable = true;
+      } catch { /* stay paused */ }
+      if (!tokenReadable) return;
+      if (currentToken !== previousToken) {
+        if (currentToken) {
+          startCloudVault(null);
+          applyCloudResetLocally(userId, currentToken);
+          reloadAfterCloudReset();
+        }
+        return;
+      }
+
+      // The reset was confirmed not to have committed. Keep local edits and
+      // let the vault send any dirty values once its write gate is reopened.
+      resumeSyncUser(userId);
+      void flushVault().catch(() => { /* kept dirty for a later retry */ });
+      return;
+    }
+
+    if (!key.startsWith(RESET_BOOT_PREFIX) || !event.newValue) return;
+    const userId = key.slice(RESET_BOOT_PREFIX.length);
+    if (activeUser !== userId) return;
+
+    // A sibling tab committed a reset. Invalidate any in-flight cloud pull,
+    // clear this tab's local snapshot, and reload React's in-memory state too.
+    startCloudVault(null);
+    applyCloudResetLocally(userId, event.newValue);
+    reloadAfterCloudReset();
   });
 }
 
