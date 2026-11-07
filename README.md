@@ -8,6 +8,7 @@
 
 - কোনো public **Admin** tab নেই—সবাই একই লগইন ব্যবহার করে; শুধু server-approved account সফলভাবে লগইন করলে স্বয়ংক্রিয়ভাবে responsive Admin Dashboard খুলে যায়।
 - মোট/নতুন/সক্রিয় অ্যাকাউন্ট, যাচাইকৃত ব্যবহারকারী, মোট পড়ার ঘণ্টা ও XP, খোলা প্রশ্ন এবং উত্তরের লাইভ সারসংক্ষেপ।
+- ৫-প্রশ্নের student pulse থেকে শুধু aggregate count, average ও priority distribution—কোনো নাম, email, user ID, free text বা individual response Admin-এ ফেরে না; ৫টি account-এর কম উত্তর হলে score/choice aggregate-ও লুকানো থাকে।
 - নাম বা ইমেইল দিয়ে server-side search এবং প্রতি পৃষ্ঠায় ২০টি করে bounded pagination; ভূমিকা, যোগদানের তারিখ, সর্বশেষ সক্রিয়তা ও অগ্রগতি দেখা যায়। দ্রুত page/search বদলালেও পুরোনো response নতুন ফলকে overwrite করতে পারে না।
 - Admin পরিচয় editable metadata বা frontend email check দিয়ে নয়—private allowlist + `hsc28_admins` membership এবং `SECURITY DEFINER` RPC দিয়ে PostgreSQL-এ যাচাই হয়। Password hash, token ও ব্যক্তিগত study content Admin UI-তেও ফেরত আসে না।
 - প্রথম owner অনুমোদনের নির্দেশনা ও SQL [`supabase/README.md`](supabase/README.md)-এ আছে।
@@ -46,6 +47,7 @@
    - প্রতি MCQ-তে গড় সময়, বিষয়ভিত্তিক নির্ভুলতা বনাম সিলেবাস অগ্রগতি এবং অগ্রাধিকারভিত্তিক দুর্বলতা রাডার।
    - **সাপ্তাহিক রিভিউ (`WeeklyReviewCard`)** — শেষ ৭ দিনের পড়ার সময় (গত সপ্তাহের তুলনায়), MCQ নির্ভুলতা, অভ্যাস পূরণ, কলেজ উপস্থিতি ও সামনের ডেডলাইন — সাথে নিয়মভিত্তিক পরামর্শ এবং ১-ক্লিক প্রিন্ট/PDF।
    - **আগামী ৭ দিনের ৩টি লক্ষ্য (`NextWeekGoalsCard`)** — একই বাস্তব ডেটা থেকে deadline/attendance, MCQ বা mistake-bank, study time, habits ও দুর্বল পত্রের explainable priority; প্রতিটি লক্ষ্য থেকে সঠিক মডিউলে ১-ক্লিক action, completion progress, Cloud Vault + JSON backup persistence, এবং অসম্পূর্ণ সর্বোচ্চ একটি লক্ষ্য শুধু একবার পরের ৭ দিনে carry-over। Plan তৈরি হলে dashboard-এর lazy compact card প্রতিদিন পরের অসম্পূর্ণ লক্ষ্য ও `N/3` progress দেখায়।
+   - **৫-প্রশ্নের শিক্ষার্থী মতামত (`StudentPulseCard`)** — একবারে একটি প্রশ্ন, ১–৫ progress, ৪৪px answer controls এবং edit/delete flow; নাম/email/free text নেওয়া হয় না। উত্তর আগে local/offline save, Cloud Vault + JSON backup-এ থাকে, signed-in হলে durable queue দিয়ে এক-account/এক-response research row-তে যায়; Admin শুধু aggregate totals/averages দেখে।
 9. **HSC ’28 স্টুডেন্ট হাব (`StudentHubView`)**
    - **তাৎক্ষণিক কনসেপ্ট ও গাণিতিক সহায়িকা**, **সহপাঠী প্রশ্নোত্তর ফোরাম (Supabase-synced Batch ’28 Peer Q&A)** এবং **২০২৬–২০২৮ একাডেমিক রোডম্যাপ ও নোটিশ বোর্ড**। কনসেপ্ট/রোডম্যাপ private-first ও offline; শিক্ষার্থী Forum খুললেই কেবল সর্বশেষ ২৫টি পোস্ট ও সেগুলোর bounded replies লোড হয়। নেটওয়ার্ক/পোস্ট না থাকলেও local প্রশ্ন লেখা ও focused-question empty-state থাকে।
 10. **NCTB GPA ও ভর্তি যোগ্যতা ক্যালকুলেটর (`GpaCalculatorView`)**
