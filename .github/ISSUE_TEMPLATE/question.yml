@@ -1,0 +1,57 @@
+name: Question or setup help
+description: Ask the community about development, setup, or using the project
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask a focused question and share what you have already tried. Never post passwords, tokens, private keys, or real student information.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and documentation for an answer.
+          required: true
+        - label: I removed credentials, personal data, and sensitive screenshots.
+          required: true
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - Local development setup
+        - Testing or CI
+        - Frontend architecture
+        - Supabase development setup
+        - Contribution workflow
+        - Using the app
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Explain the goal, what is unclear, and what you have already tried.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Environment and context
+      description: Add relevant Node/npm versions, browser/device, sanitized output, or links to documentation.
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's Code of Conduct.
+          required: true

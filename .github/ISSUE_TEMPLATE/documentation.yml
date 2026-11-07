@@ -1,0 +1,60 @@
+name: Documentation or content correction
+description: Improve documentation, wording, translation, or sourced educational information
+title: "[Docs]: "
+labels:
+  - documentation
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this correction.
+          required: true
+        - label: I have not included copyrighted material that the project cannot redistribute.
+          required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: File, route, module, or URL where the text appears.
+      placeholder: README.md, /#/gpa, src/data/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: What is unclear or incorrect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested wording or correction
+    validations:
+      required: true
+
+  - type: textarea
+    id: sources
+    attributes:
+      label: Reliable sources
+      description: Required for factual academic, exam, admission, health, or policy corrections. Prefer official primary sources.
+
+  - type: checkboxes
+    id: language
+    attributes:
+      label: Language coverage
+      options:
+        - label: I checked whether the corresponding Bengali or English text also needs updating.
+          required: true
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's Code of Conduct.
+          required: true

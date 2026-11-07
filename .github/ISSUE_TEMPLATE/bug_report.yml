@@ -1,0 +1,101 @@
+name: Bug report
+description: Report a reproducible problem in Nokkhotro
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Nokkhotro. Search existing issues first and never include real student data, credentials, or private account information.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find the same problem.
+          required: true
+        - label: I removed personal data, credentials, and sensitive screenshots from this report.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dashboard
+        - Syllabus tracker
+        - MCQ / drills
+        - Planner / routine
+        - Analytics
+        - Student Hub
+        - Life Hub
+        - Authentication / Cloud Vault
+        - Admin Portal
+        - PWA / offline / install
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Give a clear, concise description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      description: Example — Chrome 130, Android 14, 390×844; or Firefox 132, Windows 11.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network/account state
+      options:
+        - Signed out — online
+        - Signed out — offline
+        - Signed in — online
+        - Signed in — offline or reconnecting
+        - Not sure / not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional context
+      description: Add sanitized screenshots, console output, or other details if useful. Do not paste secrets or personal data.
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's Code of Conduct.
+          required: true

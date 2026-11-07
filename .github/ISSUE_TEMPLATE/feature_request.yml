@@ -1,0 +1,86 @@
+name: Feature request
+description: Propose a focused improvement for students or contributors
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing an improvement. For a large idea, explain the user need and agree on the smallest useful scope before implementation.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this idea.
+          required: true
+        - label: This request does not include private student data or credentials.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Student or contributor need
+      description: What specific problem does this solve, and for whom?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful version and how someone would use it.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Main area
+      options:
+        - Learning content
+        - Dashboard / navigation
+        - Syllabus / analytics
+        - MCQ / drills
+        - Planner / routine
+        - Student Hub / community
+        - Life Hub
+        - Cloud sync / backup
+        - Accessibility / localization
+        - Performance / PWA
+        - Admin / privacy
+        - Documentation / contributor experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: safeguards
+    attributes:
+      label: Privacy, accessibility, mobile, and offline considerations
+      description: Explain relevant trade-offs. Write “Not applicable” only when none apply.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What simpler solution or existing workflow did you consider?
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to work on this after the approach is agreed.
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's Code of Conduct.
+          required: true
