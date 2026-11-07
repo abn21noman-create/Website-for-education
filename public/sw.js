@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nokkhotro-hsc28-offline-v5';
+const CACHE_NAME = 'nokkhotro-hsc28-offline-v6';
 const PRECACHE_URLS = [
   '/',
   '/index.html',

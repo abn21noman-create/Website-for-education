@@ -629,13 +629,14 @@ console.log(
 );
 failures += switched && englishTitleShown ? 0 : 1;
 
-// The product is student-only by design: no parent, teacher or admin surfaces.
+// The student workspace remains free of parent/teacher surfaces; the isolated
+// admin portal is exercised separately below.
 const forbidden = ['অভিভাবক', 'শিক্ষক', 'Guardian', 'Parent report', 'Teacher'].filter((w) =>
   (container.textContent || '').includes(w)
 );
 console.log(
   forbidden.length === 0
-    ? '✓ student-only UI (no parent/teacher surfaces)'
+    ? '✓ student workspace has no parent/teacher surfaces'
     : `✗ parent/teacher wording found: ${forbidden.join(', ')}`
 );
 failures += forbidden.length === 0 ? 0 : 1;
@@ -2402,6 +2403,29 @@ check(
   'the reset SQL is owner-scoped, idempotently records its marker, and leaves community posts, replies and votes intact'
 );
 
+const adminMigration = await readFile(
+  new URL('../supabase/migrations/2026-11-07-admin-portal.sql', import.meta.url),
+  'utf8'
+);
+check(
+  adminMigration.includes('hsc28_admin_allowlist') &&
+    adminMigration.includes('hsc28_admins') &&
+    adminMigration.includes('ENABLE ROW LEVEL SECURITY') &&
+    adminMigration.includes('REVOKE ALL ON TABLE public.hsc28_admin_allowlist FROM PUBLIC, anon, authenticated') &&
+    adminMigration.includes('REVOKE ALL ON TABLE public.hsc28_admins FROM PUBLIC, anon, authenticated'),
+  'admin membership and its allowlist are private RLS-protected tables'
+);
+check(
+  adminMigration.includes('hsc28_assert_admin') &&
+    adminMigration.includes('auth.uid()') &&
+    adminMigration.includes('SECURITY DEFINER') &&
+    adminMigration.includes('GRANT EXECUTE ON FUNCTION public.hsc28_admin_overview() TO authenticated') &&
+    adminMigration.includes('GRANT EXECUTE ON FUNCTION public.hsc28_admin_list_users(text, integer, integer) TO authenticated') &&
+    !adminMigration.includes('encrypted_password') &&
+    !/raw_user_meta_data[^\n]*(?:admin|role)/i.test(adminMigration),
+  'admin RPCs enforce server membership and never expose password hashes or trust editable role metadata'
+);
+
 localStorage.setItem(
   'hsc28_vault_notice',
   JSON.stringify(['hsc28_lang', 'hsc28_profile', 'hsc28_prediction_v1'])
@@ -2444,6 +2468,48 @@ root.render(React.createElement(AuthGate, { clientFactory: async () => sessionCl
 await new Promise(resolve => setTimeout(resolve, 500));
 check(!!container.querySelector('nav'), 'persisted session enters app on startup');
 root.unmount(); root = null;
+
+// An administrator is selected only by the server RPC and lands in the
+// isolated portal rather than inheriting a client-editable metadata role.
+container.innerHTML = '';
+window.history.replaceState(null, '', '/#/admin');
+const adminSession = { user: { id: '55555555-5555-4555-8555-555555555555', email: 'owner@example.invalid' } };
+const adminClient = {
+  auth: {
+    onAuthStateChange: callback => {
+      queueMicrotask(() => callback('INITIAL_SESSION', adminSession));
+      return { data: { subscription: { unsubscribe() {} } } };
+    },
+    signOut: async () => ({ error: null }),
+  },
+  from: () => ({ upsert: async () => ({ error: null }) }),
+  rpc: async name => {
+    if (name === 'hsc28_is_admin') return { data: true, error: null };
+    if (name === 'hsc28_admin_overview') return { data: { totalUsers: 1, confirmedUsers: 1, newLast7Days: 1, activeLast7Days: 1, adminUsers: 1, totalStudyMinutes: 120, totalXp: 50, openDoubts: 0, totalReplies: 0 }, error: null };
+    if (name === 'hsc28_admin_list_users') return { data: [{ user_id: adminSession.user.id, email: adminSession.user.email, full_name: 'Owner', board: 'Jashore', target_goal: 'Medical', xp: 50, study_minutes: 120, joined_at: '2026-11-07T00:00:00Z', last_sign_in_at: '2026-11-07T00:00:00Z', email_confirmed: true, is_admin: true, total_count: 1 }], error: null };
+    return { data: null, error: new Error('Unexpected RPC') };
+  },
+};
+root = createRoot(container);
+root.render(React.createElement(AuthGate, { clientFactory: async () => adminClient }));
+await new Promise(resolve => setTimeout(resolve, 700));
+check(!!container.querySelector('[data-admin-portal="true"]') && !container.querySelector('.premium-sidebar'), 'server-approved account opens the isolated admin portal');
+check(container.textContent.includes('owner@example.invalid'), 'admin portal renders the authenticated owner and account directory');
+root.unmount(); root = null;
+
+container.innerHTML = '';
+const studentAdminAttempt = { user: { id: '66666666-6666-4666-8666-666666666666', email: 'student@example.invalid' } };
+const nonAdminClient = {
+  auth: { onAuthStateChange: callback => { queueMicrotask(() => callback('INITIAL_SESSION', studentAdminAttempt)); return { data: { subscription: { unsubscribe() {} } } }; }, signOut: async () => ({ error: null }) },
+  from: () => ({ upsert: async () => ({ error: null }) }),
+  rpc: async name => name === 'hsc28_is_admin' ? { data: false, error: null } : { data: null, error: new Error('denied') },
+};
+root = createRoot(container);
+root.render(React.createElement(AuthGate, { clientFactory: async () => nonAdminClient }));
+await new Promise(resolve => setTimeout(resolve, 600));
+check(!!container.querySelector('.admin-access-denied') && !container.querySelector('[data-admin-portal="true"]'), 'a normal account is denied at the admin route');
+root.unmount(); root = null;
+window.history.replaceState(null, '', '/#/');
 
 // Portable backups must be validated and cannot retain malformed legacy IDs.
 const backup = await vite.ssrLoadModule('/src/lib/backup.ts');
