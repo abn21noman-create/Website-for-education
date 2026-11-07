@@ -2,7 +2,24 @@
 
 🌐 **Live Production Website:** [https://nokkhotro-hsc-2028.vercel.app](https://nokkhotro-hsc-2028.vercel.app)
 
+[![Build & Typecheck](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml/badge.svg)](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml)
+
+**Open source:** [MIT License](LICENSE) · [Contributing guide](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md)
+
+`package.json`-এর `"private": true` শুধু accidental npm publishing বন্ধ করে; repository-টি private নয়।
+
 **নক্ষত্র HSC ’28** হলো **HSC ২০২৮ বিজ্ঞান বিভাগের শিক্ষার্থীদের** (বর্তমানে একাদশ শ্রেণি / ১ম বর্ষ) জন্য নির্মিত একটি পূর্ণাঙ্গ, চোখ-বান্ধব (Eye-Comfort Soft Pastel) এবং ক্লাউড-সিঙ্কড একাডেমিক প্রস্তুতি ইকোসিস্টেম। শিক্ষার্থীর ১৪টি মডিউল থেকে আলাদা একটি সার্ভার-অনুমোদিত **Admin Portal** আছে; সাধারণ অ্যাকাউন্ট কখনো অ্যাডমিন ডেটা দেখতে বা নিজেকে অ্যাডমিন বানাতে পারে না।
+
+## অবদান রাখুন / Contributing
+
+এই repository public এবং সবার contribution স্বাগত—প্রথমবারের contributor-ও বাংলা বা English-এ অংশ নিতে পারেন।
+
+1. Repository-টি fork করুন এবং নিজের branch তৈরি করুন।
+2. `npm ci` চালিয়ে `npm run dev` দিয়ে local app চালু করুন।
+3. পরিবর্তনের পরে `npm run smoke` ও `git diff --check` চালান।
+4. `main` branch-এর বিপরীতে Pull Request খুলুন।
+
+Bug, feature, প্রশ্ন এবং documentation-এর জন্য [structured issue form](https://github.com/abn21noman-create/Website-for-education/issues/new/choose) আছে; বড় proposal implement করার আগে feature request-এ scope ঠিক করুন। সম্পূর্ণ setup, privacy, accessibility, offline এবং database নির্দেশনা [`CONTRIBUTING.md`](CONTRIBUTING.md)-এ দেখুন। Security সমস্যা public issue-তে না দিয়ে [`SECURITY.md`](SECURITY.md) অনুযায়ী private report করুন।
 
 ## সুরক্ষিত Admin Portal (`/#/admin`)
 
