@@ -5,6 +5,7 @@ import {
   resumeSyncUser,
   syncWrite,
 } from './sync';
+import { ACCESSIBILITY_STORAGE_KEY } from './accessibility';
 
 /**
  * ক্লাউড ভল্ট (Cloud Vault) — Supabase-backed mirror of *every* local key.
@@ -49,6 +50,10 @@ const SKIPPED = new Set([
   RESET_MARKER_KEY,
   SYNC_QUEUE_KEY,
 ]);
+// "Delete study data" should not make the interface unreadable again. This
+// preference remains cloud-synced in normal use, but survives a study reset and
+// is uploaded again after the clean account boot.
+const PRESERVED_ON_STUDY_RESET = new Set([ACCESSIBILITY_STORAGE_KEY]);
 
 /** ফোনের স্টোরেজ ও নেটওয়ার্ক বাঁচাতে একটা কি-এর সর্বোচ্চ আকার। */
 const MAX_VALUE_CHARS = 400_000;
@@ -141,7 +146,11 @@ export function applyCloudResetLocally(userId: string, token: string): boolean {
       const key = localStorage.key(i);
       // The sync queue can hold work for other accounts; clearSyncQueueForUser
       // has already removed only this account's queued operations.
-      if (key?.startsWith(PREFIX) && key !== SYNC_QUEUE_KEY) keys.push(key);
+      if (
+        key?.startsWith(PREFIX) &&
+        key !== SYNC_QUEUE_KEY &&
+        !PRESERVED_ON_STUDY_RESET.has(key)
+      ) keys.push(key);
     }
   } catch {
     /* storage disabled */

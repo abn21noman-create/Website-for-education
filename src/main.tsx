@@ -4,6 +4,10 @@ import './index.css';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { AppRuntimeStatus } from './components/AppRuntimeStatus';
 import { AuthGate } from './components/AuthGate';
+import {
+  applyAccessibilityPreferences,
+  loadAccessibilityPreferences,
+} from './lib/accessibility';
 
 // Restore the chosen appearance before React paints the authentication gate.
 // App.tsx keeps this in sync after authentication; doing the first read here
@@ -14,6 +18,10 @@ try {
 } catch {
   document.documentElement.classList.remove('dark');
 }
+
+// Reading size, contrast and motion are restored in the same pre-paint window,
+// so the public login and app shell do not jump after React mounts.
+applyAccessibilityPreferences(loadAccessibilityPreferences());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

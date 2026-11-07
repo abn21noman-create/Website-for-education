@@ -8,6 +8,7 @@ import {
 import type { ActiveTab, Lang, StudentProfile, Theme } from '../types';
 import { formatNum } from '../lib/i18n';
 import type { SyncSnapshot } from '../lib/sync';
+import { AccessibilityMenu } from './AccessibilityMenu';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -52,11 +53,31 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, lang, s
   const bn = lang === 'bn';
   const isDark = theme === 'dark';
   const active = groups.flatMap(group => group.items).find(item => item.id === activeTab);
-  const syncText = syncStatus.phase === 'idle' ? (bn ? 'ক্লাউডে সেভড' : 'Cloud synced')
-    : syncStatus.phase === 'saving' ? (bn ? 'সেভ হচ্ছে' : 'Syncing')
-    : syncStatus.phase === 'offline' ? (bn ? 'সিঙ্ক বাকি' : 'Sync pending')
-    : syncStatus.phase === 'error' ? (bn ? 'সিঙ্ক সমস্যা' : 'Sync issue')
-    : (bn ? 'লোকাল ডেটা' : 'Local data');
+  const outstandingWrites = syncStatus.pending + syncStatus.queued;
+  const lastSaved = syncStatus.lastSavedAt ? new Date(syncStatus.lastSavedAt) : null;
+  const lastSavedTime = lastSaved && Number.isFinite(lastSaved.getTime())
+    ? new Intl.DateTimeFormat(bn ? 'bn-BD' : 'en-GB', { hour: '2-digit', minute: '2-digit' }).format(lastSaved)
+    : '';
+  const syncText = syncStatus.phase === 'idle'
+    ? lastSavedTime
+      ? (bn ? `সেভড · ${lastSavedTime}` : `Saved · ${lastSavedTime}`)
+      : (bn ? 'ক্লাউডে সেভড' : 'Cloud synced')
+    : syncStatus.phase === 'saving'
+      ? outstandingWrites > 0
+        ? (bn ? `${formatNum(outstandingWrites, lang)}টি সেভ হচ্ছে` : `Syncing ${outstandingWrites}`)
+        : (bn ? 'সেভ হচ্ছে' : 'Syncing')
+      : syncStatus.phase === 'offline' || syncStatus.phase === 'error'
+        ? outstandingWrites > 0
+          ? (bn ? `${formatNum(outstandingWrites, lang)}টি সিঙ্ক বাকি` : `${outstandingWrites} sync pending`)
+          : syncStatus.phase === 'offline'
+            ? (bn ? 'সিঙ্ক বাকি' : 'Sync pending')
+            : (bn ? 'সিঙ্ক সমস্যা' : 'Sync issue')
+        : (bn ? 'লোকাল ডেটা' : 'Local data');
+  const syncDetail = syncStatus.lastError || (
+    lastSavedTime
+      ? (bn ? `সর্বশেষ ক্লাউড সেভ ${lastSavedTime}` : `Last cloud save ${lastSavedTime}`)
+      : syncText
+  );
   const SyncIcon = syncStatus.phase === 'saving' ? LoaderCircle : syncStatus.phase === 'error' ? CircleAlert : syncStatus.phase === 'offline' ? CloudOff : Cloud;
   return <>
     <aside className="premium-sidebar no-print hidden md:flex" aria-label={bn ? 'প্রধান নেভিগেশন' : 'Main navigation'}>
@@ -78,7 +99,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, lang, s
       <div className="premium-topbar-title"><span className="premium-mobile-logo"><Sparkles size={19} /></span><div><span>{bn ? 'আমার স্টাডি স্পেস' : 'MY STUDY SPACE'}</span><strong>{active ? (bn ? active.bn : active.en) : 'নক্ষত্র'}</strong></div></div>
       <div className="premium-topbar-actions">
         <button className="premium-search" onClick={onOpenSearch} aria-label={bn ? 'খুঁজুন' : 'Search'}><Search size={17} /><span>{bn ? 'কিছু খুঁজছ?' : 'Search anything...'}</span><kbd><Command size={11} /> K</kbd></button>
-        <div className={`premium-sync ${syncStatus.phase}`} role="status" aria-label={syncText} title={syncStatus.lastError || syncText}><SyncIcon size={15} className={syncStatus.phase === 'saving' ? 'animate-spin' : ''} /><span>{syncText}</span></div>
+        <div className={`premium-sync ${syncStatus.phase}`} role="status" aria-label={syncDetail} title={syncDetail}><SyncIcon size={15} className={syncStatus.phase === 'saving' ? 'animate-spin' : ''} /><span>{syncText}</span></div>
+        <AccessibilityMenu lang={lang} theme={theme} triggerClassName="premium-icon-button" />
         <button className="premium-icon-button" onClick={() => setLang(bn ? 'en' : 'bn')} title="Switch language / ভাষা পরিবর্তন" aria-label="Switch language">{bn ? 'EN' : 'বাং'}</button>
         <button className="premium-icon-button" onClick={() => setTheme(isDark ? 'light' : 'dark')} aria-label={isDark ? 'Light mode' : 'Dark mode'}>{isDark ? <Sun size={17} /> : <Moon size={17} />}</button>
         <button className="premium-profile" onClick={onOpenAuth} aria-label={bn ? 'প্রোফাইল খুলুন' : 'Open profile'}><span className="premium-avatar">{profile.fullName?.trim().charAt(0) || 'N'}</span><span className="premium-profile-text"><strong>{isAuthenticated ? profile.fullName : (bn ? 'শিক্ষার্থী' : 'Student')}</strong><small>{formatNum(profile.xp, lang)} XP · HSC ’28</small></span><ChevronDown size={15} /></button>

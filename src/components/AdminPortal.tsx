@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { getSupabase } from '../lib/supabase';
+import { AccessibilityMenu } from './AccessibilityMenu';
 
 type AdminLang = 'bn' | 'en';
 
@@ -271,6 +272,7 @@ export function AdminPortal({
           <button className="admin-menu-button" onClick={() => setMobileNav(true)} aria-label={bn ? 'মেনু খুলুন' : 'Open menu'}><Menu size={20} /></button>
           <div className="admin-topbar-title"><small>{bn ? 'অ্যাডমিন পোর্টাল' : 'ADMIN PORTAL'}</small><strong>{bn ? 'ড্যাশবোর্ড' : 'Dashboard'}</strong></div>
           <div className="admin-topbar-actions">
+            <AccessibilityMenu lang={lang} theme="light" triggerClassName="admin-language" />
             <button className="admin-language" onClick={() => onLanguageChange(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button>
             <button className="admin-refresh" onClick={() => void load(query, page, true)} disabled={refreshing} aria-label={bn ? 'ডেটা রিফ্রেশ করুন' : 'Refresh data'}><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} /><span>{bn ? 'রিফ্রেশ' : 'Refresh'}</span></button>
             <button className="admin-top-signout" onClick={() => void signOut()} disabled={signingOut}><LogOut size={16} /><span>{bn ? 'লগআউট' : 'Sign out'}</span></button>

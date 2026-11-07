@@ -5,6 +5,8 @@ import { getSupabase } from '../lib/supabase';
 import { startCloudVault } from '../lib/cloudVault';
 import { setSyncUser, withUserSyncWriteLock } from '../lib/sync';
 import { finishGuestMigration, selectAccountSpace } from '../lib/accountSpace';
+import { refreshAccessibilityPreferences } from '../lib/accessibility';
+import { AccessibilityMenu } from './AccessibilityMenu';
 import App from '../App';
 
 const LazyAdminPortal = lazy(async () => {
@@ -86,6 +88,10 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
       setSyncUser(null);
       const client = await clientFactory();
       const { guestData } = selectAccountSpace(next.user.id);
+      // Account spaces also carry the student's reading preferences. Apply the
+      // selected account immediately instead of leaving the previous account's
+      // scale/contrast active until the next reload.
+      refreshAccessibilityPreferences();
       if (guestData) {
         // Save a separate immutable cloud copy before normal reconciliation can
         // choose the cloud version of any conflicting key. Do not expose the app
@@ -222,7 +228,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         <div className="auth-story-footer"><ShieldCheck size={17} /><span>{bn ? 'তোমার প্রস্তুতি, তোমার নিজস্ব জায়গা' : 'Your preparation, your personal space'}</span><span className="auth-story-stars">✦ &nbsp; ✧ &nbsp; ✦</span></div>
       </section>
       <section className="auth-panel">
-        <div className="auth-panel-top"><span>{bn ? 'তোমার স্টাডি স্পেসে স্বাগতম' : 'WELCOME TO YOUR STUDY SPACE'}</span><button type="button" className="auth-language" aria-label={bn ? 'Switch to English' : 'বাংলা ভাষা নির্বাচন'} onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div>
+        <div className="auth-panel-top"><span>{bn ? 'তোমার স্টাডি স্পেসে স্বাগতম' : 'WELCOME TO YOUR STUDY SPACE'}</span><div className="auth-panel-tools"><AccessibilityMenu lang={lang} triggerClassName="auth-language" /><button type="button" className="auth-language" aria-label={bn ? 'Switch to English' : 'বাংলা ভাষা নির্বাচন'} onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div></div>
         <div className="auth-panel-heading"><span className="auth-panel-sparkle">✦</span><h2>{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'Set a new password') : mode === 'signup' ? (bn ? 'যাত্রা শুরু করো' : 'Start your journey') : mode === 'forgot' ? (bn ? 'পাসওয়ার্ড রিসেট' : 'Reset your password') : (bn ? 'আবারও স্বাগতম!' : 'Welcome back!')}</h2><p>{bn ? 'তোমার লক্ষ্য পূরণের যাত্রাটা এখান থেকেই শুরু।' : 'Your journey toward your goals starts here.'}</p></div>
         {status === 'error' && session ? <div role="alert" className="auth-message error"><p>{bn ? 'ডেটা প্রস্তুত করা যায়নি। তোমার আগের ডেটা ডিভাইসে রয়ে গেছে।' : 'Could not prepare your data. Your previous data remains on this device.'} {error}</p><button type="button" onClick={() => void prepare(session)}>{bn ? 'আবার চেষ্টা করুন' : 'Retry'}</button></div> : <>
           {(mode === 'login' || mode === 'signup') && <div className="auth-tabs" role="group" aria-label={bn ? 'অ্যাকাউন্ট অপশন' : 'Account options'}>{(['login', 'signup'] as const).map(m => <button type="button" aria-pressed={mode === m} key={m} onClick={() => { setMode(m); setError(''); setNotice(''); }} className={mode === m ? 'active' : ''}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : (bn ? 'রেজিস্ট্রেশন' : 'Register')}</button>)}</div>}

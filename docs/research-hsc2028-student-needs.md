@@ -526,3 +526,14 @@ HSC-2028 ব্যাচের একজন শিক্ষার্থীর �
 - **সততা:** ৬টি ট্যাগের কম হলে verdict দেওয়া হয় না (“এখনো যথেষ্ট তথ্য নেই”) — দুটো ভুল থেকে “তুমি ওভারকনফিডেন্ট” বলে দেওয়া হতো সেটা এড়ানো হয়েছে। আর ট্যাগ দুই-দফার (নিশ্চিত/অনুমান), ০–১০০ কনফিডেন্স স্কেল নয় — UI-তে সেটা স্পষ্ট।
 
 **স্মোক:** ম্যাট্রিক্সের চার ঘর ঠিক গোনা, নিশ্চিত-ভুল পত্রে verdict overconfident + drilling ids, কম ডেটায় unknown, ট্যাগ সেভ/মুছে ফেলা, গড় অনুমান ৮০ বনাম ফল ৬০ = +২০ বিয়াস, একক অনুমানকে প্যাটার্ন না ধরা, ০–১০০ ক্ল্যাম্প, হাতে-বাছা ড্রিল ক্রস-পেপারেও ক্রম রাখা, ড্যাশবোর্ডে কার্ড, সেটআপে অনুমানের প্রশ্ন, আর স্টোরেজ থেকে পাঠানো নিশ্চিত-ভুল ড্রিল আসল UI-তে খোলা — মোট ১২টি নতুন চেক।
+
+
+### ১২.২২ ত্রয়োবিংশ ধাপ: পড়ার আরাম ও ড্যাশবোর্ডে দৈনিক রিমাইন্ডার
+
+- **অ্যাক্সেসিবিলিটি আর OS-নির্ভর নয়:** `src/lib/accessibility.ts`-এ versioned, untrusted-input-safe preference store—স্বাভাবিক/বড়/আরও বড় reading scale, high contrast, এবং device setting/explicit reduced motion। `main.tsx` React-এর আগেই সেটিং প্রয়োগ করে, তাই লগইন স্ক্রিনে font/contrast flash হয় না।
+- **সব shell-এ একই control:** public login, student topbar এবং secure Admin Portal—তিন জায়গায় একই `AccessibilityMenu`; modal portal-এ render হয়, Escape, focus trap, focus restore, scroll lock, `aria-pressed`, `role="switch"` ও live save status আছে। Mobile-এ bottom sheet এবং desktop-এ centered dialog।
+- **সংরক্ষণ ও safety:** `hsc28_accessibility_v1` Cloud Vault ও portable JSON backup-এ অন্তর্ভুক্ত; account বদলালে সঙ্গে সঙ্গে সেই account-এর preference বসে। “Study data reset” পড়াশোনার ডেটা মুছলেও readability preference রাখে—অ্যাকাউন্ট পরিষ্কার করার পর UI হঠাৎ আবার ছোট/কম-কনট্রাস্ট হয় না। Browser storage বন্ধ থাকলে choice চলতি tab-এ কাজ করে এবং UI সৎ warning দেয়।
+- **রিমাইন্ডার এখন daily path-এ:** Life Hub-এর existing deadline/exam/study reminder-ই lazy `DashboardReminderCard` দিয়ে dashboard-এ এসেছে—আলাদা duplicate store নয়। একই-tab Life Hub edit ও অন্য-tab `storage` event দুটোতেই card refresh হয়; “সব দেখুন” Life Hub-এ deep-link করে। Notification permission, once-daily nudge ও app badge-এর পুরোনো behavior অপরিবর্তিত।
+- **ক্যালিব্রেশন কপি পরিষ্কার:** dashboard-এর দুই metacognition message এখন “স্কোর অনুমান” ও “উত্তরের নিশ্চয়তা” label-এ আলাদা, তাই দুই summary-কে একই/duplicate বক্তব্য মনে হয় না।
+- **সিঙ্কের সৎ feedback:** Navbar এখন শুধু “Cloud synced” বলে থামে না—সর্বশেষ সফল save-এর `HH:MM` দেখায়; saving/offline/error অবস্থায় in-flight + queued মিলিয়ে ঠিক কতটি write বাকি তাও দেখায়। একই detail `role="status"`-এর accessible label ও hover title-এ থাকে।
+- **স্মোক:** malformed preference normalization, immediate DOM attributes + persistence, keyboard-contained modal, reset-safe readability, global CSS modes, dashboard reminder content + Life Hub navigation, last-sync feedback এবং dashboard route surface—সব regression-checked।
