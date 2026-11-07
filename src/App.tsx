@@ -146,6 +146,25 @@ const CLEARED_PROFILE: StudentProfile = {
 const ACCOUNT_OWNER_KEY = 'nokkhotro_local_owner_v1';
 const RESET_BOOT_PREFIX = 'nokkhotro_cloud_reset_boot_v1_';
 
+const VIEW_TITLES: Record<ActiveTab, { bn: string; en: string }> = {
+  dashboard: { bn: 'ড্যাশবোর্ড', en: 'Dashboard' },
+  syllabus: { bn: 'সিলেবাস ট্র্যাকার', en: 'Syllabus tracker' },
+  formulas: { bn: 'সূত্র ভল্ট', en: 'Formula vault' },
+  cq: { bn: 'সৃজনশীল প্রশ্ন', en: 'CQ bank' },
+  mcq: { bn: 'MCQ পরীক্ষা', en: 'MCQ exams' },
+  gk: { bn: 'দ্রুত ড্রিল', en: 'Quick drills' },
+  routine: { bn: 'মাস্টার রুটিন', en: 'Master routine' },
+  lab: { bn: 'ভার্চুয়াল ল্যাব', en: 'Virtual lab' },
+  planner: { bn: 'স্টাডি প্ল্যানার', en: 'Study planner' },
+  analytics: { bn: 'আমার অগ্রগতি', en: 'My analytics' },
+  hub: { bn: 'স্টুডেন্ট হাব', en: 'Student hub' },
+  admission: { bn: 'অ্যাডমিশন হাব', en: 'Admission hub' },
+  practical: { bn: 'ব্যবহারিক ও রাইটিং', en: 'Practicals & writing' },
+  gpa: { bn: 'GPA ক্যালকুলেটর', en: 'GPA calculator' },
+  leaderboard: { bn: 'মেধাক্রম', en: 'Leaderboard' },
+  life: { bn: 'লাইফ হাব', en: 'Life hub' },
+};
+
 function isCloudResetBoot(): boolean {
   try {
     const owner = localStorage.getItem(ACCOUNT_OWNER_KEY);
@@ -367,6 +386,11 @@ export function App() {
     localStorage.setItem(STORAGE_KEYS.lang, JSON.stringify(lang));
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    const label = VIEW_TITLES[activeTab][lang];
+    document.title = `${label} — ${lang === 'bn' ? 'নক্ষত্র HSC ’28' : 'Nokkhotro HSC ’28'}`;
+  }, [activeTab, lang]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.theme, JSON.stringify(theme));
@@ -1326,6 +1350,9 @@ export function App() {
           : 'bg-[#f5f6fa] text-slate-800'
       }`}
     >
+      <a className="skip-link no-print" href="#main-content">
+        {lang === 'bn' ? 'মূল কনটেন্টে যান' : 'Skip to main content'}
+      </a>
       <div>
         <Navbar
           activeTab={activeTab}
@@ -1344,6 +1371,8 @@ export function App() {
         {/* Soft Eye-Friendly Toast Notification */}
         {toastMsg && (
           <div
+            role="status"
+            aria-live="polite"
             className={`fixed bottom-24 md:bottom-6 right-3 sm:right-5 max-w-[calc(100vw-1.5rem)] z-50 px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2.5 shadow-lg animate-toast backdrop-blur-md ${
               isDark
                 ? 'bg-slate-800/95 text-emerald-300 border-emerald-500/30'
@@ -1361,7 +1390,7 @@ export function App() {
           </div>
         )}
 
-        <main className={`premium-main px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:pb-12 ${activeTab !== 'dashboard' ? 'premium-sector' : ''}`}>
+        <main id="main-content" tabIndex={-1} className={`premium-main px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:pb-12 ${activeTab !== 'dashboard' ? 'premium-sector' : ''}`}>
           {activeTab !== 'dashboard' && <div className="premium-breadcrumb"><span>✦</span><button onClick={() => handleNavigate('dashboard')}>{lang === 'bn' ? 'আমার স্টাডি স্পেস' : 'My study space'}</button><span>/</span><strong>{['syllabus', 'formulas', 'cq', 'mcq', 'gk', 'lab', 'practical'].includes(activeTab) ? (lang === 'bn' ? 'পড়াশোনা' : 'Learning') : ['planner', 'routine'].includes(activeTab) ? (lang === 'bn' ? 'পরিকল্পনা' : 'Planning') : (lang === 'bn' ? 'আরও আবিষ্কার' : 'Explore')}</strong></div>}
           <Suspense fallback={<ViewSkeleton lang={lang} theme={theme} />}>
           <div key={activeTab} className="animate-view-in">

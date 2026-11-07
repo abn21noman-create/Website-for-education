@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   UserPlus,
@@ -56,6 +56,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = dialogRef.current;
+    dialog?.querySelector<HTMLButtonElement>('button')?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      ));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
   const isDark = theme === 'dark';
@@ -74,11 +115,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const cleanEmail = email.trim().toLowerCase();
-      if (!cleanEmail || password.length < 6) {
+      const minimumPasswordLength = mode === 'signup' ? 8 : 6;
+      if (!cleanEmail || password.length < minimumPasswordLength) {
         throw new Error(
           lang === 'bn'
-            ? 'সঠিক ইমেইল এবং কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড প্রদান করুন।'
-            : 'Please enter a valid email and a password of at least 6 characters.'
+            ? `সঠিক ইমেইল এবং কমপক্ষে ${minimumPasswordLength} অক্ষরের পাসওয়ার্ড প্রদান করুন।`
+            : `Please enter a valid email and a password of at least ${minimumPasswordLength} characters.`
         );
       }
 
@@ -176,8 +218,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isAuthenticated ? (lang === 'bn' ? 'প্রোফাইল ও অ্যাকাউন্ট' : 'Profile and account') : (lang === 'bn' ? 'অ্যাকাউন্ট তৈরি বা লগইন' : 'Create account or sign in')}
         className={`relative w-full max-w-md rounded-t-3xl sm:rounded-2xl border p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto overscroll-contain ${
           isDark
             ? 'bg-slate-800 border-slate-700 text-slate-100'
@@ -185,7 +231,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }`}
       >
         <button
+          type="button"
           onClick={onClose}
+          aria-label={lang === 'bn' ? 'বন্ধ করুন' : 'Close'}
           className={`absolute top-4 right-4 p-1.5 rounded-lg border transition-colors cursor-pointer ${
             isDark
               ? 'border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white'
@@ -260,6 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={80}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className={inputClass}
@@ -272,6 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={120}
                   value={collegeName}
                   onChange={(e) => setCollegeName(e.target.value)}
                   placeholder={
@@ -321,6 +371,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {errorMsg && (
                 <div
+                  role="alert"
                   className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                     isDark
                       ? 'bg-rose-500/15 border-rose-400/30 text-rose-200'
@@ -333,6 +384,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
               {successMsg && (
                 <div
+                  role="status"
                   className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                     isDark
                       ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200'
@@ -497,7 +549,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <input
                         type="text"
                         required
-                        value={fullName}
+                        maxLength={80}
+                  value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder={lang === 'bn' ? 'শিক্ষার্থীর নাম' : 'Your full name'}
                         className={`${inputClass} pl-9`}
@@ -513,7 +566,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <Building2 className="w-4 h-4 absolute left-3 top-3 opacity-45" />
                       <input
                         type="text"
-                        value={collegeName}
+                        maxLength={120}
+                  value={collegeName}
                         onChange={(e) => setCollegeName(e.target.value)}
                         placeholder={
                           lang === 'bn'
@@ -574,6 +628,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="email"
                     required
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    maxLength={254}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="student@example.com"
@@ -584,14 +643,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold mb-1 opacity-80">
-                  {lang === 'bn' ? 'পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর) *' : 'Password (min 6 chars) *'}
+                  {mode === 'signup'
+                    ? (lang === 'bn' ? 'পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর) *' : 'Password (min 8 chars) *')
+                    : (lang === 'bn' ? 'পাসওয়ার্ড *' : 'Password *')}
                 </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-3 opacity-45" />
                   <input
                     type="password"
                     required
-                    minLength={6}
+                    minLength={mode === 'signup' ? 8 : 6}
+                    maxLength={72}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••"
@@ -602,6 +667,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {errorMsg && (
                 <div
+                  role="alert"
                   className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                     isDark
                       ? 'bg-rose-500/15 border-rose-400/30 text-rose-200'
@@ -615,6 +681,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {successMsg && (
                 <div
+                  role="status"
                   className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
                     isDark
                       ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-200'

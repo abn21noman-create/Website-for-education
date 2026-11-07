@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import {
   Activity,
@@ -6,6 +6,8 @@ import {
   BarChart3,
   BookOpenCheck,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   GraduationCap,
   LayoutDashboard,
@@ -59,6 +61,8 @@ interface AdminUserRow {
   is_admin: boolean;
   total_count: number;
 }
+
+const ADMIN_PAGE_SIZE = 20;
 
 const EMPTY_OVERVIEW: AdminOverview = {
   totalUsers: 0,
@@ -115,14 +119,25 @@ export function AdminPortal({
   const [overview, setOverview] = useState<AdminOverview>(EMPTY_OVERVIEW);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState('');
   const [mobileNav, setMobileNav] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const requestSequence = useRef(0);
+  const languageRef = useRef(lang);
 
-  const load = useCallback(async (search = '', quiet = false) => {
+  useEffect(() => {
+    languageRef.current = lang;
+    document.documentElement.lang = lang;
+    document.title = `${lang === 'bn' ? 'অ্যাডমিন ড্যাশবোর্ড' : 'Admin dashboard'} — ${lang === 'bn' ? 'নক্ষত্র HSC ’28' : 'Nokkhotro HSC ’28'}`;
+  }, [lang]);
+
+  const load = useCallback(async (search = '', nextPage = 0, quiet = false) => {
+    const request = ++requestSequence.current;
     if (quiet) setRefreshing(true); else setLoading(true);
     setError('');
     try {
@@ -131,32 +146,42 @@ export function AdminPortal({
         client.rpc('hsc28_admin_overview'),
         client.rpc('hsc28_admin_list_users', {
           p_search: search.trim(),
-          p_limit: 100,
-          p_offset: 0,
+          p_limit: ADMIN_PAGE_SIZE,
+          p_offset: nextPage * ADMIN_PAGE_SIZE,
         }),
       ]);
       if (overviewResult.error) throw overviewResult.error;
       if (usersResult.error) throw usersResult.error;
+      if (request !== requestSequence.current) return;
+
+      const rows = Array.isArray(usersResult.data) ? usersResult.data as AdminUserRow[] : [];
       setOverview(normalizeOverview(overviewResult.data));
-      setUsers(Array.isArray(usersResult.data) ? usersResult.data as AdminUserRow[] : []);
+      setUsers(rows);
+      setPage(nextPage);
+      if (rows[0]) setTotalCount(numberValue(rows[0].total_count));
+      else if (nextPage === 0) setTotalCount(0);
       setLastUpdated(new Date());
-    } catch (cause) {
-      const detail = cause instanceof Error ? cause.message : String(cause);
-      setError(bn
-        ? `অ্যাডমিন ডেটা লোড করা যায়নি। ${detail}`
-        : `Admin data could not be loaded. ${detail}`);
+    } catch {
+      if (request !== requestSequence.current) return;
+      setError(languageRef.current === 'bn'
+        ? 'অ্যাডমিন ডেটা লোড করা যায়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।'
+        : 'Admin data could not be loaded. Check the connection and try again.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (request === requestSequence.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [bn, clientFactory]);
+  }, [clientFactory]);
 
   useEffect(() => {
-    void load('');
+    void load('', 0);
   }, [load]);
 
   const shownCount = users.length;
-  const matchedCount = users[0] ? numberValue(users[0].total_count) : 0;
+  const pageStart = shownCount ? page * ADMIN_PAGE_SIZE + 1 : 0;
+  const pageEnd = page * ADMIN_PAGE_SIZE + shownCount;
+  const pageCount = Math.max(1, Math.ceil(totalCount / ADMIN_PAGE_SIZE));
   const studyHours = Math.round((overview.totalStudyMinutes / 60) * 10) / 10;
   const fmt = useMemo(
     () => new Intl.NumberFormat(bn ? 'bn-BD' : 'en-US'),
@@ -205,7 +230,7 @@ export function AdminPortal({
 
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
-    void load(query, true);
+    void load(query, 0, true);
   }
 
   return (
@@ -247,7 +272,7 @@ export function AdminPortal({
           <div className="admin-topbar-title"><small>{bn ? 'অ্যাডমিন পোর্টাল' : 'ADMIN PORTAL'}</small><strong>{bn ? 'ড্যাশবোর্ড' : 'Dashboard'}</strong></div>
           <div className="admin-topbar-actions">
             <button className="admin-language" onClick={() => onLanguageChange(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button>
-            <button className="admin-refresh" onClick={() => void load(query, true)} disabled={refreshing} aria-label={bn ? 'ডেটা রিফ্রেশ করুন' : 'Refresh data'}><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} /><span>{bn ? 'রিফ্রেশ' : 'Refresh'}</span></button>
+            <button className="admin-refresh" onClick={() => void load(query, page, true)} disabled={refreshing} aria-label={bn ? 'ডেটা রিফ্রেশ করুন' : 'Refresh data'}><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} /><span>{bn ? 'রিফ্রেশ' : 'Refresh'}</span></button>
             <button className="admin-top-signout" onClick={() => void signOut()} disabled={signingOut}><LogOut size={16} /><span>{bn ? 'লগআউট' : 'Sign out'}</span></button>
           </div>
         </header>
@@ -262,7 +287,7 @@ export function AdminPortal({
             <div className="admin-live"><i /><span>{bn ? 'সিস্টেম সচল' : 'System online'}</span><small>{lastUpdated ? `${bn ? 'আপডেট' : 'Updated'} ${lastUpdated.toLocaleTimeString(bn ? 'bn-BD' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}` : (bn ? 'সংযোগ হচ্ছে' : 'Connecting')}</small></div>
           </section>
 
-          {error && <div className="admin-error" role="alert"><span>{error}</span><button onClick={() => void load(query)}>{bn ? 'আবার চেষ্টা করুন' : 'Try again'}</button></div>}
+          {error && <div className="admin-error" role="alert"><span>{error}</span><button onClick={() => void load(query, page)}>{bn ? 'আবার চেষ্টা করুন' : 'Try again'}</button></div>}
 
           <section className="admin-stat-grid" aria-label={bn ? 'সারসংক্ষেপ' : 'Summary'}>
             {cards.map(card => {
@@ -280,7 +305,7 @@ export function AdminPortal({
               <form className="admin-search" onSubmit={submitSearch} role="search">
                 <Search size={17} />
                 <input value={query} onChange={event => setQuery(event.target.value)} placeholder={bn ? 'নাম বা ইমেইল খুঁজুন' : 'Search name or email'} aria-label={bn ? 'ব্যবহারকারী খুঁজুন' : 'Search users'} />
-                {query && <button type="button" onClick={() => { setQuery(''); void load('', true); }} aria-label={bn ? 'খোঁজ মুছুন' : 'Clear search'}><X size={15} /></button>}
+                {query && <button type="button" onClick={() => { setQuery(''); void load('', 0, true); }} aria-label={bn ? 'খোঁজ মুছুন' : 'Clear search'}><X size={15} /></button>}
               </form>
             </div>
 
@@ -308,7 +333,15 @@ export function AdminPortal({
                 <div className="admin-badges">{user.is_admin && <span className="admin-badge admin"><ShieldCheck size={12} />{bn ? 'অ্যাডমিন' : 'Admin'}</span>}<span className={`admin-badge ${user.email_confirmed ? 'verified' : 'pending'}`}>{user.email_confirmed ? <CheckCircle2 size={12} /> : <Clock3 size={12} />}{user.email_confirmed ? (bn ? 'যাচাইকৃত' : 'Verified') : (bn ? 'অপেক্ষমাণ' : 'Pending')}</span></div>
               </article>)}</div>
 
-              <div className="admin-table-footer"><span>{bn ? `${fmt.format(matchedCount)}টির মধ্যে ${fmt.format(shownCount)}টি দেখানো হচ্ছে` : `Showing ${fmt.format(shownCount)} of ${fmt.format(matchedCount)}`}</span><span><BarChart3 size={14} /> {bn ? `${fmt.format(overview.adminUsers)} জন অ্যাডমিন` : `${fmt.format(overview.adminUsers)} administrator${overview.adminUsers === 1 ? '' : 's'}`}</span></div>
+              <div className="admin-table-footer">
+                <span>{bn ? `${fmt.format(totalCount)}টির মধ্যে ${fmt.format(pageStart)}–${fmt.format(pageEnd)} দেখানো হচ্ছে` : `Showing ${fmt.format(pageStart)}–${fmt.format(pageEnd)} of ${fmt.format(totalCount)}`}</span>
+                {pageCount > 1 && <div className="admin-pagination" aria-label={bn ? 'ব্যবহারকারী তালিকার পৃষ্ঠা' : 'User directory pages'}>
+                  <button type="button" onClick={() => void load(query, page - 1, true)} disabled={page === 0 || refreshing} aria-label={bn ? 'আগের পৃষ্ঠা' : 'Previous page'}><ChevronLeft size={14} /></button>
+                  <strong>{fmt.format(page + 1)} / {fmt.format(pageCount)}</strong>
+                  <button type="button" onClick={() => void load(query, page + 1, true)} disabled={page + 1 >= pageCount || refreshing} aria-label={bn ? 'পরের পৃষ্ঠা' : 'Next page'}><ChevronRight size={14} /></button>
+                </div>}
+                <span><BarChart3 size={14} /> {bn ? `${fmt.format(overview.adminUsers)} জন অ্যাডমিন` : `${fmt.format(overview.adminUsers)} administrator${overview.adminUsers === 1 ? '' : 's'}`}</span>
+              </div>
             </>}
           </section>
         </div>

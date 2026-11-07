@@ -1,6 +1,6 @@
 /** Execute the actual Vite output as ES modules in jsdom, without rebundling it. */
 import { JSDOM, VirtualConsole } from 'jsdom';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve, dirname, relative } from 'node:path';
 import { SourceTextModule } from 'node:vm';
 
@@ -14,6 +14,35 @@ if (!cssPath) throw new Error('No production stylesheet found');
 const css = await readFile(resolve(dist, cssPath.replace(/^\//, '')), 'utf8');
 if (!css.includes(':where(.dark,.dark *)')) throw new Error('Production dark variants do not follow the manual theme class');
 if (!css.includes('hind-siliguri-bengali-')) throw new Error('Production Bengali font is missing');
+
+// Keep the deployment and first-load font surface bounded to Bengali + Latin.
+const assetFiles = await readdir(resolve(dist, 'assets'));
+const fontFiles = assetFiles.filter(file => /\.woff2?$/.test(file));
+if (fontFiles.length > 16) throw new Error(`Font bundle regressed to ${fontFiles.length} files`);
+if (fontFiles.some(file => /(?:cyrillic|greek|vietnamese|latin-ext)/.test(file))) {
+  throw new Error('Production contains an unused font language subset');
+}
+
+// Deployment headers are part of the security boundary, not optional hosting
+// documentation. Keep them under the same production check as the app bundle.
+const vercel = JSON.parse(await readFile(resolve('vercel.json'), 'utf8'));
+const allHeaders = (vercel.headers || []).flatMap(rule => rule.headers || []);
+const headerValue = key => allHeaders.find(header => header.key.toLowerCase() === key.toLowerCase())?.value || '';
+const csp = headerValue('Content-Security-Policy');
+if (!csp.includes("default-src 'self'") || !csp.includes("frame-ancestors 'none'") || !csp.includes('https://*.supabase.co')) {
+  throw new Error('Production Content-Security-Policy is missing a required boundary');
+}
+for (const header of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy']) {
+  if (!headerValue(header)) throw new Error(`Production security header missing: ${header}`);
+}
+
+const sw = await readFile(resolve(dist, 'sw.js'), 'utf8');
+const installSection = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('message'"));
+if (/self\.skipWaiting\s*\(/.test(installSection)) throw new Error('Service worker still activates over an open app without consent');
+if (!sw.includes("event.data?.type === 'SKIP_WAITING'") || !sw.includes('url.origin !== self.location.origin')) {
+  throw new Error('Service-worker update or same-origin cache guard is missing');
+}
+
 const errors = [];
 const virtualConsole = new VirtualConsole();
 virtualConsole.on('jsdomError', error => errors.push(error));
