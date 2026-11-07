@@ -402,6 +402,23 @@ console.log(
 );
 failures += dashboardRoutine ? 0 : 1;
 
+const todayPriority = container.querySelector('[data-dashboard-today-priority="true"]');
+const dashboardHero = container.querySelector('.dashboard-hero-grid');
+const todayPriorityFirst = !!todayPriority && !!dashboardHero &&
+  Boolean(todayPriority.compareDocumentPosition(dashboardHero) & Node.DOCUMENT_POSITION_FOLLOWING);
+const todayStudySlots = todayPriority?.querySelectorAll('[data-today-study-slot="true"]') || [];
+const todayPlanIsImmediate =
+  todayPriorityFirst && todayStudySlots.length === 2 &&
+  (todayPriority?.textContent || '').includes('১ · প্রথমে') &&
+  (todayPriority?.textContent || '').includes('আজকের ২টি পড়া প্রস্তুত') &&
+  (todayPriority?.textContent || '').includes('অধ্যায় খুলুন');
+console.log(
+  todayPlanIsImmediate
+    ? '✓ dashboard leads with two actionable chapters and a contextual study reminder'
+    : `✗ dashboard daily focus is not immediate/actionable (slots=${todayStudySlots.length})`
+);
+failures += todayPlanIsImmediate ? 0 : 1;
+
 const dashboardTracks = (container.textContent || '').includes('ভর্তি প্রস্তুতি:');
 console.log(
   dashboardTracks
@@ -3288,6 +3305,23 @@ check(
   container.textContent.includes('Dashboard deadline') &&
     container.textContent.includes('due soon') && reminderRoute === 'life',
   'dashboard surfaces live Life Hub reminders and links to their full view'
+);
+let contextualStudyStarted = false;
+root.render(React.createElement(DashboardReminderCard, {
+  lang: 'en', theme: 'light', onNavigate() {},
+  dailyStudy: {
+    title: { bn: 'আজ পদার্থবিজ্ঞান', en: 'Physics is first today' },
+    detail: { bn: 'ভেক্টর অধ্যায়', en: 'Vectors chapter' },
+  },
+  onStartStudy() { contextualStudyStarted = true; },
+}));
+await new Promise(resolve => setTimeout(resolve, 80));
+const contextualStart = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Start'));
+contextualStart?.click();
+check(
+  container.textContent.includes('Physics is first today') &&
+    container.textContent.includes('Vectors chapter') && contextualStudyStarted,
+  'dashboard reminder names the real study block and starts it directly'
 );
 root.unmount(); root = null;
 

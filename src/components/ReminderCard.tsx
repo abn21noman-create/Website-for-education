@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, BellRing, CalendarDays, Check } from 'lucide-react';
+import { ArrowRight, Bell, BellRing, CalendarDays, Check } from 'lucide-react';
 import type { Lang, Theme } from '../types';
 import type { LifeData } from '../lib/lifeStore';
 import { formatNum } from '../lib/i18n';
@@ -12,18 +12,47 @@ import {
   syncAppBadge,
 } from '../lib/reminders';
 
+export interface DailyStudyReminder {
+  title: { bn: string; en: string };
+  detail: { bn: string; en: string };
+}
+
 interface ReminderCardProps {
   data: LifeData;
   lang: Lang;
   theme: Theme;
   onOpenLife?: () => void;
+  /** Dashboard-only context: replace the generic nudge with today's real plan. */
+  dailyStudy?: DailyStudyReminder;
+  onStartStudy?: () => void;
 }
 
-export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme, onOpenLife }) => {
+export const ReminderCard: React.FC<ReminderCardProps> = ({
+  data,
+  lang,
+  theme,
+  onOpenLife,
+  dailyStudy,
+  onStartStudy,
+}) => {
   const isDark = theme === 'dark';
   const [permission, setPermission] = useState<PermissionState>(() => notificationPermission());
 
-  const reminders = useMemo(() => buildReminders(data), [data]);
+  const reminders = useMemo(() => {
+    const base = buildReminders(data);
+    if (!dailyStudy) return base;
+    return [
+      {
+        id: 'study-daily',
+        kind: 'study' as const,
+        title: dailyStudy.title,
+        detail: dailyStudy.detail,
+        date: new Date().toISOString().slice(0, 10),
+        daysAway: 0,
+      },
+      ...base.filter((reminder) => reminder.kind !== 'study'),
+    ];
+  }, [data, dailyStudy]);
   const dueSoon = reminders.filter((r) => r.daysAway <= 1);
 
   // Keep the icon badge honest and fire the once-a-day nudge (if allowed).
@@ -50,21 +79,29 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme, o
           : 'bg-white/95 border-slate-200/80 card-soft-light'
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h2
           className={`text-sm font-extrabold flex items-center gap-2 ${
             isDark ? 'text-slate-100' : 'text-slate-900'
           }`}
         >
           <BellRing className="w-4 h-4 text-indigo-500" />
-          <span>{lang === 'bn' ? 'রিমাইন্ডার' : 'Reminders'}</span>
+          <span>
+            {dailyStudy
+              ? (lang === 'bn' ? 'আজকের রিমাইন্ডার' : "Today's reminders")
+              : (lang === 'bn' ? 'রিমাইন্ডার' : 'Reminders')}
+          </span>
         </h2>
         <div className="flex items-center gap-1.5">
           {dueSoon.length > 0 && (
             <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/25">
-              {lang === 'bn'
-                ? `${formatNum(dueSoon.length, lang)}টি নিকটে`
-                : `${dueSoon.length} due soon`}
+              {dailyStudy
+                ? lang === 'bn'
+                  ? `${formatNum(dueSoon.length, lang)}টি আজ/নিকটে`
+                  : `${dueSoon.length} today/soon`
+                : lang === 'bn'
+                  ? `${formatNum(dueSoon.length, lang)}টি নিকটে`
+                  : `${dueSoon.length} due soon`}
             </span>
           )}
           {onOpenLife && (
@@ -116,17 +153,29 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme, o
                 {r.detail[lang]}
               </div>
             </div>
-            <span
-              className={`text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded ${
-                r.daysAway <= 1
-                  ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200'
-                  : isDark
-                  ? 'bg-slate-800 text-slate-400'
-                  : 'bg-white text-slate-500 border border-slate-200'
-              }`}
-            >
-              {dayLabel(r.daysAway)}
-            </span>
+            <div className="shrink-0 flex flex-col items-end gap-1.5">
+              <span
+                className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                  r.daysAway <= 1
+                    ? 'bg-amber-500/20 text-amber-800 dark:text-amber-200'
+                    : isDark
+                    ? 'bg-slate-800 text-slate-400'
+                    : 'bg-white text-slate-500 border border-slate-200'
+                }`}
+              >
+                {dayLabel(r.daysAway)}
+              </span>
+              {r.kind === 'study' && onStartStudy && (
+                <button
+                  type="button"
+                  onClick={onStartStudy}
+                  className="min-h-11 px-2 inline-flex items-center gap-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-500"
+                >
+                  {lang === 'bn' ? 'শুরু' : 'Start'}
+                  <ArrowRight className="w-3 h-3" aria-hidden="true" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -160,7 +209,7 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme, o
               const next = await askNotificationPermission();
               setPermission(next);
             }}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
+            className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
           >
             <Bell className="w-3.5 h-3.5" />
             <span>{lang === 'bn' ? 'ফোনে রিমাইন্ডার চালু করুন' : 'Turn on phone reminders'}</span>
