@@ -195,7 +195,7 @@ const BACKUP_EXTRA_KEYS = [
   'hsc28_prediction_v1', 'hsc28_mistake_reasons_v1', 'hsc28_chapter_drill_v1',
   'hsc28_self_notes_v1', 'hsc28_reminder_log_v1', 'hsc28_english_drill_last_v1',
   'hsc28_gk_last_v1', 'hsc28_upvoted', 'hsc28_upvoted_by_owner_v1', 'hsc28_peer_doubts',
-  ACCESSIBILITY_STORAGE_KEY,
+  ACCESSIBILITY_STORAGE_KEY, 'hsc28_weekly_goals_v1',
 ];
 function backupExtraStorage(): Record<string, string> {
   const data: Record<string, string> = {};
