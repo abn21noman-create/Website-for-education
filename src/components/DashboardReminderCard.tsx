@@ -6,12 +6,14 @@ import {
   loadLifeData,
   type LifeData,
 } from '../lib/lifeStore';
-import { ReminderCard } from './ReminderCard';
+import { ReminderCard, type DailyStudyReminder } from './ReminderCard';
 
 interface DashboardReminderCardProps {
   lang: Lang;
   theme: Theme;
   onNavigate: (tab: ActiveTab) => void;
+  dailyStudy?: DailyStudyReminder;
+  onStartStudy?: () => void;
 }
 
 /**
@@ -22,6 +24,8 @@ export const DashboardReminderCard: React.FC<DashboardReminderCardProps> = ({
   lang,
   theme,
   onNavigate,
+  dailyStudy,
+  onStartStudy,
 }) => {
   const [data, setData] = useState<LifeData>(() => loadLifeData());
 
@@ -44,6 +48,8 @@ export const DashboardReminderCard: React.FC<DashboardReminderCardProps> = ({
       lang={lang}
       theme={theme}
       onOpenLife={() => onNavigate('life')}
+      dailyStudy={dailyStudy}
+      onStartStudy={onStartStudy}
     />
   );
 };

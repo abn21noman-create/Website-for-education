@@ -30,25 +30,12 @@ import {
   Theme,
 } from '../types';
 import { CHAPTERS, SUBJECTS, getSubjectByKey } from '../data/syllabusData';
-import {
-  classSlotsForDay,
-  dayNumberForDate,
-  isRevisionDay,
-  toDateKey,
-  revisionQueue,
-} from '../lib/masterRoutine';
-import { upcomingMocks } from '../lib/mockPlan';
-import { learnedChapters, loadRoutineState } from '../lib/routineStore';
-import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
 import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';
 import { requestChapterDrill } from '../lib/chapterDrill';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
+import { DashboardTodayFocus } from './DashboardTodayFocus';
 
-const LazyDashboardReminderCard = React.lazy(async () => {
-  const module = await import('./DashboardReminderCard');
-  return { default: module.DashboardReminderCard };
-});
 const LazyDashboardWeeklyGoals = React.lazy(async () => {
   const module = await import('./DashboardWeeklyGoals');
   return { default: module.DashboardWeeklyGoals };
@@ -84,14 +71,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
-  const [primaryTrack] = useState(() => loadRoutineState().primaryTrack);
-  // Main track first (Medical by default), so the dashboard leads with it.
-  const admissionTracks = (() => {
-    const byKey = new Map(allTrackReadiness(progressMap).map((track) => [track.track.key, track]));
-    return tracksByPriority(primaryTrack)
-      .map((track) => byKey.get(track.key))
-      .filter((track): track is NonNullable<typeof track> => Boolean(track));
-  })();
   const [now, setNow] = useState(() => Date.now());
   const [hasWeeklyGoalPlan, setHasWeeklyGoalPlan] = useState(() => {
     try {
@@ -105,22 +84,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const prediction = predictionSummary(loadPredictions());
     const confidence = confidenceSummary(loadConfidence());
     return { prediction, confidence };
-  });
-
-  // Today's slice of the 391-day master routine (read on mount, no props needed).
-  const [routineToday] = useState(() => {
-    const todayKey = toDateKey(new Date());
-    const routine = loadRoutineState();
-    const dayNumber = dayNumberForDate(routine.startDate, todayKey);
-    // Spaced reviews (1/3/7/21 days) that are waiting for the student today.
-    const due = revisionQueue(learnedChapters(routine), todayKey, routine.tasks);
-    return {
-      dayNumber,
-      slots: dayNumber ? classSlotsForDay(dayNumber) : [],
-      revision: dayNumber ? isRevisionDay(dayNumber) : false,
-      dueReviews: due.length,
-      nextMock: dayNumber ? upcomingMocks(dayNumber, 1, routine.startDate)[0] ?? null : null,
-    };
   });
 
   useEffect(() => {
@@ -185,6 +148,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
         <div className="dashboard-date"><Calendar size={16} /><span>{new Intl.DateTimeFormat(lang === 'bn' ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now))}</span></div>
       </div>
+
+      <DashboardTodayFocus
+        lang={lang}
+        theme={theme}
+        progressMap={progressMap}
+        onNavigate={onNavigate}
+      />
+
       <div className="dashboard-hero-grid">
         <section className="dashboard-hero">
           <div className="dashboard-hero-content">
@@ -224,143 +195,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>)}
         </div>
       </section>
-      <div className="dashboard-section-heading"><div><span>{lang === 'bn' ? 'তোমার আজকের পরিকল্পনা' : 'YOUR DAILY FOCUS'}</span><h2>{lang === 'bn' ? 'আজ কী পড়বে?' : 'What’s on today?'}</h2></div><button onClick={() => onNavigate('planner')}>{lang === 'bn' ? 'প্ল্যানার খুলুন' : 'Open planner'} <ArrowRight size={15} /></button></div>
-
-      {/* Today's slice of the 391-day master routine */}
-      <section
-        className={`rounded-2xl border p-4 sm:p-5 ${
-          isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
-        }`}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="w-4 h-4 text-indigo-500" />
-            <h2 className="text-sm font-extrabold">{lang === 'bn' ? 'আজকের রুটিন' : "Today's routine"}</h2>
-            {routineToday.dayNumber && (
-              <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
-                Day {routineToday.dayNumber} / 391
-              </span>
-            )}
-            {routineToday.dueReviews > 0 && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isDark ? 'bg-amber-500/20 text-amber-200' : 'bg-amber-100 text-amber-800'}`}>
-                {lang === 'bn'
-                  ? `${formatNum(routineToday.dueReviews, lang)} রিভিউ বাকি`
-                  : `${routineToday.dueReviews} reviews due`}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => onNavigate('routine')}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-          >
-            {lang === 'bn' ? 'পুরো রুটিন' : 'Full routine'}
-            <ArrowRight className="w-3 h-3" />
-          </button>
-        </div>
-
-        {routineToday.dayNumber === null ? (
-          <p className={`mt-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            {lang === 'bn'
-              ? 'মাস্টার রুটিনে Day 1-এর তারিখ বসাও — তারপর প্রতিদিনের দুই ক্লাস এখানে দেখাবে।'
-              : 'Set the Day 1 date in the master routine and your two daily classes show up here.'}
-          </p>
-        ) : routineToday.revision ? (
-          <p className={`mt-2 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            {lang === 'bn'
-              ? 'শুক্রবার — বিশ্রাম, রিভিশন ও সাপ্তাহিক এক্সাম।'
-              : 'Friday — rest, revision and the weekly exam.'}
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-1.5">
-            {routineToday.slots.map((slot, index) => (
-              <li key={`${slot.subjectKey}-${index}`} className="flex items-start gap-2 text-xs">
-                <BookOpen className="w-3.5 h-3.5 mt-0.5 text-emerald-500 shrink-0" />
-                <span>
-                  <span className="font-bold">{lang === 'bn' ? slot.subjectBn : slot.subjectEn}</span>
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
-                    {' — '}
-                    {lang === 'bn' ? slot.chapterBn : slot.chapterEn}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-3 pt-3 border-t">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              {lang === 'bn' ? 'ভর্তি প্রস্তুতি:' : 'Admission prep:'}
-            </span>
-            {admissionTracks.map((track) => (
-              <span
-                key={track.track.key}
-                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  isDark ? 'bg-slate-700/60 text-slate-200' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                <span className={track.track.key === primaryTrack ? 'font-extrabold' : ''}>
-                  {lang !== 'bn' && track.track.key === primaryTrack ? '★ ' : ''}
-                  {lang === 'bn' ? track.track.nameBn : track.track.nameEn}
-                </span>{' '}
-                <span
-                  className={
-                    track.percent >= 65
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : track.percent >= 35
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-rose-500 dark:text-rose-400'
-                  }
-                >
-                  {formatNum(track.percent, lang)}%
-                </span>
-              </span>
-            ))}
-            <button
-              onClick={() => onNavigate('routine')}
-              className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              {lang === 'bn' ? 'ট্র্যাক দেখো' : 'Open tracks'}
-            </button>
-          </div>
-        </div>
-
-        {routineToday.nextMock && (
-          <div className={`mt-3 pt-3 border-t flex items-center justify-between gap-2 ${isDark ? 'border-slate-700/60' : 'border-slate-200/80'}`}>
-            <p className="text-[11px] font-semibold flex items-center gap-1.5">
-              <CalendarClock className="w-3.5 h-3.5 text-rose-500" />
-              {lang === 'bn'
-                ? routineToday.nextMock.daysAway === 0
-                  ? `আজ মক টেস্ট: ${routineToday.nextMock.track.nameBn}`
-                  : `পরের মক: ${routineToday.nextMock.track.nameBn} · ${formatNum(routineToday.nextMock.daysAway, lang)} দিন পরে`
-                : routineToday.nextMock.daysAway === 0
-                  ? `Mock today: ${routineToday.nextMock.track.nameEn}`
-                  : `Next mock: ${routineToday.nextMock.track.nameEn} · in ${routineToday.nextMock.daysAway} d`}
-            </p>
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded shrink-0 ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
-              {lang === 'bn'
-                ? `${formatNum(routineToday.nextMock.track.minutes, lang)} মি · ${formatNum(routineToday.nextMock.track.marks, lang)} নম্বর`
-                : `${routineToday.nextMock.track.minutes} min · ${routineToday.nextMock.track.marks} marks`}
-            </span>
-          </div>
-        )}
-      </section>
-
-      {/* Life Hub deadlines and exams belong in the daily path, not behind a
-          secondary route. The card remains lazy so it does not delay first paint. */}
-      <React.Suspense
-        fallback={
-          <section
-            className={`min-h-32 rounded-2xl border animate-pulse ${
-              isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
-            }`}
-            aria-label={lang === 'bn' ? 'রিমাইন্ডার লোড হচ্ছে' : 'Loading reminders'}
-          />
-        }
-      >
-        <LazyDashboardReminderCard lang={lang} theme={theme} onNavigate={onNavigate} />
-      </React.Suspense>
-
       {hasWeeklyGoalPlan && (
         <React.Suspense
           fallback={
