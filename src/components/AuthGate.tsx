@@ -13,7 +13,7 @@ const LazyAdminPortal = lazy(async () => {
 });
 
 type Lang = 'bn' | 'en';
-type Mode = 'login' | 'signup' | 'admin' | 'forgot' | 'recovery';
+type Mode = 'login' | 'signup' | 'forgot' | 'recovery';
 type AccountRole = 'student' | 'admin';
 
 function message(error: unknown, bn: boolean): string {
@@ -32,7 +32,10 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
     try { return JSON.parse(localStorage.getItem('hsc28_lang') || '"bn"') === 'en' ? 'en' : 'bn'; } catch { return 'bn'; }
   });
   const bn = lang === 'bn';
-  const [mode, setMode] = useState<Mode>(() => /^#\/admin(?:\/|$)/i.test(window.location.hash) ? 'admin' : 'login');
+  // There is deliberately no public "Admin" sign-in mode. Everyone uses the
+  // same form; the server role check below sends only approved accounts to the
+  // admin portal after authentication.
+  const [mode, setMode] = useState<Mode>('login');
   const [status, setStatus] = useState<'loading' | 'signed-out' | 'preparing' | 'ready' | 'error'>('loading');
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AccountRole>('student');
@@ -109,7 +112,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
       const { data } = client.auth.onAuthStateChange((event, next) => {
         if (cancelled) return;
         if (event === 'PASSWORD_RECOVERY') { recovery.current = true; setMode('recovery'); setSession(next); setStatus('signed-out'); return; }
-        if (event === 'SIGNED_OUT') { preparingUser.current = null; sequence.current++; startCloudVault(null); setSyncUser(null); setSession(null); setRole('student'); setPortal('student'); if (adminRequested.current) setMode('admin'); setStatus('signed-out'); return; }
+        if (event === 'SIGNED_OUT') { preparingUser.current = null; sequence.current++; startCloudVault(null); setSyncUser(null); setSession(null); setRole('student'); setPortal('student'); setMode('login'); setStatus('signed-out'); return; }
         if (next && !recovery.current && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
           // Supabase may deliver both events for one session.
           if (preparingUser.current !== next.user.id) void prepare(next);
@@ -141,10 +144,6 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         if (error) throw error;
         if (!data.session) setNotice(bn ? 'ইমেইলে পাঠানো লিংক দিয়ে অ্যাকাউন্ট যাচাই করে লগইন করুন।' : 'Verify your email using the link, then sign in.');
       } else {
-        const wantsAdmin = mode === 'admin';
-        adminRequested.current = wantsAdmin;
-        if (wantsAdmin) window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/admin');
-        else if (/^#\/admin(?:\/|$)/i.test(window.location.hash)) window.history.replaceState(null, '', window.location.pathname + window.location.search + '#/');
         const { error } = await client.auth.signInWithPassword({ email: clean, password }); if (error) throw error;
       }
     } catch (e) { setError(message(e, bn)); } finally { setBusy(false); }
@@ -198,20 +197,19 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         <div className="auth-story-footer"><ShieldCheck size={17} /><span>{bn ? 'তোমার প্রস্তুতি, তোমার নিজস্ব জায়গা' : 'Your preparation, your personal space'}</span><span className="auth-story-stars">✦ &nbsp; ✧ &nbsp; ✦</span></div>
       </section>
       <section className="auth-panel">
-        <div className="auth-panel-top"><span>{mode === 'admin' ? (bn ? 'সুরক্ষিত অ্যাডমিন পোর্টাল' : 'SECURE ADMIN PORTAL') : (bn ? 'তোমার স্টাডি স্পেসে স্বাগতম' : 'WELCOME TO YOUR STUDY SPACE')}</span><button type="button" className="auth-language" aria-label={bn ? 'Switch to English' : 'বাংলা ভাষা নির্বাচন'} onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div>
-        <div className="auth-panel-heading"><span className="auth-panel-sparkle">{mode === 'admin' ? <ShieldCheck size={18} /> : '✦'}</span><h2>{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'Set a new password') : mode === 'signup' ? (bn ? 'যাত্রা শুরু করো' : 'Start your journey') : mode === 'forgot' ? (bn ? 'পাসওয়ার্ড রিসেট' : 'Reset your password') : mode === 'admin' ? (bn ? 'অ্যাডমিন লগইন' : 'Admin sign in') : (bn ? 'আবারও স্বাগতম!' : 'Welcome back!')}</h2><p>{mode === 'admin' ? (bn ? 'শুধু অনুমোদিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করুন।' : 'Continue with a server-approved administrator account.') : (bn ? 'তোমার লক্ষ্য পূরণের যাত্রাটা এখান থেকেই শুরু।' : 'Your journey toward your goals starts here.')}</p></div>
+        <div className="auth-panel-top"><span>{bn ? 'তোমার স্টাডি স্পেসে স্বাগতম' : 'WELCOME TO YOUR STUDY SPACE'}</span><button type="button" className="auth-language" aria-label={bn ? 'Switch to English' : 'বাংলা ভাষা নির্বাচন'} onClick={() => setLang(bn ? 'en' : 'bn')}>{bn ? 'EN' : 'বাংলা'}</button></div>
+        <div className="auth-panel-heading"><span className="auth-panel-sparkle">✦</span><h2>{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'Set a new password') : mode === 'signup' ? (bn ? 'যাত্রা শুরু করো' : 'Start your journey') : mode === 'forgot' ? (bn ? 'পাসওয়ার্ড রিসেট' : 'Reset your password') : (bn ? 'আবারও স্বাগতম!' : 'Welcome back!')}</h2><p>{bn ? 'তোমার লক্ষ্য পূরণের যাত্রাটা এখান থেকেই শুরু।' : 'Your journey toward your goals starts here.'}</p></div>
         {status === 'error' && session ? <div role="alert" className="auth-message error"><p>{bn ? 'ডেটা প্রস্তুত করা যায়নি। তোমার আগের ডেটা ডিভাইসে রয়ে গেছে।' : 'Could not prepare your data. Your previous data remains on this device.'} {error}</p><button type="button" onClick={() => void prepare(session)}>{bn ? 'আবার চেষ্টা করুন' : 'Retry'}</button></div> : <>
-          {(mode === 'login' || mode === 'signup' || mode === 'admin') && <div className="auth-tabs auth-tabs-three" role="group" aria-label={bn ? 'অ্যাকাউন্ট অপশন' : 'Account options'}>{(['login', 'signup', 'admin'] as const).map(m => <button type="button" aria-pressed={mode === m} key={m} onClick={() => { setMode(m); adminRequested.current = m === 'admin'; setError(''); setNotice(''); }} className={mode === m ? 'active' : ''}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : m === 'signup' ? (bn ? 'রেজিস্ট্রেশন' : 'Register') : (bn ? 'অ্যাডমিন' : 'Admin')}</button>)}</div>}
+          {(mode === 'login' || mode === 'signup') && <div className="auth-tabs" role="group" aria-label={bn ? 'অ্যাকাউন্ট অপশন' : 'Account options'}>{(['login', 'signup'] as const).map(m => <button type="button" aria-pressed={mode === m} key={m} onClick={() => { setMode(m); setError(''); setNotice(''); }} className={mode === m ? 'active' : ''}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : (bn ? 'রেজিস্ট্রেশন' : 'Register')}</button>)}</div>}
           <form onSubmit={submit} className="auth-form">
             {mode === 'signup' && <label>{bn ? 'তোমার পুরো নাম' : 'Full name'}<input required autoComplete="name" placeholder={bn ? 'নাম লিখুন' : 'Enter your name'} value={name} onChange={e => setName(e.target.value)} /></label>}
             {mode !== 'recovery' && <label>{bn ? 'ইমেইল ঠিকানা' : 'Email address'}<input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>}
-            {mode !== 'forgot' && <label>{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="auth-password"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'login' || mode === 'admin' ? 'current-password' : 'new-password'} placeholder={bn ? 'পাসওয়ার্ড লিখুন' : 'Enter your password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
-            {(mode === 'login' || mode === 'admin') && <button type="button" className="auth-forgot" onClick={() => { setMode('forgot'); setError(''); setNotice(''); }}>{bn ? 'পাসওয়ার্ড ভুলে গেছ?' : 'Forgot password?'}</button>}
+            {mode !== 'forgot' && <label>{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="auth-password"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={bn ? 'পাসওয়ার্ড লিখুন' : 'Enter your password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
+            {mode === 'login' && <button type="button" className="auth-forgot" onClick={() => { setMode('forgot'); setError(''); setNotice(''); }}>{bn ? 'পাসওয়ার্ড ভুলে গেছ?' : 'Forgot password?'}</button>}
             {error && <p role="alert" className="auth-message error">{error}</p>}{notice && <p role="status" className="auth-message success">{notice}</p>}
-            {mode === 'admin' && <div className="auth-admin-hint"><ShieldCheck size={16} /><span>{bn ? 'প্রথমবার? অনুমোদিত ইমেইল দিয়ে আগে ' : 'First time? Use your approved email to '}<button type="button" onClick={() => { setMode('signup'); setError(''); setNotice(''); }}>{bn ? 'রেজিস্ট্রেশন করুন' : 'register first'}</button></span></div>}
-            <button disabled={busy} className="auth-submit">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'admin' ? (bn ? 'অ্যাডমিন পোর্টালে যান' : 'Open admin portal') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')} <span>→</span></button>
+            <button disabled={busy} className="auth-submit">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')} <span>→</span></button>
           </form>
-          {mode === 'forgot' && <button className="auth-back" onClick={() => { setMode(adminRequested.current ? 'admin' : 'login'); setError(''); setNotice(''); }}>← {bn ? 'লগইনে ফিরে যান' : 'Back to sign in'}</button>}
+          {mode === 'forgot' && <button className="auth-back" onClick={() => { setMode('login'); setError(''); setNotice(''); }}>← {bn ? 'লগইনে ফিরে যান' : 'Back to sign in'}</button>}
         </>}
         <div className="auth-panel-footer"><ShieldCheck size={16} /><span>{bn ? 'তোমার তথ্য সুরক্ষিত রাখতে আমরা যত্নশীল' : 'Thoughtfully designed for your learning'}</span></div>
       </section>

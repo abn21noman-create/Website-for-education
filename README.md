@@ -6,7 +6,7 @@
 
 ## সুরক্ষিত Admin Portal (`/#/admin`)
 
-- লগইন স্ক্রিনে আলাদা **অ্যাডমিন** অপশন এবং রেসপনসিভ Admin Dashboard।
+- কোনো public **Admin** tab নেই—সবাই একই লগইন ব্যবহার করে; শুধু server-approved account সফলভাবে লগইন করলে স্বয়ংক্রিয়ভাবে responsive Admin Dashboard খুলে যায়।
 - মোট/নতুন/সক্রিয় অ্যাকাউন্ট, যাচাইকৃত ব্যবহারকারী, মোট পড়ার ঘণ্টা ও XP, খোলা প্রশ্ন এবং উত্তরের লাইভ সারসংক্ষেপ।
 - নাম বা ইমেইল দিয়ে সর্বোচ্চ ১০০টি অ্যাকাউন্টের server-side search; ভূমিকা, যোগদানের তারিখ, সর্বশেষ সক্রিয়তা ও অগ্রগতি দেখা যায়।
 - Admin পরিচয় editable metadata বা frontend email check দিয়ে নয়—private allowlist + `hsc28_admins` membership এবং `SECURITY DEFINER` RPC দিয়ে PostgreSQL-এ যাচাই হয়। Password hash, token ও ব্যক্তিগত study content Admin UI-তেও ফেরত আসে না।

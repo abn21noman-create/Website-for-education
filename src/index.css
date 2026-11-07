@@ -335,10 +335,6 @@
 .formula-view-switcher {max-width:100%;flex-wrap:wrap;gap:2px;}
 .formula-view-switcher button {min-height:38px;}
 
-.auth-tabs-three {grid-template-columns:repeat(3,1fr);}
-.auth-tabs-three button {padding-inline:5px;}
-.auth-admin-hint {display:flex;align-items:flex-start;gap:8px;margin-top:-2px;padding:10px 11px;border:1px solid #e6e1fb;border-radius:9px;background:#f8f6ff;color:#77708f;font-size:10px;line-height:1.55;}.auth-admin-hint svg {flex:none;margin-top:1px;color:#7869d4;}.auth-admin-hint button {color:#6555c5;font-weight:800;text-decoration:underline;text-underline-offset:2px;}
-
 /* ── Secure administrator portal ───────────────────────────────────────── */
 .admin-portal {--admin-ink:#202337;--admin-muted:#80869a;--admin-line:#e8e9f1;--admin-purple:#7565dc;min-height:100dvh;background:#f5f6fa;color:var(--admin-ink);font-family:'Plus Jakarta Sans','Hind Siliguri',sans-serif;}
 .admin-portal button,.admin-portal a,.admin-portal input {font:inherit;}.admin-portal button,.admin-portal a {cursor:pointer;}.admin-portal button:focus-visible,.admin-portal a:focus-visible,.admin-portal input:focus-visible {outline:2px solid #8374e2;outline-offset:2px;}
