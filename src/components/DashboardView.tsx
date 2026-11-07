@@ -49,6 +49,14 @@ const LazyDashboardReminderCard = React.lazy(async () => {
   const module = await import('./DashboardReminderCard');
   return { default: module.DashboardReminderCard };
 });
+const LazyDashboardWeeklyGoals = React.lazy(async () => {
+  const module = await import('./DashboardWeeklyGoals');
+  return { default: module.DashboardWeeklyGoals };
+});
+// Keep this tiny existence check in the dashboard chunk; the full goal engine
+// is fetched only after a plan exists or the student opens Analytics.
+const WEEKLY_GOALS_KEY = 'hsc28_weekly_goals_v1';
+const WEEKLY_GOALS_EVENT_NAME = 'hsc28:weekly-goals-changed';
 
 interface DashboardViewProps {
   lang: Lang;
@@ -85,6 +93,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .filter((track): track is NonNullable<typeof track> => Boolean(track));
   })();
   const [now, setNow] = useState(() => Date.now());
+  const [hasWeeklyGoalPlan, setHasWeeklyGoalPlan] = useState(() => {
+    try {
+      return localStorage.getItem(WEEKLY_GOALS_KEY) !== null;
+    } catch {
+      return false;
+    }
+  });
   // Metacognition lives on the dashboard: does confidence match results?
   const [calibration] = useState(() => {
     const prediction = predictionSummary(loadPredictions());
@@ -111,6 +126,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const readPlan = () => {
+      try {
+        setHasWeeklyGoalPlan(localStorage.getItem(WEEKLY_GOALS_KEY) !== null);
+      } catch {
+        setHasWeeklyGoalPlan(false);
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === WEEKLY_GOALS_KEY || event.key === null) readPlan();
+    };
+    window.addEventListener(WEEKLY_GOALS_EVENT_NAME, readPlan);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(WEEKLY_GOALS_EVENT_NAME, readPlan);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const diffMs = Math.max(0, HSC_2028_TARGET_DATE - now);
@@ -326,6 +360,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       >
         <LazyDashboardReminderCard lang={lang} theme={theme} onNavigate={onNavigate} />
       </React.Suspense>
+
+      {hasWeeklyGoalPlan && (
+        <React.Suspense
+          fallback={
+            <section
+              className={`min-h-28 rounded-2xl border animate-pulse ${
+                isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
+              }`}
+              aria-label={lang === 'bn' ? 'সাপ্তাহিক লক্ষ্য লোড হচ্ছে' : 'Loading weekly goals'}
+            />
+          }
+        >
+          <LazyDashboardWeeklyGoals lang={lang} theme={theme} onNavigate={onNavigate} />
+        </React.Suspense>
+      )}
 
       {/* Calibration: prediction vs reality, confident-but-wrong */}
       <section

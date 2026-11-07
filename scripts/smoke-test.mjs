@@ -172,6 +172,7 @@ for (const route of routes) {
         mcq: ['HSC বোর্ড প্যাটার্ন', 'মেডিকেল (১০০ MCQ)', 'মিশ্র প্র্যাকটিস'],
         gpa: ['SSC GPA (৫.০০-এর মধ্যে)', 'মেডিকেল ও ডেন্টাল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
+        analytics: ['এই সপ্তাহের রিভিউ', 'আগামী ৭ দিনের ৩টি লক্ষ্য'],
         life: ['রিমাইন্ডার'],
         routine: ['৩৯১', 'রুটিন'],
         gk: ['সাধারণ জ্ঞান ড্রিল', 'ইংরেজি গ্রামার', 'মিশ্র রাউন্ড'],
@@ -338,6 +339,17 @@ await new Promise((resolve) => setTimeout(resolve, 900));
 const reviewRendered = (container.textContent || '').includes('এই সপ্তাহের রিভিউ');
 console.log(reviewRendered ? '✓ weekly review renders' : '✗ weekly review missing');
 failures += reviewRendered ? 0 : 1;
+const weeklyGoalsCard = container.querySelector('[data-weekly-goals="true"]');
+const weeklyGoalRows = weeklyGoalsCard?.querySelectorAll('[data-weekly-goal]') || [];
+const firstWeeklyGoal = weeklyGoalsCard?.querySelector('button[aria-pressed="false"]');
+firstWeeklyGoal?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const savedWeeklyGoals = JSON.parse(localStorage.getItem('hsc28_weekly_goals_v1') || 'null');
+const weeklyGoalsWork = weeklyGoalRows.length === 3 &&
+  savedWeeklyGoals?.goals?.filter((goal) => goal.completed).length === 1 &&
+  weeklyGoalsCard?.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') === '1';
+console.log(weeklyGoalsWork ? '✓ next-7-day goals persist completion' : '✗ weekly goals did not persist');
+failures += weeklyGoalsWork ? 0 : 1;
 
 // GK drill: a round must actually start and explain the first answer.
 window.history.replaceState(null, '', '/#/gk');
@@ -418,6 +430,20 @@ console.log(
     : '\u2717 dashboard calibration card missing'
 );
 failures += dashboardCalibration ? 0 : 1;
+
+const dashboardGoalsCard = container.querySelector('[data-dashboard-weekly-goals="true"]');
+const dashboardGoalToggle = dashboardGoalsCard?.querySelector('button[aria-label*="সম্পন্ন করুন"]');
+dashboardGoalToggle?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 100));
+const dashboardGoalState = JSON.parse(localStorage.getItem('hsc28_weekly_goals_v1') || 'null');
+const dashboardGoalsWork = !!dashboardGoalsCard &&
+  dashboardGoalState?.goals?.filter((goal) => goal.completed).length === 2;
+console.log(
+  dashboardGoalsWork
+    ? '✓ dashboard shows the next weekly goal and saves its completion'
+    : '✗ dashboard weekly-goal summary missing or stale'
+);
+failures += dashboardGoalsWork ? 0 : 1;
 
 window.localStorage.setItem(
   'hsc28_quizzes',
@@ -2968,6 +2994,81 @@ routineWeek.click();
 await new Promise(resolve => setTimeout(resolve, 50));
 check(routineNav.querySelectorAll('button').length === 4 && routineWeek.getAttribute('aria-pressed') === 'true' && !container.textContent.includes('HSC starts 2026-07-02'), 'routine navigation works and avoids an obsolete exam-date claim');
 root.unmount(); root = null;
+
+// Weekly review recommendations must be deterministic, bounded to three, and
+// carry unfinished work only once instead of building an endless backlog.
+const weeklyGoals = await vite.ssrLoadModule('/src/lib/weeklyGoals.ts');
+const lowActivitySuggestions = weeklyGoals.suggestWeeklyGoals({
+  weekMinutes: 60,
+  previousWeekMinutes: 120,
+  quizCount: 0,
+  averageAccuracy: 0,
+  habitDays: 1,
+  attendanceMarked: 0,
+  attendancePercent: 0,
+  upcoming: null,
+  weakest: null,
+});
+check(
+  lowActivitySuggestions.slice(0, 3).map(goal => goal.id).join(',') ===
+    'mcq-start,study-restart,habit-reset',
+  'weekly review turns low activity into three ranked, explainable actions'
+);
+const goalWindowStart = new Date('2026-11-01T12:00:00');
+const firstGoalPlan = weeklyGoals.resolveWeeklyGoalPlan(null, lowActivitySuggestions, goalWindowStart);
+check(
+  firstGoalPlan.startDate === '2026-11-01' && firstGoalPlan.endDate === '2026-11-07' &&
+    firstGoalPlan.goals.length === 3 && new Set(firstGoalPlan.goals.map(goal => goal.id)).size === 3,
+  'weekly goal plan covers exactly seven days with three unique goals'
+);
+const completedFirstGoal = weeklyGoals.toggleWeeklyGoal(
+  firstGoalPlan,
+  firstGoalPlan.goals[0].planGoalId,
+  new Date('2026-11-03T12:00:00')
+);
+const rolledGoalPlan = weeklyGoals.resolveWeeklyGoalPlan(
+  completedFirstGoal,
+  lowActivitySuggestions,
+  new Date('2026-11-08T12:00:00')
+);
+check(
+  rolledGoalPlan.goals.length === 3 &&
+    !rolledGoalPlan.goals.some(goal => goal.id === completedFirstGoal.goals[0].id && goal.carryCount > 0) &&
+    rolledGoalPlan.goals.filter(goal => goal.carryCount === 1).length === 1,
+  'a completed goal drops while only one unfinished goal carries into the next window'
+);
+const onceCarriedId = rolledGoalPlan.goals.find(goal => goal.carryCount === 1)?.id;
+const secondRoll = weeklyGoals.resolveWeeklyGoalPlan(
+  rolledGoalPlan,
+  lowActivitySuggestions,
+  new Date('2026-11-15T12:00:00')
+);
+check(
+  !secondRoll.goals.some(goal => goal.id === onceCarriedId && goal.carryCount > 0),
+  'the same unfinished goal is never carried more than once'
+);
+const staleRoll = weeklyGoals.resolveWeeklyGoalPlan(
+  firstGoalPlan,
+  lowActivitySuggestions,
+  new Date('2026-12-01T12:00:00')
+);
+check(
+  staleRoll.goals.every(goal => goal.carryCount === 0),
+  'an old abandoned plan does not leak stale work into a much later week'
+);
+localStorage.removeItem(weeklyGoals.WEEKLY_GOALS_STORAGE_KEY);
+check(
+  weeklyGoals.saveWeeklyGoalPlan(completedFirstGoal) &&
+    weeklyGoals.loadWeeklyGoalPlan()?.goals[0].completed === true &&
+    weeklyGoals.normalizeWeeklyGoalPlan({ ...firstGoalPlan, endDate: '2026-11-30' }) === null,
+  'weekly goal completion persists and malformed date windows are rejected'
+);
+const appBackupSource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+check(
+  appBackupSource.includes("'hsc28_weekly_goals_v1'") &&
+    !appBackupSource.includes("from './lib/weeklyGoals'"),
+  'weekly goals join portable backups without entering the initial app bundle'
+);
 
 // Display preferences are validated, applied before paint, persisted, and
 // exposed through a keyboard-contained dialog in every app shell.

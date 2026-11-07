@@ -27,6 +27,8 @@ import {
   type LifeData,
 } from '../lib/lifeStore';
 import { getSubjectByKey } from '../data/syllabusData';
+import { suggestWeeklyGoals } from '../lib/weeklyGoals';
+import { NextWeekGoalsCard } from './NextWeekGoalsCard';
 
 interface WeeklyReviewCardProps {
   lang: Lang;
@@ -142,6 +144,35 @@ export const WeeklyReviewCard: React.FC<WeeklyReviewCardProps> = ({
       weakest,
     };
   }, [sessions, quizHistory, life]);
+
+  const goalSuggestions = useMemo(() => {
+    const weakestSubject = stats.weakest
+      ? getSubjectByKey(stats.weakest.subjectKey)
+      : null;
+    return suggestWeeklyGoals({
+      weekMinutes: stats.weekMinutes,
+      previousWeekMinutes: stats.prevMinutes,
+      quizCount: stats.weekQuizzes.length,
+      averageAccuracy: stats.avgAcc,
+      habitDays: stats.habitDays,
+      attendanceMarked: stats.attendance.marked,
+      attendancePercent: stats.attendance.pct,
+      upcoming: stats.upcoming[0]
+        ? {
+            title: stats.upcoming[0].title,
+            daysAway: daysUntil(stats.upcoming[0].date),
+          }
+        : null,
+      weakest: stats.weakest && weakestSubject
+        ? {
+            subjectKey: stats.weakest.subjectKey,
+            nameBn: weakestSubject.shortName.bn,
+            nameEn: weakestSubject.shortName.en,
+            average: stats.weakest.avg,
+          }
+        : null,
+    });
+  }, [stats]);
 
   const tips = useMemo(() => {
     const out: { tone: 'good' | 'warn' | 'info'; text: string }[] = [];
@@ -366,6 +397,13 @@ export const WeeklyReviewCard: React.FC<WeeklyReviewCardProps> = ({
           })}
         </div>
       </div>
+
+      <NextWeekGoalsCard
+        lang={lang}
+        theme={theme}
+        suggestions={goalSuggestions}
+        onNavigate={onNavigate}
+      />
 
       <div className={`${card} p-4 sm:p-5`}>
         <h3 className={`text-xs font-extrabold mb-2 flex items-center gap-1.5 ${head}`}>
