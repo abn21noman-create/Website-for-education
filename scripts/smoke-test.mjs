@@ -2444,6 +2444,8 @@ root = createRoot(container);
 root.render(React.createElement(AuthGate, { clientFactory: async () => fakeAuth }));
 await new Promise(resolve => setTimeout(resolve, 120));
 check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'signed-out visitor sees login and no app navigation');
+const publicAdminTabs = Array.from(container.querySelectorAll('.auth-tabs button')).filter(button => ['Admin', 'অ্যাডমিন'].includes((button.textContent || '').trim()));
+check(publicAdminTabs.length === 0, 'public login exposes no admin tab');
 check(window.location.hash === '#/planner', 'login gate preserves the requested deep link');
 const languageButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'EN');
 languageButton?.click();

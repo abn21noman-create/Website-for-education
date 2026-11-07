@@ -116,8 +116,9 @@ syncWrite()  ── সফল ──→  নেভবারে "ক্লাউ�
    on conflict (user_id) do nothing;
    ```
 
-   এরপর ওই ইমেইল দিয়ে **রেজিস্ট্রেশন** করুন (অথবা আগে account থাকলে লগইন করুন)।
-   `/#/admin` খুললে server role যাচাইয়ের পর Admin Portal আসবে। Allowlist ও membership
+   এরপর ওই ইমেইল দিয়ে সাধারণ **রেজিস্ট্রেশন / লগইন** ব্যবহার করুন। Public login screen-এ
+   আলাদা Admin tab নেই; server role যাচাই করে শুধু অনুমোদিত account-কে স্বয়ংক্রিয়ভাবে
+   `/#/admin` Admin Portal-এ নেয়। Allowlist ও membership
    table-এ `anon`/`authenticated`-এর কোনো direct grant বা RLS policy নেই—শুধু Supabase
    Dashboard/management connection থেকে owner যোগ করা যায়।
 4. ক্লায়েন্ট আগে ভল্ট ও queued writes সিঙ্ক করে, তারপর একই tab-এর নতুন table writes pause/discard করে `hsc28_clear_my_study_data()` চালায়। RPC-এর পর reset marker পড়ে local cache clear ও reload হয়; RPC response অনিশ্চিত হলে marker reconcile না হওয়া পর্যন্ত write পুনরায় খোলে না। `npm run smoke`-এর deferred-RPC regression এই ordering, concurrent same-user write, duplicate reset, queue ownership ও error recovery যাচাই করে—এটি নিজে live PostgreSQL/Supabase integration test নয়।
