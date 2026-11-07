@@ -45,7 +45,7 @@ const groups: { bn: string; en: string; items: { id: ActiveTab; bn: string; en: 
     { id: 'hub', bn: 'স্টুডেন্ট হাব', en: 'Student hub', icon: MessagesSquare },
     { id: 'life', bn: 'লাইফ হাব', en: 'Life hub', icon: HeartPulse },
     { id: 'gpa', bn: 'GPA ক্যালকুলেটর', en: 'GPA calculator', icon: Calculator },
-    { id: 'leaderboard', bn: 'মেধাক্রম', en: 'Leaderboard', icon: Trophy },
+    { id: 'leaderboard', bn: 'অগ্রগতি ও XP', en: 'Progress & XP', icon: Trophy },
   ]},
 ];
 
