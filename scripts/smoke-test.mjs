@@ -173,6 +173,8 @@ for (const route of routes) {
         gpa: ['SSC GPA (৫.০০-এর মধ্যে)', 'মেডিকেল ও ডেন্টাল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
         analytics: ['এই সপ্তাহের রিভিউ', 'আগামী ৭ দিনের ৩টি লক্ষ্য'],
+        hub: ['প্রাইভেট-ফার্স্ট', 'তাৎক্ষণিক কনসেপ্ট'],
+        leaderboard: ['নিজের অগ্রগতি ও কমিউনিটি XP', 'শুধু আমি'],
         life: ['রিমাইন্ডার'],
         routine: ['৩৯১', 'রুটিন'],
         gk: ['সাধারণ জ্ঞান ড্রিল', 'ইংরেজি গ্রামার', 'মিশ্র রাউন্ড'],
@@ -2462,6 +2464,25 @@ check(
   'admin RPCs enforce server membership and never expose password hashes or trust editable role metadata'
 );
 
+const leaderboardConsentMigration = await readFile(
+  new URL('../supabase/migrations/2026-11-07-leaderboard-consent.sql', import.meta.url),
+  'utf8'
+);
+check(
+  leaderboardConsentMigration.includes('leaderboard_visible boolean NOT NULL DEFAULT false') &&
+    leaderboardConsentMigration.includes('WHERE leaderboard_visible = true AND is_demo = false') &&
+    leaderboardConsentMigration.includes('REVOKE ALL ON public.hsc28_leaderboard FROM PUBLIC, anon') &&
+    leaderboardConsentMigration.includes('GRANT SELECT ON public.hsc28_leaderboard TO authenticated') &&
+    !/SELECT[^;]*\bemail\b/is.test(leaderboardConsentMigration),
+  'community XP SQL is private by default, opt-in only, authenticated-only, and excludes email'
+);
+const appCommunityPrivacySource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+check(
+  appCommunityPrivacySource.includes('leaderboard_visible: nextProfile.leaderboardVisible === true') &&
+    appCommunityPrivacySource.includes('leaderboardVisible: existingProfile.leaderboard_visible === true'),
+  'community visibility consent round-trips through the owner profile without metadata inference'
+);
+
 const workerSource = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
 const workerInstall = workerSource.slice(
   workerSource.indexOf("addEventListener('install'"),
@@ -2615,7 +2636,7 @@ let invalidBackupRejected = false;
 try { backup.parseStudyBackup({ app: 'nokkhotro-hsc-2028', profile: {} }); } catch { invalidBackupRejected = true; }
 check(invalidBackupRejected, 'malformed portable backup is rejected');
 const backupFixture = {
-  profile: { id: 'user-a', fullName: 'Student', collegeName: '', board: 'Jashore', targetGoal: 'Medical', avatarColor: '#000000', xp: 0, chaptersMastered: 0, quizzesTaken: 0, bestAccuracy: 0, studyMinutes: 0, streakDays: 1, bookmarks: [] },
+  profile: { id: 'user-a', fullName: 'Student', collegeName: '', board: 'Jashore', targetGoal: 'Medical', avatarColor: '#000000', xp: 0, chaptersMastered: 0, quizzesTaken: 0, bestAccuracy: 0, studyMinutes: 0, streakDays: 1, bookmarks: [], leaderboardVisible: true },
   progressMap: {}, quizHistory: [], sessions: [], personalNotes: [],
   tasks: [{ id: 'starter-1', title: 'Legacy task', subjectKey: 'physics1', priority: 'high', completed: false, dueDate: '2026-11-02', createdAt: '2026-11-02T00:00:00Z' }],
 };
@@ -2623,6 +2644,11 @@ const parsedBackup = backup.parseStudyBackup({ app: backup.BACKUP_APP_ID, ...bac
 const repairedBackup = backup.prepareBackupForAccount(parsedBackup, 'user-a', 'a@example.invalid', () => '11111111-1111-4111-8111-111111111111');
 check(repairedBackup.tasks[0].id === '11111111-1111-4111-8111-111111111111', 'legacy task IDs are converted to UUIDs before sync');
 check(backup.buildBackupSyncOps(repairedBackup, 'user-a', '2026-11-02T00:00:00Z')[0].payload.user_id === 'user-a', 'backup writes target the active account');
+const rehomedPrivateBackup = backup.prepareBackupForAccount(parsedBackup, 'user-b', 'b@example.invalid', () => crypto.randomUUID());
+check(
+  repairedBackup.profile.leaderboardVisible === true && rehomedPrivateBackup.profile.leaderboardVisible === false,
+  'community visibility survives a same-account restore but never transfers to another account'
+);
 
 // Account switching must not leak one student's local data into another account.
 const savedStorage = Object.fromEntries(Array.from({ length: localStorage.length }, (_, i) => { const key = localStorage.key(i); return [key, localStorage.getItem(key)]; }));
@@ -2827,18 +2853,54 @@ await new Promise(resolve => setTimeout(resolve, 30));
 check(labChoices.querySelectorAll('button').length === 6 && logicLab?.getAttribute('aria-pressed') === 'true', 'virtual lab selection exposes six accessible workspaces');
 root.unmount(); root = null;
 
-// Leaderboard must not invent a #1 placement when a profile is missing or a request fails.
+// Progress comparison is private-first: no community request runs until the
+// student opts in, and the displayed sample must never invent a national rank.
 const { LeaderboardView } = await vite.ssrLoadModule('/src/components/LeaderboardView.tsx');
-const leaderboardFactory = (rows, error = null) => async () => ({ from: () => ({ select: () => ({ order: () => ({ limit: async () => ({ data: rows, error }) }) }) }) });
+let leaderboardCalls = 0;
+let requestedLeaderboardVisibility = null;
+const leaderboardFactory = (rows, error = null) => async () => {
+  leaderboardCalls += 1;
+  return { from: () => ({ select: () => ({ order: () => ({ limit: async () => ({ data: rows, error }) }) }) }) };
+};
 root = createRoot(container);
-root.render(React.createElement(LeaderboardView, { lang: 'en', theme: 'light', currentProfile: backupFixture.profile, isAuthenticated: true, onOpenAuth() {}, clientFactory: leaderboardFactory([{ id: 'another', full_name: 'Other Student', board: 'Dhaka', xp: 100 }]) }));
+root.render(React.createElement(LeaderboardView, { lang: 'en', theme: 'light', currentProfile: { ...backupFixture.profile, leaderboardVisible: false }, isAuthenticated: true, onOpenAuth() {}, onVisibilityChange(value) { requestedLeaderboardVisibility = value; }, clientFactory: leaderboardFactory([{ id: 'another', full_name: 'Other Student', board: 'Dhaka', xp: 100 }]) }));
 await new Promise(resolve => setTimeout(resolve, 80));
-check(container.textContent.includes('NOT IN THIS DISPLAYED LIST') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard does not invent a rank for a profile outside the displayed list');
+const privateMode = container.querySelector('button[data-leaderboard-mode="private"]');
+check(
+  leaderboardCalls === 0 && !!container.querySelector('[data-private-progress="true"]') &&
+    privateMode?.getAttribute('aria-pressed') === 'true' && container.textContent.includes('not an exam rank'),
+  'leaderboard defaults to useful private progress without a community request'
+);
+const privateVisibilitySwitch = container.querySelector('[data-private-visibility-switch="true"]');
+privateVisibilitySwitch?.click();
+check(
+  leaderboardCalls === 0 && privateVisibilitySwitch?.getAttribute('aria-checked') === 'false' &&
+    requestedLeaderboardVisibility === true,
+  'profile sharing can be explicitly enabled without fetching the community list'
+);
+requestedLeaderboardVisibility = null;
+container.querySelector('button[data-leaderboard-mode="community"]')?.click();
+await new Promise(resolve => setTimeout(resolve, 100));
+check(
+  leaderboardCalls === 1 && container.textContent.includes('NOT IN THIS DISPLAYED LIST') &&
+    container.textContent.includes('not an official national or board-exam rank'),
+  'community XP is explicit and never invents a rank for a missing profile'
+);
+const visibilitySwitch = container.querySelector('[data-leaderboard-consent="true"] [role="switch"]');
+visibilitySwitch?.click();
+check(
+  visibilitySwitch?.getAttribute('aria-checked') === 'false' && requestedLeaderboardVisibility === true &&
+    container.textContent.includes('XP sharing is off'),
+  'community profile sharing is private by default and requires an explicit opt-in'
+);
 root.unmount(); root = null;
+leaderboardCalls = 0;
 root = createRoot(container);
 root.render(React.createElement(LeaderboardView, { lang: 'en', theme: 'light', currentProfile: backupFixture.profile, isAuthenticated: true, onOpenAuth() {}, clientFactory: leaderboardFactory(null, new Error('offline')) }));
-await new Promise(resolve => setTimeout(resolve, 80));
-check(container.textContent.includes('Could not load the leaderboard') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard shows a load error instead of a false rank');
+await new Promise(resolve => setTimeout(resolve, 30));
+container.querySelector('button[data-leaderboard-mode="community"]')?.click();
+await new Promise(resolve => setTimeout(resolve, 100));
+check(leaderboardCalls === 1 && container.textContent.includes('Could not load the leaderboard') && !container.textContent.includes('YOUR STANDING: #1'), 'leaderboard shows a load error instead of a false rank');
 root.unmount(); root = null;
 
 // A cleared account must not quietly regain the guest XP, suggested bookmarks,
@@ -2934,11 +2996,87 @@ check(
   'guest and separate accounts keep independent forum-vote hints'
 );
 
+// The Hub's offline mentor/roadmap are private-first; community data is fetched
+// only after Peer Q&A is explicitly opened, with a useful empty state.
+const { StudentHubView } = await vite.ssrLoadModule('/src/components/StudentHubView.tsx');
+let hubCommunityCalls = 0;
+localStorage.setItem('hsc28_peer_doubts', JSON.stringify({ malformed: true }));
+const emptyHubFactory = async () => {
+  hubCommunityCalls += 1;
+  return {
+    from: () => ({
+      select: () => ({
+        order: () => ({ limit: async () => ({ data: [], error: null }) }),
+      }),
+    }),
+  };
+};
+root = createRoot(container);
+root.render(React.createElement(StudentHubView, {
+  lang: 'en', theme: 'light', profile: backupFixture.profile,
+  isAuthenticated: false, authUserId: null, onAwardXp() {}, clientFactory: emptyHubFactory,
+}));
+await new Promise(resolve => setTimeout(resolve, 80));
+check(
+  hubCommunityCalls === 0 && !!container.querySelector('[data-hub-private-first="true"]') &&
+    container.textContent.includes('Community posts load only after') &&
+    Array.isArray(JSON.parse(localStorage.getItem('hsc28_peer_doubts') || 'null')),
+  'student hub cold-start keeps community data behind an explicit private-first boundary'
+);
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Roadmap & Notices'))?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+check(hubCommunityCalls === 0, 'offline student-hub roadmap performs no forum request');
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Batch ’28 Peer Q&A'))?.click();
+await new Promise(resolve => setTimeout(resolve, 100));
+check(
+  hubCommunityCalls === 1 && !!container.querySelector('[data-forum-empty="true"]') &&
+    container.textContent.includes('where you are stuck'),
+  'peer forum loads on demand and replaces a cold-start blank with guidance'
+);
+root.unmount(); root = null;
+
+let replyScope = null;
+const scopedHubFactory = async () => ({
+  from(table) {
+    if (table === 'hsc28_student_doubts') {
+      return { select: () => ({ order: () => ({ limit: async () => ({ data: [{
+        id: 'cloud-q', author_name: 'Cloud Peer', college_name: 'College', board: 'Dhaka',
+        subject_key: 'physics1', title: 'Scoped cloud question', details: 'Only its replies should load.',
+        upvotes: 2, solved: false, created_at: new Date().toISOString(),
+      }], error: null }) }) }) };
+    }
+    return {
+      select: () => ({
+        in(column, ids) {
+          replyScope = { column, ids, limit: 0 };
+          return { order: () => ({ limit: async (limit) => {
+            replyScope.limit = limit;
+            return { data: [{ id: 'cloud-r', doubt_id: 'cloud-q', author_name: 'Helper', content: 'Scoped answer', created_at: new Date().toISOString() }], error: null };
+          } }) };
+        },
+      }),
+    };
+  },
+});
+root = createRoot(container);
+root.render(React.createElement(StudentHubView, {
+  lang: 'en', theme: 'light', profile: backupFixture.profile,
+  isAuthenticated: false, authUserId: null, onAwardXp() {}, clientFactory: scopedHubFactory,
+}));
+await new Promise(resolve => setTimeout(resolve, 40));
+[...container.querySelectorAll('button')].find(button => button.textContent.includes('Batch ’28 Peer Q&A'))?.click();
+await new Promise(resolve => setTimeout(resolve, 100));
+check(
+  replyScope?.column === 'doubt_id' && replyScope?.ids?.join(',') === 'cloud-q' &&
+    replyScope?.limit === 250 && container.textContent.includes('Scoped answer'),
+  'peer forum scopes and bounds reply reads to the visible question set'
+);
+root.unmount(); root = null;
+
 // A new doubt starts with zero votes; the author earns one only through a vote.
 localStorage.clear();
 localStorage.setItem('hsc28_peer_doubts', JSON.stringify([]));
 localStorage.setItem('hsc28_upvoted', JSON.stringify({}));
-const { StudentHubView } = await vite.ssrLoadModule('/src/components/StudentHubView.tsx');
 root = createRoot(container);
 root.render(React.createElement(StudentHubView, {
   lang: 'en', theme: 'light', profile: { ...backupFixture.profile, fullName: 'Peer Student' },

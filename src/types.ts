@@ -191,5 +191,7 @@ export interface StudentProfile {
   mistakeIds?: string[];
   srsMasteredIds?: string[];
   completedPracticals?: string[];
+  /** Explicit consent to appear in the authenticated community XP view. */
+  leaderboardVisible?: boolean;
   isDemo?: boolean;
 }

@@ -140,6 +140,7 @@ const DEFAULT_GUEST_PROFILE: StudentProfile = {
   mistakeIds: [],
   srsMasteredIds: [],
   completedPracticals: [],
+  leaderboardVisible: false,
 };
 
 const CLEARED_PROFILE: StudentProfile = {
@@ -165,7 +166,7 @@ const VIEW_TITLES: Record<ActiveTab, { bn: string; en: string }> = {
   admission: { bn: 'অ্যাডমিশন হাব', en: 'Admission hub' },
   practical: { bn: 'ব্যবহারিক ও রাইটিং', en: 'Practicals & writing' },
   gpa: { bn: 'GPA ক্যালকুলেটর', en: 'GPA calculator' },
-  leaderboard: { bn: 'মেধাক্রম', en: 'Leaderboard' },
+  leaderboard: { bn: 'অগ্রগতি ও XP', en: 'Progress & XP' },
   life: { bn: 'লাইফ হাব', en: 'Life hub' },
 };
 
@@ -458,6 +459,7 @@ export function App() {
             mistake_ids: nextProfile.mistakeIds || [],
             srs_mastered_ids: nextProfile.srsMasteredIds || [],
             completed_practicals: nextProfile.completedPracticals || [],
+            leaderboard_visible: nextProfile.leaderboardVisible === true,
             is_demo: false,
             updated_at: new Date().toISOString(),
           },
@@ -547,6 +549,9 @@ export function App() {
               existingProfile.completed_practicals?.length > 0
                 ? existingProfile.completed_practicals
                 : prevProfile.completedPracticals || [],
+            // Community comparison is opt-in. Never infer consent from a
+            // legacy local profile or from other public profile fields.
+            leaderboardVisible: existingProfile.leaderboard_visible === true,
           };
           commitProfile(merged, userId);
         } else {
@@ -560,6 +565,7 @@ export function App() {
             targetGoal: signupMeta?.targetGoal || prevProfile.targetGoal,
             avatarColor: '#4f46e5',
             xp: Math.max(prevProfile.xp, 100),
+            leaderboardVisible: false,
           };
           commitProfile(created, userId);
         }
@@ -1552,6 +1558,10 @@ export function App() {
               currentProfile={profile}
               isAuthenticated={!!authUserId}
               onOpenAuth={() => { preloadAuthModal(); setIsAuthModalOpen(true); }}
+              onVisibilityChange={(visible: boolean) => {
+                const nextProfile = { ...profileRef.current, leaderboardVisible: visible };
+                commitProfile(nextProfile, authUserId);
+              }}
             />
           )}
 

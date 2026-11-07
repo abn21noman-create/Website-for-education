@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Sparkles,
   MessageSquare,
@@ -8,6 +8,8 @@ import {
   ThumbsUp,
   Plus,
   BookOpen,
+  ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Lang,
@@ -33,6 +35,62 @@ import {
   updateStudentHubVoteLedger,
 } from '../lib/studentHubVotes';
 
+const SUBJECT_KEY_SET = new Set(SUBJECTS.map((subject) => subject.key));
+
+function boundedText(value: unknown, max: number, fallback = ''): string {
+  return typeof value === 'string' && value.trim()
+    ? value.trim().slice(0, max)
+    : fallback;
+}
+
+function boundedCount(value: unknown, max: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(0, Math.round(parsed))) : 0;
+}
+
+function normalizeLocalDoubts(value: unknown): StudentDoubtPost[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 100).flatMap((candidate): StudentDoubtPost[] => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const post = candidate as Partial<StudentDoubtPost>;
+    const id = boundedText(post.id, 100);
+    const title = boundedText(post.title, 140);
+    const details = boundedText(post.details, 1200);
+    if (!id || !title || !details || !SUBJECT_KEY_SET.has(post.subjectKey as SubjectKey)) return [];
+    const replies = Array.isArray(post.replies)
+      ? post.replies.slice(0, 100).flatMap((candidateReply) => {
+          if (!candidateReply || typeof candidateReply !== 'object') return [];
+          const reply = candidateReply as Partial<StudentDoubtPost['replies'][number]>;
+          const replyId = boundedText(reply.id, 100);
+          const content = boundedText(reply.content, 1200);
+          if (!replyId || !content) return [];
+          return [{
+            id: replyId,
+            doubtId: id,
+            authorName: boundedText(reply.authorName, 100, 'HSC 2028 Student'),
+            collegeName: boundedText(reply.collegeName, 140),
+            content,
+            isHelpful: reply.isHelpful === true,
+            createdAt: boundedText(reply.createdAt, 40),
+          }];
+        })
+      : [];
+    return [{
+      id,
+      authorName: boundedText(post.authorName, 100, 'HSC 2028 Student'),
+      collegeName: boundedText(post.collegeName, 140),
+      board: boundedText(post.board, 40, 'Jashore'),
+      subjectKey: post.subjectKey as SubjectKey,
+      title,
+      details,
+      upvotes: boundedCount(post.upvotes, 1_000_000),
+      solved: post.solved === true,
+      createdAt: boundedText(post.createdAt, 40),
+      replies,
+    }];
+  });
+}
+
 interface StudentHubViewProps {
   lang: Lang;
   theme: Theme;
@@ -40,6 +98,8 @@ interface StudentHubViewProps {
   isAuthenticated: boolean;
   authUserId: string | null;
   onAwardXp: (amount: number, msgBn: string, msgEn: string) => void;
+  /** Optional injection keeps the private-first network boundary testable. */
+  clientFactory?: typeof getSupabase;
 }
 
 export const StudentHubView: React.FC<StudentHubViewProps> = ({
@@ -49,6 +109,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   isAuthenticated,
   authUserId,
   onAwardXp,
+  clientFactory = getSupabase,
 }) => {
   const isDark = theme === 'dark';
   const [subTab, setSubTab] = useState<'mentor' | 'forum' | 'roadmap'>('mentor');
@@ -60,11 +121,14 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   const [doubts, setDoubts] = useState<StudentDoubtPost[]>(() => {
     try {
       const saved = localStorage.getItem('hsc28_peer_doubts');
-      return saved ? JSON.parse(saved) : [];
+      return saved ? normalizeLocalDoubts(JSON.parse(saved) as unknown) : [];
     } catch {
       return [];
     }
   });
+  const [forumStatus, setForumStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [forumReloadNonce, setForumReloadNonce] = useState(0);
+  const loadedForumKeyRef = useRef<string | null>(null);
   const [showAskBox, setShowAskBox] = useState(false);
   const [askSubject, setAskSubject] = useState<SubjectKey>('physics1');
   const [askTitle, setAskTitle] = useState('');
@@ -95,106 +159,147 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
     }
   }, [upvotesByOwner]);
 
-  // Hydrate peer doubts from Supabase
+  // The private concept helper and roadmap do not need community data. Hydrate
+  // the forum only after the student explicitly opens it, reducing cold-start
+  // work and avoiding an unsolicited social comparison request.
   useEffect(() => {
-    (async () => {
+    if (subTab !== 'forum') return;
+    const owner = authUserId ? `user:${authUserId}` : 'guest';
+    const loadKey = `${owner}:${forumReloadNonce}`;
+    if (loadedForumKeyRef.current === loadKey) return;
+    loadedForumKeyRef.current = loadKey;
+    let cancelled = false;
+    let settled = false;
+    setForumStatus('loading');
+
+    void (async () => {
       try {
-        const supabase = await getSupabase();
-        const { data: dRows } = await supabase
+        const supabase = await clientFactory();
+        const { data: dRows, error: dError } = await supabase
           .from('hsc28_student_doubts')
-          .select('*')
+          .select('id,author_name,college_name,board,subject_key,title,details,upvotes,solved,created_at')
           .order('created_at', { ascending: false })
           .limit(25);
-        const { data: rRows } = await supabase
-          .from('hsc28_doubt_replies')
-          .select('*')
-          .order('created_at', { ascending: true });
+        if (dError) throw dError;
+        const visibleRows = Array.isArray(dRows) ? dRows.slice(0, 25) : [];
+        const visibleDoubtIds = visibleRows.flatMap((row: any) => {
+          const id = boundedText(row?.id, 100);
+          return id ? [id] : [];
+        });
 
-        if (dRows && dRows.length > 0) {
-          const mapped: StudentDoubtPost[] = dRows.map((d: any) => ({
-            id: d.id,
-            authorName: d.author_name,
-            collegeName: d.college_name || '',
-            board: d.board || 'Jashore',
-            subjectKey: (d.subject_key as SubjectKey) || 'physics1',
-            title: d.title,
-            details: d.details,
-            upvotes: Number(d.upvotes || 0),
-            solved: !!d.solved,
-            createdAt: d.created_at,
-            replies: (rRows || [])
-              .filter((r: any) => r.doubt_id === d.id)
-              .map((r: any) => ({
-                id: r.id,
-                doubtId: r.doubt_id,
-                authorName: r.author_name,
-                collegeName: r.college_name || '',
-                content: r.content,
-                isHelpful: !!r.is_helpful,
-                createdAt: r.created_at,
-              })),
-          }));
-          // Merge instead of replacing: keep local-only questions/replies, and
-          // preserve an optimistic vote count only when this account's local
-          // vote ledger says it cast that vote while the RPC was offline.
+        let rRows: any[] = [];
+        if (visibleDoubtIds.length > 0) {
+          const { data, error } = await supabase
+            .from('hsc28_doubt_replies')
+            .select('id,doubt_id,author_name,college_name,content,is_helpful,created_at')
+            .in('doubt_id', visibleDoubtIds)
+            .order('created_at', { ascending: true })
+            .limit(250);
+          if (error) throw error;
+          rRows = data || [];
+        }
+        if (cancelled) return;
+
+        if (visibleRows.length > 0) {
+          const mapped: StudentDoubtPost[] = visibleRows.map((d: any, index: number) => {
+            const id = boundedText(d?.id, 100, `community-doubt-${index}`);
+            return {
+              id,
+              authorName: boundedText(d?.author_name, 100, 'HSC 2028 Student'),
+              collegeName: boundedText(d?.college_name, 140),
+              board: boundedText(d?.board, 40, 'Jashore'),
+              subjectKey: SUBJECT_KEY_SET.has(d?.subject_key as SubjectKey)
+                ? d.subject_key as SubjectKey
+                : 'physics1',
+              title: boundedText(d?.title, 140, 'Study question'),
+              details: boundedText(d?.details, 1200, 'No details provided.'),
+              upvotes: boundedCount(d?.upvotes, 1_000_000),
+              solved: d?.solved === true,
+              createdAt: boundedText(d?.created_at, 40),
+              replies: rRows
+                .filter((reply: any) => reply?.doubt_id === d?.id)
+                .slice(0, 100)
+                .map((reply: any, replyIndex: number) => ({
+                  id: boundedText(reply?.id, 100, `${id}:reply:${replyIndex}`),
+                  doubtId: id,
+                  authorName: boundedText(reply?.author_name, 100, 'HSC 2028 Student'),
+                  collegeName: boundedText(reply?.college_name, 140),
+                  content: boundedText(reply?.content, 1200, 'No reply text.'),
+                  isHelpful: reply?.is_helpful === true,
+                  createdAt: boundedText(reply?.created_at, 40),
+                })),
+            };
+          });
+          // Keep offline/local-only posts while refreshing cloud-backed ones.
           setDoubts((prevLocal) => {
             const cloudIds = new Set(mapped.map((d) => d.id));
-            const localOnly = prevLocal.filter(
-              (d) => !cloudIds.has(d.id)
-            );
+            const localOnly = prevLocal.filter((d) => !cloudIds.has(d.id));
             const merged = mapped.map((cloud) => {
               const local = prevLocal.find((d) => d.id === cloud.id);
               return local && upvotedMap[cloud.id] && local.upvotes > cloud.upvotes
                 ? { ...cloud, upvotes: local.upvotes }
                 : cloud;
             });
-            return [...localOnly, ...merged];
+            return [...localOnly.slice(0, 75), ...merged].slice(0, 100);
           });
 
-          // Restore which doubts this student already upvoted, so the vote
-          // ledger in hsc28_doubt_votes survives reloads and other devices.
           if (authUserId) {
-            const { data: voteRows } = await supabase
+            const { data: voteRows, error: voteError } = await supabase
               .from('hsc28_doubt_votes')
               .select('doubt_id')
-              .eq('user_id', authUserId);
-            if (voteRows && voteRows.length > 0) {
+              .eq('user_id', authUserId)
+              .in('doubt_id', visibleDoubtIds)
+              .limit(25);
+            if (voteError) throw voteError;
+            if (!cancelled && voteRows && voteRows.length > 0) {
               setUpvotedMap((prev) => {
                 const next = { ...prev };
-                voteRows.forEach((v: any) => {
-                  next[v.doubt_id] = true;
+                voteRows.forEach((vote: any) => {
+                  next[vote.doubt_id] = true;
                 });
                 return next;
               });
             }
           }
         }
+        settled = true;
+        if (!cancelled) setForumStatus('ready');
       } catch {
-        // Offline safe
+        settled = true;
+        if (!cancelled) setForumStatus('error');
       }
     })();
-    // Re-runs when the session resolves: the vote ledger needs authUserId,
-    // which is null on first paint because session restore is async.
-  }, [authUserId]);
+
+    return () => {
+      cancelled = true;
+      // If navigation interrupted an in-flight request, allow a clean retry on
+      // the next forum visit instead of leaving the screen stuck in loading.
+      if (!settled && loadedForumKeyRef.current === loadKey) {
+        loadedForumKeyRef.current = null;
+      }
+    };
+  }, [subTab, authUserId, clientFactory, forumReloadNonce]);
 
   const handlePostDoubt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!askTitle.trim() || !askDetails.trim()) return;
+    const title = askTitle.trim().slice(0, 140);
+    const details = askDetails.trim().slice(0, 1200);
+    if (!title || !details) return;
     const id = crypto.randomUUID();
     const newPost: StudentDoubtPost = {
       id,
-      authorName: profile.fullName,
-      collegeName: profile.collegeName || 'HSC ’28 Science',
-      board: profile.board,
+      authorName: boundedText(profile.fullName, 100, 'HSC 2028 Student'),
+      collegeName: boundedText(profile.collegeName, 140, 'HSC ’28 Science'),
+      board: boundedText(profile.board, 40, 'Jashore'),
       subjectKey: askSubject,
-      title: askTitle.trim(),
-      details: askDetails.trim(),
+      title,
+      details,
       upvotes: 0,
       solved: false,
       createdAt: new Date().toISOString(),
       replies: [],
     };
-    setDoubts((prev) => [newPost, ...prev]);
+    setDoubts((prev) => [newPost, ...prev].slice(0, 100));
     setAskTitle('');
     setAskDetails('');
     setShowAskBox(false);
@@ -228,9 +333,11 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
   };
 
   const handlePostReply = async (doubtId: string) => {
-    const text = (replyInputs[doubtId] || '').trim();
+    const text = (replyInputs[doubtId] || '').trim().slice(0, 1200);
     if (!text) return;
     const replyId = crypto.randomUUID();
+    const replyAuthorName = boundedText(profile.fullName, 100, 'HSC 2028 Student');
+    const replyCollegeName = boundedText(profile.collegeName, 140, 'HSC ’28 Batchmate');
     setDoubts((prev) =>
       prev.map((d) =>
         d.id !== doubtId
@@ -242,13 +349,13 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                 {
                   id: replyId,
                   doubtId,
-                  authorName: profile.fullName,
-                  collegeName: profile.collegeName || 'HSC ’28 Batchmate',
+                  authorName: replyAuthorName,
+                  collegeName: replyCollegeName,
                   content: text,
                   isHelpful: false,
                   createdAt: new Date().toISOString(),
                 },
-              ],
+              ].slice(-100),
             }
       )
     );
@@ -269,8 +376,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             id: replyId,
             doubt_id: doubtId,
             user_id: authUserId,
-            author_name: profile.fullName,
-            college_name: profile.collegeName || 'HSC ’28 Science',
+            author_name: replyAuthorName,
+            college_name: replyCollegeName,
             content: text,
             is_helpful: false,
           },
@@ -335,6 +442,21 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
         </div>
       </div>
 
+      <div
+        data-hub-private-first="true"
+        className={`rounded-xl border px-3.5 py-3 flex items-start gap-2.5 ${
+          isDark ? 'bg-emerald-500/8 border-emerald-400/20 text-slate-300' : 'bg-emerald-50/60 border-emerald-200 text-slate-700'
+        }`}
+        role="note"
+      >
+        <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
+        <p className="text-[10px] sm:text-xs leading-relaxed">
+          {lang === 'bn'
+            ? 'প্রাইভেট-ফার্স্ট: কনসেপ্ট সহায়ক ও রোডম্যাপ অফলাইনে চলে। শুধু “সহপাঠী ডাউট ফোরাম” খুললেই কমিউনিটি পোস্ট লোড হবে।'
+            : 'Private first: the concept helper and roadmap work offline. Community posts load only after you open Peer Q&A.'}
+        </p>
+      </div>
+
       {/* Sub-navigation */}
       <div className="hub-sections flex flex-wrap gap-2" role="group" aria-label={lang === 'bn' ? 'স্টুডেন্ট হাব বিভাগ' : 'Student hub sections'}>
         {[
@@ -361,7 +483,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             key={t.id}
             onClick={() => setSubTab(t.id)}
             aria-pressed={subTab === t.id}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border cursor-pointer transition-all ${
+            className={`min-h-11 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border cursor-pointer transition-all ${
               subTab === t.id
                 ? isDark
                   ? 'bg-indigo-500/25 text-indigo-200 border-indigo-400/40'
@@ -386,6 +508,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
               <input
                 type="text"
                 value={conceptQuery}
+                aria-label={lang === 'bn' ? 'কনসেপ্ট বা সূত্র খুঁজুন' : 'Search concepts or formulas'}
                 onChange={(e) => setConceptQuery(e.target.value)}
                 placeholder={
                   lang === 'bn'
@@ -489,7 +612,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
             </p>
             <button
               onClick={() => setShowAskBox(!showAskBox)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer shadow-2xs"
+              className="min-h-11 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer shadow-2xs"
             >
               <Plus className="w-4 h-4" />
               <span>
@@ -497,6 +620,45 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
               </span>
             </button>
           </div>
+
+          {forumStatus === 'loading' && doubts.length === 0 && (
+            <div className={`${cardClass} flex items-center gap-3`} role="status" aria-live="polite">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold">{lang === 'bn' ? 'সহপাঠীদের পোস্ট লোড হচ্ছে…' : 'Loading batchmate posts…'}</p>
+                <p className="mt-0.5 text-[10px] opacity-65">{lang === 'bn' ? 'আপনার লোকাল প্রশ্নগুলো নিরাপদ থাকবে।' : 'Your local questions remain available.'}</p>
+              </div>
+            </div>
+          )}
+
+          {forumStatus === 'error' && (
+            <div className={`rounded-xl border p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isDark ? 'bg-amber-500/10 border-amber-400/25' : 'bg-amber-50 border-amber-200'}`} role="status">
+              <div>
+                <p className="text-xs font-bold">{lang === 'bn' ? 'কমিউনিটি পোস্ট এখন আনা যায়নি' : 'Community posts are unavailable right now'}</p>
+                <p className="mt-0.5 text-[10px] opacity-70">{lang === 'bn' ? 'লোকাল প্রশ্ন লেখা যাবে; সংযোগ এলে আবার চেষ্টা করুন।' : 'You can still write locally and retry when connected.'}</p>
+              </div>
+              <button type="button" onClick={() => setForumReloadNonce((value) => value + 1)} className="min-h-11 px-3 rounded-xl border border-amber-400/40 text-xs font-bold inline-flex items-center justify-center gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5" />
+                {lang === 'bn' ? 'আবার চেষ্টা' : 'Retry'}
+              </button>
+            </div>
+          )}
+
+          {forumStatus === 'ready' && doubts.length === 0 && !showAskBox && (
+            <div data-forum-empty="true" className={`${cardClass} text-center`} role="status">
+              <MessageSquare className="w-6 h-6 mx-auto text-indigo-500" aria-hidden="true" />
+              <h3 className="mt-2 text-sm font-extrabold">{lang === 'bn' ? 'এখনো কোনো প্রশ্ন নেই—স্ক্রিনটি খালি নয়' : 'No questions yet—but this space is still useful'}</h3>
+              <p className="mt-1 text-xs opacity-70 max-w-xl mx-auto">
+                {lang === 'bn'
+                  ? 'কোথায় আটকে গেছেন, কী চেষ্টা করেছেন, আর ঠিক কোন ধাপটি বুঝছেন না—এই তিনটি লিখে প্রথম পরিষ্কার প্রশ্নটি করুন।'
+                  : 'Write where you are stuck, what you tried, and the exact step that is unclear to ask the first focused question.'}
+              </p>
+              <button type="button" onClick={() => setShowAskBox(true)} className="mt-3 min-h-11 px-4 rounded-xl bg-indigo-600 text-white text-xs font-bold inline-flex items-center gap-1.5">
+                <Plus className="w-4 h-4" />
+                {lang === 'bn' ? 'প্রথম প্রশ্নটি গুছিয়ে লিখুন' : 'Draft the first question'}
+              </button>
+            </div>
+          )}
 
           {showAskBox && (
             <form onSubmit={handlePostDoubt} className={`${cardClass} space-y-3`}>
@@ -508,8 +670,9 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <select
                   value={askSubject}
+                  aria-label={lang === 'bn' ? 'প্রশ্নের বিষয়' : 'Question subject'}
                   onChange={(e) => setAskSubject(e.target.value as SubjectKey)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-bold outline-none ${
+                  className={`min-h-11 px-3 py-2 rounded-xl border text-xs font-bold outline-none ${
                     isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'
                   }`}
                 >
@@ -522,6 +685,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                 <input
                   type="text"
                   required
+                  maxLength={140}
+                  aria-label={lang === 'bn' ? 'প্রশ্নের শিরোনাম' : 'Question title'}
                   value={askTitle}
                   onChange={(e) => setAskTitle(e.target.value)}
                   placeholder={
@@ -529,7 +694,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                       ? 'প্রশ্নের মূল শিরোনাম...'
                       : 'Short question title...'
                   }
-                  className={`sm:col-span-2 px-3.5 py-2 rounded-xl border text-xs sm:text-sm outline-none ${
+                  className={`min-h-11 sm:col-span-2 px-3.5 py-2 rounded-xl border text-xs sm:text-sm outline-none ${
                     isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-50 border-slate-200'
                   }`}
                 />
@@ -537,6 +702,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
               <textarea
                 rows={3}
                 required
+                maxLength={1200}
+                aria-label={lang === 'bn' ? 'প্রশ্নের বিস্তারিত' : 'Question details'}
                 value={askDetails}
                 onChange={(e) => setAskDetails(e.target.value)}
                 placeholder={
@@ -552,13 +719,13 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowAskBox(false)}
-                  className="px-3.5 py-1.5 rounded-lg text-xs opacity-70 cursor-pointer"
+                  className="min-h-11 px-3.5 py-1.5 rounded-lg text-xs opacity-70 cursor-pointer"
                 >
                   {lang === 'bn' ? 'বাতিল' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
+                  className="min-h-11 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
                 >
                   {lang === 'bn' ? 'পোস্ট করুন (+১০ XP)' : 'Publish (+10 XP)'}
                 </button>
@@ -607,7 +774,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                         // retry queue when the network is down.
                         void (async () => {
                           try {
-                            const client = await getSupabase();
+                            const client = await clientFactory();
                             const { data, error } = await withUserSyncWriteLock(authUserId, async () =>
                               await client.rpc(
                                 'hsc28_upvote_doubt',
@@ -644,7 +811,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                           }
                         })();
                       }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-bold cursor-pointer ${
+                      className={`min-w-11 min-h-11 inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-bold cursor-pointer ${
                         upvoted
                           ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-200 dark:border-indigo-400/30'
                           : isDark
@@ -693,6 +860,8 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                   <div className="flex gap-2">
                     <input
                       type="text"
+                      maxLength={1200}
+                      aria-label={lang === 'bn' ? `${d.title}-এর উত্তর` : `Reply to ${d.title}`}
                       value={replyInputs[d.id] || ''}
                       onChange={(e) =>
                         setReplyInputs((prev) => ({
@@ -705,7 +874,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                           ? 'সহপাঠী হিসেবে আপনার সমাধান বা ব্যাখ্যা লিখুন...'
                           : 'Write a helpful explanation for your batchmate...'
                       }
-                      className={`flex-1 px-3.5 py-2 rounded-xl border text-xs outline-none ${
+                      className={`min-h-11 flex-1 px-3.5 py-2 rounded-xl border text-xs outline-none ${
                         isDark
                           ? 'bg-slate-900/65 border-slate-700 text-slate-100 focus:border-indigo-400'
                           : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-400'
@@ -714,7 +883,7 @@ export const StudentHubView: React.FC<StudentHubViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handlePostReply(d.id)}
-                      className="px-3.5 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-500 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                      className="min-h-11 px-3.5 py-2 rounded-xl bg-teal-600 text-white hover:bg-teal-500 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
                       <Send className="w-3.5 h-3.5" />
                       <span>{lang === 'bn' ? 'উত্তর দিন' : 'Reply'}</span>

@@ -16,7 +16,7 @@
 
 | স্ক্রিন / ফিচার | Supabase টেবিল | কী সংরক্ষিত হয় |
 |---|---|---|
-| লগইন / প্রোফাইল | `hsc28_profiles` | নাম, কলেজ, বোর্ড, টার্গেট, XP, স্ট্রিক, বুকমার্ক, solved CQ, mistake IDs, SRS mastered, **completed_practicals** |
+| লগইন / প্রোফাইল | `hsc28_profiles` | নাম, কলেজ, বোর্ড, টার্গেট, XP, স্ট্রিক, বুকমার্ক, solved CQ, mistake IDs, SRS mastered, **completed_practicals**, private-by-default `leaderboard_visible` consent |
 | Admin Portal | private `hsc28_admin_allowlist`, `hsc28_admins` + RPC | server-authoritative role, aggregate stats ও সীমিত account directory; password/token/study content নয় |
 | সিলেবাস ট্র্যাকার | `hsc28_chapter_progress` | প্রতি অধ্যায়ের ৪টি ধাপ (থিওরি / নোটস / MCQ / CQ) |
 | সূত্র ভল্ট → ব্যক্তিগত নোট | `hsc28_personal_notes` | নোটের শিরোনাম, লেখা, সূত্র |
@@ -26,7 +26,7 @@
 | স্টুডেন্ট হাব → প্রশ্ন | `hsc28_student_doubts` | প্রশ্ন, লেখক, বোর্ড, আপভোট |
 | স্টুডেন্ট হাব → উত্তর | `hsc28_doubt_replies` | উত্তর ও সহায়ক কিনা |
 | স্টুডেন্ট হাব → আপভোট | `hsc28_doubt_votes` | কে কোন প্রশ্নে ভোট দিয়েছে (এক ইউজার এক ভোট) |
-| মেধাতালিকা | `hsc28_profiles` (xp desc) | সবার XP র‍্যাংকিং |
+| অগ্রগতি ও কমিউনিটি XP | private `hsc28_profiles` + authenticated view `hsc28_leaderboard` | নিজের metrics; `leaderboard_visible=true` opt-in করা profile-গুলোর সীমিত XP summary (email নয়) |
 | লাইফ হাব | `hsc28_life_data` | অভ্যাস, **কলেজ উপস্থিতি**, ডেডলাইন, পরীক্ষা, **ফলাফল**, চেকলিস্ট, **ক্লাস রুটিন** — এক JSONB ডকুমেন্টে |
 | **ক্লাউড ভল্ট** (বাকি সব) | `hsc28_kv` | মাস্টার রুটিন, নিশ্চয়তা-ট্যাগ ও অনুমান, মক-প্ল্যান, ভুলের খাতা, সাপ্তাহিক টার্গেট, চ্যাপ্টার ড্রিল, ভাষা/থিম, ব্যক্তিগত নোট-ক্যাশ — `hsc28_*` দিয়ে শুরু হওয়া প্রতিটি লোকাল কি |
 
@@ -100,8 +100,11 @@ syncWrite()  ── সফল ──→  নেভবারে "ক্লাউ�
    এবং `supabase/migrations/2026-11-02-auth-privacy.sql` ক্রমানুসারে চালান।
    তারপর `supabase/migrations/2026-11-04-cloud-reset-marker.sql` চালান; এটি
    স্টাডি ডেটা ক্লিয়ার হলে অন্য ডিভাইসের পুরোনো লোকাল কপি আবার ক্লাউডে ওঠা আটকায়।
-   সর্বশেষে `supabase/migrations/2026-11-07-admin-portal.sql` চালান। এটি private
+   এরপর `supabase/migrations/2026-11-07-admin-portal.sql` চালান। এটি private
    admin allowlist/membership, server-side role check এবং read-only dashboard RPC তৈরি করে।
+   সর্বশেষে `supabase/migrations/2026-11-07-leaderboard-consent.sql` চালান; এটি
+   community XP visibility-কে default `false` করে এবং শুধু explicit opt-in profile-কে
+   authenticated-only, email-বিহীন view-তে রাখে।
 3. প্রথম owner email অনুমোদন করুন (email-টি source code-এ রাখবেন না):
 
    ```sql
@@ -123,12 +126,13 @@ syncWrite()  ── সফল ──→  নেভবারে "ক্লাউ�
    Dashboard/management connection থেকে owner যোগ করা যায়।
 4. ক্লায়েন্ট আগে ভল্ট ও queued writes সিঙ্ক করে, তারপর একই tab-এর নতুন table writes pause/discard করে `hsc28_clear_my_study_data()` চালায়। RPC-এর পর reset marker পড়ে local cache clear ও reload হয়; RPC response অনিশ্চিত হলে marker reconcile না হওয়া পর্যন্ত write পুনরায় খোলে না। `npm run smoke`-এর deferred-RPC regression এই ordering, concurrent same-user write, duplicate reset, queue ownership ও error recovery যাচাই করে—এটি নিজে live PostgreSQL/Supabase integration test নয়।
 5. **Live verification (2026-11-04):** সক্রিয় Supabase প্রজেক্টের DB/Auth/REST healthy; `hsc28_cloud_reset_marker` migration প্রয়োগ হয়েছে; catalog check-এ RPC-এর marker logic ও `authenticated`-only EXECUTE grant নিশ্চিত হয়েছে। Live SQL transaction-এ disposable synthetic auth user ও প্রতিটি private-study table-এ probe row দিয়ে RPC চালিয়ে marker, row deletion এবং profile reset যাচাই করা হয়েছে; deliberate subtransaction rollback-এর পরে test user/row/marker একটিও থাকেনি। `is_demo` profile-ও পাওয়া যায়নি। বাস্তব profile বা browser sign-in দিয়ে reset চালানো হয়নি, তাই frontend-auth end-to-end ও cross-tab reset behavior এখনো আলাদা করে যাচাই করা হয়নি; কোনো live user data বদলানো/মোছা হয়নি।
-6. আগের ৮টি `hsc28_*` টেবিল আগে থেকেই থাকতে হবে (RLS সহ)।
-7. Vercel-এ এনভায়রনমেন্ট ভেরিয়েবল দিন:
+6. **Live privacy verification (2026-11-07):** migration `20261107160500_leaderboard_private_opt_in` প্রয়োগ হয়েছে। Catalog/query check-এ consent default `false`, `anon` SELECT বন্ধ, `authenticated` SELECT চালু, owner-only profile UPDATE RLS এবং view-তে শুধু `leaderboard_visible=true AND is_demo=false` নিশ্চিত। একমাত্র existing real profile private default পেয়েছে (`0` opted-in / `0` visible); কোনো নাম, XP বা study row বদলানো/মোছা হয়নি।
+7. আগের ৮টি `hsc28_*` টেবিল আগে থেকেই থাকতে হবে (RLS সহ)।
+8. Vercel-এ এনভায়রনমেন্ট ভেরিয়েবল দিন:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
    (anon key পাবলিক, তবে service_role key কখনো ফ্রন্টএন্ডে দেবেন না।)
-8. Supabase → Authentication → URL Configuration:
+9. Supabase → Authentication → URL Configuration:
    - Site URL: `https://nokkhotro-hsc-2028.vercel.app`
    - Redirect URLs: Vercel domain + `http://localhost:5173/**`
 

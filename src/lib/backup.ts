@@ -126,6 +126,9 @@ function parseProfile(value: unknown): StudentProfile {
       value.completedPracticals,
       'profile.completedPracticals'
     ),
+    // Missing/invalid consent is always private; old backups cannot opt a
+    // student into community visibility by accident.
+    leaderboardVisible: value.leaderboardVisible === true,
   };
 }
 
@@ -304,6 +307,9 @@ export function prepareBackupForAccount(
       ...data.profile,
       id: userId,
       email,
+      leaderboardVisible: comesFromAnotherAccount
+        ? false
+        : data.profile.leaderboardVisible === true,
       isDemo: false,
     },
     quizHistory: data.quizHistory.map(rehome),

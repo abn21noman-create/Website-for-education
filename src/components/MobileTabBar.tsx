@@ -85,7 +85,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     { id: 'admission', bn: 'অ্যাডমিশন', en: 'Admission', icon: <Compass className="w-4 h-4" /> },
     { id: 'practical', bn: 'ব্যবহারিক ও রাইটিং', en: 'Practicals', icon: <Microscope className="w-4 h-4" /> },
     { id: 'gpa', bn: 'GPA টুল', en: 'GPA Tool', icon: <Calculator className="w-4 h-4" /> },
-    { id: 'leaderboard', bn: 'মেধাক্রম', en: 'Merit List', icon: <Trophy className="w-4 h-4" /> },
+    { id: 'leaderboard', bn: 'অগ্রগতি ও XP', en: 'Progress & XP', icon: <Trophy className="w-4 h-4" /> },
     { id: 'life', bn: 'লাইফ হাব', en: 'Life Hub', icon: <HeartPulse className="w-4 h-4" /> },
   ];
 
