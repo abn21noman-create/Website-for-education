@@ -42,6 +42,10 @@ import {
   takeRestoreNotice,
 } from './lib/cloudVault';
 import { performStudyDataReset } from './lib/studyDataReset';
+import {
+  ACCESSIBILITY_STORAGE_KEY,
+  refreshAccessibilityPreferences,
+} from './lib/accessibility';
 import { buildHash, parseRoute } from './lib/router';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
@@ -191,6 +195,7 @@ const BACKUP_EXTRA_KEYS = [
   'hsc28_prediction_v1', 'hsc28_mistake_reasons_v1', 'hsc28_chapter_drill_v1',
   'hsc28_self_notes_v1', 'hsc28_reminder_log_v1', 'hsc28_english_drill_last_v1',
   'hsc28_gk_last_v1', 'hsc28_upvoted', 'hsc28_upvoted_by_owner_v1', 'hsc28_peer_doubts',
+  ACCESSIBILITY_STORAGE_KEY,
 ];
 function backupExtraStorage(): Record<string, string> {
   const data: Record<string, string> = {};
@@ -972,6 +977,7 @@ export function App() {
             app: 'nokkhotro-hsc-2028', profile, progressMap, quizHistory, tasks, sessions, personalNotes, extraStorage: backupExtraStorage(),
           }));
           for (const [key, value] of Object.entries(extras)) localStorage.setItem(key, value);
+          if (extras[ACCESSIBILITY_STORAGE_KEY]) refreshAccessibilityPreferences();
           commitProfile(data.profile, authUserId);
           setProgressMap(data.progressMap); setQuizHistory(data.quizHistory);
           setTasks(data.tasks); setSessions(data.sessions); setPersonalNotes(data.personalNotes);

@@ -45,6 +45,11 @@ import { requestChapterDrill } from '../lib/chapterDrill';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 
+const LazyDashboardReminderCard = React.lazy(async () => {
+  const module = await import('./DashboardReminderCard');
+  return { default: module.DashboardReminderCard };
+});
+
 interface DashboardViewProps {
   lang: Lang;
   theme: Theme;
@@ -307,6 +312,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
       </section>
 
+      {/* Life Hub deadlines and exams belong in the daily path, not behind a
+          secondary route. The card remains lazy so it does not delay first paint. */}
+      <React.Suspense
+        fallback={
+          <section
+            className={`min-h-32 rounded-2xl border animate-pulse ${
+              isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
+            }`}
+            aria-label={lang === 'bn' ? 'রিমাইন্ডার লোড হচ্ছে' : 'Loading reminders'}
+          />
+        }
+      >
+        <LazyDashboardReminderCard lang={lang} theme={theme} onNavigate={onNavigate} />
+      </React.Suspense>
+
       {/* Calibration: prediction vs reality, confident-but-wrong */}
       <section
         className={`rounded-2xl border p-4 sm:p-5 ${
@@ -352,14 +372,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        <p className={`text-[11px] mt-2 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-          {lang === 'bn' ? calibration.prediction.messageBn : calibration.prediction.messageEn}
-        </p>
-        {calibration.confidence.total > 0 && (
-          <p className={`text-[11px] mt-1 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            {lang === 'bn' ? calibration.confidence.messageBn : calibration.confidence.messageEn}
+        <div className={`mt-2 space-y-1.5 text-[11px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+          <p>
+            <span className="font-extrabold">{lang === 'bn' ? 'স্কোর অনুমান: ' : 'Score prediction: '}</span>
+            {lang === 'bn' ? calibration.prediction.messageBn : calibration.prediction.messageEn}
           </p>
-        )}
+          {calibration.confidence.total > 0 && (
+            <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>
+              <span className="font-extrabold">{lang === 'bn' ? 'উত্তরের নিশ্চয়তা: ' : 'Answer confidence: '}</span>
+              {lang === 'bn' ? calibration.confidence.messageBn : calibration.confidence.messageEn}
+            </p>
+          )}
+        </div>
 
         {calibration.confidence.blindSpotIds.length > 0 && (
           <button

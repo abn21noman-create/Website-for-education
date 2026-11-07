@@ -16,9 +16,10 @@ interface ReminderCardProps {
   data: LifeData;
   lang: Lang;
   theme: Theme;
+  onOpenLife?: () => void;
 }
 
-export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme }) => {
+export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme, onOpenLife }) => {
   const isDark = theme === 'dark';
   const [permission, setPermission] = useState<PermissionState>(() => notificationPermission());
 
@@ -58,13 +59,28 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({ data, lang, theme })
           <BellRing className="w-4 h-4 text-indigo-500" />
           <span>{lang === 'bn' ? 'রিমাইন্ডার' : 'Reminders'}</span>
         </h2>
-        {dueSoon.length > 0 && (
-          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/25">
-            {lang === 'bn'
-              ? `${formatNum(dueSoon.length, lang)}টি নিকটে`
-              : `${dueSoon.length} due soon`}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {dueSoon.length > 0 && (
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-400/25">
+              {lang === 'bn'
+                ? `${formatNum(dueSoon.length, lang)}টি নিকটে`
+                : `${dueSoon.length} due soon`}
+            </span>
+          )}
+          {onOpenLife && (
+            <button
+              type="button"
+              onClick={onOpenLife}
+              className={`min-h-11 px-2.5 rounded-lg text-[10px] font-bold border ${
+                isDark
+                  ? 'border-slate-600 text-indigo-300 hover:bg-slate-700/70'
+                  : 'border-slate-200 text-indigo-700 hover:bg-indigo-50'
+              }`}
+            >
+              {lang === 'bn' ? 'সব দেখুন' : 'View all'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">

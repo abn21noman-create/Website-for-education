@@ -168,6 +168,7 @@ for (const route of routes) {
 
       // Screen-specific surfaces added with the exam-pattern / eligibility work.
       const expectations = {
+        '': ['রিমাইন্ডার', 'আজকের রুটিন', 'স্কোর অনুমান'],
         mcq: ['HSC বোর্ড প্যাটার্ন', 'মেডিকেল (১০০ MCQ)', 'মিশ্র প্র্যাকটিস'],
         gpa: ['SSC GPA (৫.০০-এর মধ্যে)', 'মেডিকেল ও ডেন্টাল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
@@ -2047,14 +2048,16 @@ const beforeResetStorage = Object.fromEntries(Array.from(
 localStorage.clear();
 localStorage.setItem('hsc28_profile', JSON.stringify({ xp: 999, bookmarks: ['old'] }));
 localStorage.setItem('hsc28_tasks', JSON.stringify([{ id: 'stale-task' }]));
+localStorage.setItem('hsc28_accessibility_v1', JSON.stringify({ version: 1, readingScale: 'large', highContrast: true, motion: 'reduce' }));
 localStorage.setItem('nokkhotro_local_space_v1_reset-user', JSON.stringify({ hsc28_profile: 'stale' }));
 const resetBooted = vault.applyCloudResetLocally('reset-user', 'reset-token-1');
 check(
   !resetBooted && !localStorage.getItem('hsc28_profile') && !localStorage.getItem('hsc28_tasks') &&
+    localStorage.getItem('hsc28_accessibility_v1')?.includes('readingScale') &&
     !localStorage.getItem('nokkhotro_local_space_v1_reset-user') &&
     localStorage.getItem('hsc28_vault_meta')?.includes('reset-token-1') &&
     localStorage.getItem('nokkhotro_cloud_reset_boot_v1_reset-user') === 'reset-token-1',
-  'a cloud reset clears stale local data and records a clean account boot token'
+  'a cloud reset clears stale study data, preserves readability and records a clean account boot token'
 );
 check(
   vault.applyCloudResetLocally('reset-user', 'reset-token-1') === true &&
@@ -2484,6 +2487,7 @@ await new Promise(resolve => setTimeout(resolve, 120));
 check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'signed-out visitor sees login and no app navigation');
 const publicAdminTabs = Array.from(container.querySelectorAll('.auth-tabs button')).filter(button => ['Admin', 'অ্যাডমিন'].includes((button.textContent || '').trim()));
 check(publicAdminTabs.length === 0, 'public login exposes no admin tab');
+check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'public login exposes reading and accessibility settings');
 check(window.location.hash === '#/planner', 'login gate preserves the requested deep link');
 const languageButton = Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'EN');
 languageButton?.click();
@@ -2494,6 +2498,7 @@ check(localStorage.getItem('hsc28_lang') === '"en"' && document.documentElement.
 emitAuth('SIGNED_IN', { user: { id: '44444444-4444-4444-8444-444444444444', email: 'test@example.invalid' } });
 await new Promise(resolve => setTimeout(resolve, 500));
 check(!!container.querySelector('nav') && !container.querySelector('input[type=email]'), 'authenticated session leaves gate and mounts app');
+check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'student workspace keeps accessibility settings within reach');
 check(window.location.hash === '#/planner', 'signed-in transition preserves the deep link');
 emitAuth('SIGNED_OUT', null);
 await new Promise(resolve => setTimeout(resolve, 100));
@@ -2551,6 +2556,7 @@ root = createRoot(container);
 root.render(React.createElement(AuthGate, { clientFactory: async () => adminClient }));
 await new Promise(resolve => setTimeout(resolve, 700));
 check(!!container.querySelector('[data-admin-portal="true"]') && !container.querySelector('.premium-sidebar'), 'server-approved account opens the isolated admin portal');
+check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'admin portal exposes the same accessibility settings without exposing admin publicly');
 check(container.textContent.includes('owner@example.invalid'), 'admin portal renders the authenticated owner and account directory');
 const nextAdminPage = container.querySelector('[aria-label="Next page"], [aria-label="পরের পৃষ্ঠা"]');
 nextAdminPage?.click();
@@ -2619,7 +2625,7 @@ root.render(React.createElement(Navbar, {
   lang: 'bn', setLang: value => { nextLanguage = value; }, theme: 'light', setTheme: value => { nextTheme = value; },
   profile: { fullName: 'Test Student', xp: 0 }, isAuthenticated: true,
   onOpenAuth() {}, onOpenSearch: () => { searchOpened = true; },
-  syncStatus: { phase: 'idle', pending: 0, queued: 0, lastSavedAt: null, lastError: null },
+  syncStatus: { phase: 'idle', pending: 0, queued: 0, lastSavedAt: '2026-11-07T12:34:00Z', lastError: null },
 }));
 await new Promise(resolve => setTimeout(resolve, 80));
 check(container.querySelectorAll('.premium-nav-item').length === 16, 'premium sidebar exposes all 16 sections');
@@ -2630,7 +2636,11 @@ container.querySelector('[aria-label="Switch language"]')?.click();
 container.querySelector('[aria-label="Dark mode"]')?.click();
 container.querySelector('.premium-search')?.click();
 check(nextLanguage === 'en' && nextTheme === 'dark' && searchOpened, 'premium topbar keeps language, theme and search controls working');
-check(container.querySelector('[role=status]')?.getAttribute('aria-label'), 'premium topbar exposes sync status accessibly');
+check(
+  container.querySelector('[role=status]')?.getAttribute('aria-label')?.includes('সর্বশেষ ক্লাউড সেভ') &&
+    container.querySelector('.premium-sync')?.textContent.includes('সেভড'),
+  'premium topbar exposes the latest cloud-save time accessibly'
+);
 root.unmount(); root = null;
 
 const { AuthModal } = await vite.ssrLoadModule('/src/components/AuthModal.tsx');
@@ -2958,6 +2968,97 @@ routineWeek.click();
 await new Promise(resolve => setTimeout(resolve, 50));
 check(routineNav.querySelectorAll('button').length === 4 && routineWeek.getAttribute('aria-pressed') === 'true' && !container.textContent.includes('HSC starts 2026-07-02'), 'routine navigation works and avoids an obsolete exam-date claim');
 root.unmount(); root = null;
+
+// Display preferences are validated, applied before paint, persisted, and
+// exposed through a keyboard-contained dialog in every app shell.
+const accessibility = await vite.ssrLoadModule('/src/lib/accessibility.ts');
+const normalizedAccessibility = accessibility.normalizeAccessibilityPreferences({
+  readingScale: 'huge', highContrast: 'yes', motion: 'spin', version: 999,
+});
+check(
+  normalizedAccessibility.readingScale === 'default' &&
+    normalizedAccessibility.highContrast === false &&
+    normalizedAccessibility.motion === 'system' &&
+    normalizedAccessibility.version === 1,
+  'malformed accessibility preferences fall back field-by-field'
+);
+localStorage.removeItem(accessibility.ACCESSIBILITY_STORAGE_KEY);
+check(
+  accessibility.saveAccessibilityPreferences({
+    version: 1, readingScale: 'large', highContrast: true, motion: 'reduce',
+  }) &&
+    document.documentElement.dataset.readingScale === 'large' &&
+    document.documentElement.dataset.contrast === 'high' &&
+    document.documentElement.dataset.motion === 'reduce' &&
+    JSON.parse(localStorage.getItem(accessibility.ACCESSIBILITY_STORAGE_KEY)).highContrast === true,
+  'reading size, contrast and reduced motion apply immediately and persist'
+);
+
+const { AccessibilityMenu } = await vite.ssrLoadModule('/src/components/AccessibilityMenu.tsx');
+root = createRoot(container);
+root.render(React.createElement(AccessibilityMenu, { lang: 'en', theme: 'light' }));
+await new Promise(resolve => setTimeout(resolve, 50));
+const accessibilityTrigger = container.querySelector('button[aria-haspopup="dialog"]');
+accessibilityTrigger?.click();
+await new Promise(resolve => setTimeout(resolve, 50));
+let accessibilityDialog = document.body.querySelector('.accessibility-dialog[role="dialog"]');
+check(
+  !!accessibilityDialog && document.activeElement?.getAttribute('aria-label') === 'Close settings' &&
+    document.body.style.overflow === 'hidden',
+  'accessibility dialog opens with focus and page-scroll containment'
+);
+const defaultSizeButton = [...accessibilityDialog.querySelectorAll('button')].find(button => button.textContent.includes('Default'));
+defaultSizeButton?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+check(
+  defaultSizeButton?.getAttribute('aria-pressed') === 'true' &&
+    document.documentElement.dataset.readingScale === 'default',
+  'accessibility dialog updates reading size with an exposed pressed state'
+);
+const accessibilityButtons = [...accessibilityDialog.querySelectorAll('button')];
+accessibilityButtons[0].focus();
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+check(document.activeElement === accessibilityButtons[accessibilityButtons.length - 1], 'accessibility dialog traps backward keyboard focus');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+await new Promise(resolve => setTimeout(resolve, 50));
+check(
+  !document.body.querySelector('.accessibility-dialog') && document.activeElement === accessibilityTrigger &&
+    document.body.style.overflow !== 'hidden',
+  'accessibility dialog Escape closes, restores focus and restores scrolling'
+);
+root.unmount(); root = null;
+
+// Daily deadlines should be visible from the dashboard and still deep-link to
+// the full Life Hub without duplicating its storage model.
+localStorage.setItem('hsc28_life_v1', JSON.stringify({
+  deadlines: [{
+    id: 'dashboard-deadline', title: 'Dashboard deadline',
+    date: new Date().toISOString().slice(0, 10), category: 'exam', note: '', done: false,
+  }],
+}));
+const { DashboardReminderCard } = await vite.ssrLoadModule('/src/components/DashboardReminderCard.tsx');
+let reminderRoute = null;
+root = createRoot(container);
+root.render(React.createElement(DashboardReminderCard, {
+  lang: 'en', theme: 'light', onNavigate: tab => { reminderRoute = tab; },
+}));
+await new Promise(resolve => setTimeout(resolve, 80));
+const viewAllReminders = [...container.querySelectorAll('button')].find(button => button.textContent.includes('View all'));
+viewAllReminders?.click();
+check(
+  container.textContent.includes('Dashboard deadline') &&
+    container.textContent.includes('due soon') && reminderRoute === 'life',
+  'dashboard surfaces live Life Hub reminders and links to their full view'
+);
+root.unmount(); root = null;
+
+const accessibilityCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8');
+check(
+  accessibilityCss.includes("html[data-motion='reduce']") &&
+    accessibilityCss.includes("html[data-contrast='high']") &&
+    accessibilityCss.includes("html[data-reading-scale='xlarge']"),
+  'explicit motion, contrast and reading-scale modes have global CSS coverage'
+);
 
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')

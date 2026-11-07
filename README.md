@@ -16,6 +16,7 @@
 
 1. **কমান্ড সেন্টার ড্যাশবোর্ড (`DashboardView`)**
    - মে ২০২৮ লক্ষ্যমাত্রার লাইভ কাউন্টডাউন, সামগ্রিক সিলেবাস সম্পন্নতা, XP পয়েন্ট, ফোকাস ঘণ্টা এবং সব ১১টি পত্রের তাৎক্ষণিক ওভারভিউ।
+   - Life Hub-এ লুকিয়ে না থেকে এখন আজ/আগামীকালের পরীক্ষা ও ডেডলাইন, দৈনিক ১০-মিনিটের স্টাডি নাজ এবং নোটিফিকেশন অনুমতি **ড্যাশবোর্ডেই রিমাইন্ডার কার্ডে** দেখা যায়; “সব দেখুন” সরাসরি Life Hub-এ নেয়।
 2. **৯৩-অধ্যায়ের সিলেবাস ট্র্যাকার ও পূর্বশর্ত ম্যাপ (`SyllabusTrackerView`)**
    - পদার্থ ১ম/২য়, রসায়ন ১ম/২য়, উচ্চতর গণিত ১ম/২য়, জীববিজ্ঞান ১ম/২য়, ICT, বাংলা ও ইংরেজির ৪-ধাপের অগ্রগতি (মূল বই, নোটস, MCQ, সৃজনশীল CQ)।
    - **Prerequisite Learning Map (`পূর্বশর্ত অধ্যায় ম্যাপ`)** ও একাদশ শ্রেণি (১ম বর্ষ) ফিল্টার।
@@ -79,9 +80,9 @@
 - **টাচ স্বাচ্ছন্দ্য:** `touch-action: manipulation`, ট্যাপ হাইলাইট বন্ধ, iOS-এ ইনপুটে অটো-জুম বন্ধ (১৬px), ৪৪px+ টাচ টার্গেট।
 - **স্মুথ স্ক্রল:** দীর্ঘ ট্যাব-স্ট্রিপে `no-scrollbar`, মডালে `dvh` উচ্চতা ও `overscroll-contain`, `prefers-reduced-motion` সম্মান।
 - **ইনস্ট্যান্ট ফিল:** hover/touch/idle-এ chunk আগেই প্রিলোড হয়, তাই ট্যাপ করার সাথে সাথেই স্ক্রিন আসে।
-- **হালকা বাংলা/ইংরেজি ফন্ট:** অপ্রয়োজনীয় Cyrillic/Greek/Vietnamese subset বাদ দিয়ে deployment font file **৫৪ → ১৬** এবং font payload **৮৬৮ KB → ৫৫০ KB**; production CSS gzip **৪৬.৫ KB → ২৬ KB**।
+- **হালকা বাংলা/ইংরেজি ফন্ট:** অপ্রয়োজনীয় Cyrillic/Greek/Vietnamese subset বাদ দিয়ে deployment font file **৫৪ → ১৬** এবং font payload **৮৬৮ KB → ৫৫০ KB**; accessibility controls-সহ production CSS gzip এখন প্রায় **২৭.৫ KB** (আগে ৪৬.৫ KB)।
 - **নিরাপদ PWA আপডেট:** Android/Chrome-এ install prompt, হোম স্ক্রিন শর্টকাট (MCQ, সিলেবাস, লাইফ হাব) ও অফলাইন ক্যাশ (`sw.js` v7)। নতুন deployment পুরোনো খোলা tab-এর lazy chunk মুছে দেয় না—নতুন worker অপেক্ষা করে, “আপডেট” চাপলে সব tab নিরাপদে refresh হয়। Offline/online status-ও দেখা যায়।
-- **ক্র্যাশ রিকভারি ও accessibility:** global recovery screen কোনো study data না মুছে retry/reload দেয়; keyboard skip-link, route-aware page title, global focus ring, dark public login এবং live status announcement আছে।
+- **ক্র্যাশ রিকভারি ও accessibility:** global recovery screen কোনো study data না মুছে retry/reload দেয়; keyboard skip-link, route-aware page title, global focus ring, dark public login এবং live status announcement আছে। Login, student workspace ও Admin—তিন জায়গাতেই **পড়া ও অ্যাক্সেসিবিলিটি** কন্ট্রোল থেকে ৩টি reading scale, high contrast এবং explicit reduced motion বাছা যায়; সেটিং প্রথম paint-এর আগেই প্রয়োগ হয়, keyboard focus-trapped dialog-এ চলে, JSON backup ও Cloud Vault-এ যায়, আর “study data reset” করলেও readability preference মুছে যায় না।
 - **Production security headers:** Vercel-এ CSP, anti-framing, MIME sniffing protection, referrer/permissions policy, HSTS এবং service-worker no-cache policy enforced; Supabase HTTPS/WSS ছাড়া অপ্রয়োজনীয় external connection বন্ধ।
 - **স্মোক টেস্ট:** `npm run smoke` — বিল্ড, সোর্স স্মোক টেস্ট, font/security/PWA budget এবং jsdom-এ আসল প্রোডাকশন বান্ডলের বুট-চেক চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
 
@@ -99,8 +100,8 @@
 সব অগ্রগতি **Supabase**-এ স্থায়ীভাবে জমা হয় এবং **Vercel** থেকে সাইট চলে।
 
 - **লগইন ছাড়া:** ডেটা শুধু ব্রাউজারে (`localStorage`) — নেভবারে `শুধু এই ডিভাইসে` দেখায়।
-- **লগইন করলে:** নেভবারে `সংরক্ষণ হচ্ছে…` → `ক্লাউডে সংরক্ষিত`। অন্য ডিভাইসে লগইন করলেও সব ফিরে আসে।
-- **অফলাইনে:** লেখা হারায় না — লোকাল কিউতে জমা থাকে, ইন্টারনেট ফিরলেই নিজে থেকেই পাঠানো হয় (`Nটি বাকি`)।
+- **লগইন করলে:** নেভবারে `সংরক্ষণ হচ্ছে…` → `সেভড · HH:MM`; সর্বশেষ সফল cloud-save সময়টি দৃশ্যমান ও screen-reader label-এ থাকে। অন্য ডিভাইসে লগইন করলেও সব ফিরে আসে।
+- **অফলাইনে:** লেখা হারায় না — লোকাল কিউতে জমা থাকে, নেভবারে ঠিক কতটি sync বাকি দেখা যায়, আর ইন্টারনেট ফিরলেই নিজে থেকেই পাঠানো হয়।
 - **সার্ভার আটকালে:** আর চুপচাপ হারায় না — `সিঙ্ক ব্যর্থ` + কারণ দেখায়।
 
 **লাইফ হাবের ডেটা** (অভ্যাস, উপস্থিতি, ডেডলাইন, পরীক্ষা, ফলাফল, চেকলিস্ট, ক্লাস রুটিন) ব্রাউজারে
