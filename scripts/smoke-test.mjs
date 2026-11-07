@@ -191,6 +191,13 @@ for (const route of routes) {
   }
 }
 
+const skipLinkWorks = !!container.querySelector('a.skip-link[href="#main-content"]') &&
+  container.querySelector('main')?.id === 'main-content';
+console.log(skipLinkWorks
+  ? '✓ workspace exposes a keyboard skip link to the main content'
+  : '✗ workspace keyboard skip link is missing');
+failures += skipLinkWorks ? 0 : 1;
+
 // Life Hub specifics — remount directly on the route.
 window.history.replaceState(null, '', '/#/life');
 window.location.hash = '#/life';
@@ -2426,6 +2433,37 @@ check(
   'admin RPCs enforce server membership and never expose password hashes or trust editable role metadata'
 );
 
+const workerSource = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
+const workerInstall = workerSource.slice(
+  workerSource.indexOf("addEventListener('install'"),
+  workerSource.indexOf("addEventListener('message'")
+);
+check(
+  !/self\.skipWaiting\s*\(/.test(workerInstall) &&
+    workerSource.includes("event.data?.type === 'SKIP_WAITING'") &&
+    workerSource.includes('url.origin !== self.location.origin') &&
+    workerSource.includes("response.type === 'basic'"),
+  'PWA updates wait for consent and cache only valid same-origin assets'
+);
+const vercelConfig = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+const deploymentHeaders = vercelConfig.headers.flatMap(rule => rule.headers || []);
+const deploymentHeader = key => deploymentHeaders.find(header => header.key === key)?.value || '';
+check(
+  deploymentHeader('Content-Security-Policy').includes("frame-ancestors 'none'") &&
+    deploymentHeader('Content-Security-Policy').includes('https://*.supabase.co') &&
+    deploymentHeader('X-Content-Type-Options') === 'nosniff' &&
+    deploymentHeader('X-Frame-Options') === 'DENY' &&
+    deploymentHeader('Permissions-Policy').includes('camera=()'),
+  'production hosting enforces CSP, anti-framing and browser permission boundaries'
+);
+const recoveryBoundarySource = await readFile(new URL('../src/components/AppErrorBoundary.tsx', import.meta.url), 'utf8');
+check(
+  recoveryBoundarySource.includes('data-app-error-boundary') &&
+    recoveryBoundarySource.includes('window.location.reload()') &&
+    !recoveryBoundarySource.includes('localStorage.clear()'),
+  'global crash recovery reloads safely without deleting study data'
+);
+
 localStorage.setItem(
   'hsc28_vault_notice',
   JSON.stringify(['hsc28_lang', 'hsc28_profile', 'hsc28_prediction_v1'])
@@ -2451,6 +2489,7 @@ const languageButton = Array.from(container.querySelectorAll('button')).find(but
 languageButton?.click();
 await new Promise(resolve => setTimeout(resolve, 30));
 check(container.textContent.includes('Sign in'), 'login gate switches to English');
+check(localStorage.getItem('hsc28_lang') === '"en"' && document.documentElement.lang === 'en', 'public language choice persists immediately');
 // A successful auth event must actually enter the application, not remain on login.
 emitAuth('SIGNED_IN', { user: { id: '44444444-4444-4444-8444-444444444444', email: 'test@example.invalid' } });
 await new Promise(resolve => setTimeout(resolve, 500));
@@ -2476,6 +2515,7 @@ root.unmount(); root = null;
 container.innerHTML = '';
 window.history.replaceState(null, '', '/#/admin');
 const adminSession = { user: { id: '55555555-5555-4555-8555-555555555555', email: 'owner@example.invalid' } };
+const adminListCalls = [];
 const adminClient = {
   auth: {
     onAuthStateChange: callback => {
@@ -2485,10 +2525,25 @@ const adminClient = {
     signOut: async () => ({ error: null }),
   },
   from: () => ({ upsert: async () => ({ error: null }) }),
-  rpc: async name => {
+  rpc: async (name, args = {}) => {
     if (name === 'hsc28_is_admin') return { data: true, error: null };
-    if (name === 'hsc28_admin_overview') return { data: { totalUsers: 1, confirmedUsers: 1, newLast7Days: 1, activeLast7Days: 1, adminUsers: 1, totalStudyMinutes: 120, totalXp: 50, openDoubts: 0, totalReplies: 0 }, error: null };
-    if (name === 'hsc28_admin_list_users') return { data: [{ user_id: adminSession.user.id, email: adminSession.user.email, full_name: 'Owner', board: 'Jashore', target_goal: 'Medical', xp: 50, study_minutes: 120, joined_at: '2026-11-07T00:00:00Z', last_sign_in_at: '2026-11-07T00:00:00Z', email_confirmed: true, is_admin: true, total_count: 1 }], error: null };
+    if (name === 'hsc28_admin_overview') return { data: { totalUsers: 21, confirmedUsers: 21, newLast7Days: 1, activeLast7Days: 1, adminUsers: 1, totalStudyMinutes: 120, totalXp: 50, openDoubts: 0, totalReplies: 0 }, error: null };
+    if (name === 'hsc28_admin_list_users') {
+      adminListCalls.push(args);
+      const offset = Number(args.p_offset || 0);
+      const length = offset === 0 ? 20 : 1;
+      return { data: Array.from({ length }, (_, index) => {
+        const absolute = offset + index;
+        return {
+          user_id: absolute === 0 ? adminSession.user.id : `00000000-0000-4000-8000-${String(absolute).padStart(12, '0')}`,
+          email: absolute === 0 ? adminSession.user.email : `student${absolute}@example.invalid`,
+          full_name: absolute === 0 ? 'Owner' : `Student ${absolute}`,
+          board: 'Jashore', target_goal: 'Medical', xp: 50, study_minutes: 120,
+          joined_at: '2026-11-07T00:00:00Z', last_sign_in_at: '2026-11-07T00:00:00Z',
+          email_confirmed: true, is_admin: absolute === 0, total_count: 21,
+        };
+      }), error: null };
+    }
     return { data: null, error: new Error('Unexpected RPC') };
   },
 };
@@ -2497,6 +2552,15 @@ root.render(React.createElement(AuthGate, { clientFactory: async () => adminClie
 await new Promise(resolve => setTimeout(resolve, 700));
 check(!!container.querySelector('[data-admin-portal="true"]') && !container.querySelector('.premium-sidebar'), 'server-approved account opens the isolated admin portal');
 check(container.textContent.includes('owner@example.invalid'), 'admin portal renders the authenticated owner and account directory');
+const nextAdminPage = container.querySelector('[aria-label="Next page"], [aria-label="পরের পৃষ্ঠা"]');
+nextAdminPage?.click();
+await new Promise(resolve => setTimeout(resolve, 160));
+check(
+  adminListCalls.some(args => args.p_limit === 20 && args.p_offset === 0) &&
+    adminListCalls.some(args => args.p_limit === 20 && args.p_offset === 20) &&
+    container.textContent.includes('student20@example.invalid'),
+  'admin directory paginates through bounded server requests'
+);
 root.unmount(); root = null;
 
 container.innerHTML = '';
@@ -2568,6 +2632,25 @@ container.querySelector('.premium-search')?.click();
 check(nextLanguage === 'en' && nextTheme === 'dark' && searchOpened, 'premium topbar keeps language, theme and search controls working');
 check(container.querySelector('[role=status]')?.getAttribute('aria-label'), 'premium topbar exposes sync status accessibly');
 root.unmount(); root = null;
+
+const { AuthModal } = await vite.ssrLoadModule('/src/components/AuthModal.tsx');
+let accountModalClosed = false;
+root = createRoot(container);
+root.render(React.createElement(AuthModal, {
+  isOpen: true,
+  onClose: () => { accountModalClosed = true; },
+  lang: 'en', theme: 'light',
+  profile: { ...backupFixture.profile, email: 'student@example.invalid' },
+  isAuthenticated: true,
+  async onAuthSuccess() {}, async onSignOut() {}, async onClearStudyData() {}, async onUpdateProfileMeta() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 80));
+const accountDialog = container.querySelector('[role="dialog"][aria-modal="true"]');
+check(!!accountDialog && document.body.style.overflow === 'hidden' && accountDialog.contains(document.activeElement), 'account modal traps focus and locks background scrolling');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 20));
+root.unmount(); root = null;
+check(accountModalClosed && document.body.style.overflow !== 'hidden', 'account modal closes with Escape and restores page scrolling');
 
 // Module summaries reflect real records and filtering without changing existing controls.
 const { CqBankView } = await vite.ssrLoadModule('/src/components/CqBankView.tsx');

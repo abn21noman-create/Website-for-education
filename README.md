@@ -8,7 +8,7 @@
 
 - কোনো public **Admin** tab নেই—সবাই একই লগইন ব্যবহার করে; শুধু server-approved account সফলভাবে লগইন করলে স্বয়ংক্রিয়ভাবে responsive Admin Dashboard খুলে যায়।
 - মোট/নতুন/সক্রিয় অ্যাকাউন্ট, যাচাইকৃত ব্যবহারকারী, মোট পড়ার ঘণ্টা ও XP, খোলা প্রশ্ন এবং উত্তরের লাইভ সারসংক্ষেপ।
-- নাম বা ইমেইল দিয়ে সর্বোচ্চ ১০০টি অ্যাকাউন্টের server-side search; ভূমিকা, যোগদানের তারিখ, সর্বশেষ সক্রিয়তা ও অগ্রগতি দেখা যায়।
+- নাম বা ইমেইল দিয়ে server-side search এবং প্রতি পৃষ্ঠায় ২০টি করে bounded pagination; ভূমিকা, যোগদানের তারিখ, সর্বশেষ সক্রিয়তা ও অগ্রগতি দেখা যায়। দ্রুত page/search বদলালেও পুরোনো response নতুন ফলকে overwrite করতে পারে না।
 - Admin পরিচয় editable metadata বা frontend email check দিয়ে নয়—private allowlist + `hsc28_admins` membership এবং `SECURITY DEFINER` RPC দিয়ে PostgreSQL-এ যাচাই হয়। Password hash, token ও ব্যক্তিগত study content Admin UI-তেও ফেরত আসে না।
 - প্রথম owner অনুমোদনের নির্দেশনা ও SQL [`supabase/README.md`](supabase/README.md)-এ আছে।
 
@@ -79,8 +79,11 @@
 - **টাচ স্বাচ্ছন্দ্য:** `touch-action: manipulation`, ট্যাপ হাইলাইট বন্ধ, iOS-এ ইনপুটে অটো-জুম বন্ধ (১৬px), ৪৪px+ টাচ টার্গেট।
 - **স্মুথ স্ক্রল:** দীর্ঘ ট্যাব-স্ট্রিপে `no-scrollbar`, মডালে `dvh` উচ্চতা ও `overscroll-contain`, `prefers-reduced-motion` সম্মান।
 - **ইনস্ট্যান্ট ফিল:** hover/touch/idle-এ chunk আগেই প্রিলোড হয়, তাই ট্যাপ করার সাথে সাথেই স্ক্রিন আসে।
-- **PWA ইনস্টল:** Android/Chrome-এ "হোম স্ক্রিনে যোগ করুন" প্রম্পট, হোম স্ক্রিন শর্টকাট (MCQ, সিলেবাস, লাইফ হাব) ও অফলাইন ক্যাশ (`sw.js` v6)।
-- **স্মোক টেস্ট:** `npm run smoke` — বিল্ড, সোর্স স্মোক টেস্ট ও jsdom-এ আসল প্রোডাকশন বান্ডলের বুট-চেক চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
+- **হালকা বাংলা/ইংরেজি ফন্ট:** অপ্রয়োজনীয় Cyrillic/Greek/Vietnamese subset বাদ দিয়ে deployment font file **৫৪ → ১৬** এবং font payload **৮৬৮ KB → ৫৫০ KB**; production CSS gzip **৪৬.৫ KB → ২৬ KB**।
+- **নিরাপদ PWA আপডেট:** Android/Chrome-এ install prompt, হোম স্ক্রিন শর্টকাট (MCQ, সিলেবাস, লাইফ হাব) ও অফলাইন ক্যাশ (`sw.js` v7)। নতুন deployment পুরোনো খোলা tab-এর lazy chunk মুছে দেয় না—নতুন worker অপেক্ষা করে, “আপডেট” চাপলে সব tab নিরাপদে refresh হয়। Offline/online status-ও দেখা যায়।
+- **ক্র্যাশ রিকভারি ও accessibility:** global recovery screen কোনো study data না মুছে retry/reload দেয়; keyboard skip-link, route-aware page title, global focus ring, dark public login এবং live status announcement আছে।
+- **Production security headers:** Vercel-এ CSP, anti-framing, MIME sniffing protection, referrer/permissions policy, HSTS এবং service-worker no-cache policy enforced; Supabase HTTPS/WSS ছাড়া অপ্রয়োজনীয় external connection বন্ধ।
+- **স্মোক টেস্ট:** `npm run smoke` — বিল্ড, সোর্স স্মোক টেস্ট, font/security/PWA budget এবং jsdom-এ আসল প্রোডাকশন বান্ডলের বুট-চেক চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
 
 ## গবেষণা ও রোডম্যাপ (Research)
 - **প্রতিবেদন:** [`docs/research-hsc2028-student-needs.md`](docs/research-hsc2028-student-needs.md) — HSC-2028 বিজ্ঞান শিক্ষার্থীর চাহিদা, প্রতিযোগী বিশ্লেষণ, পরীক্ষা-ভর্তির কাঠামো, কনটেন্ট-গ্যাপ ও P0/P1/P2 রোডম্যাপ।

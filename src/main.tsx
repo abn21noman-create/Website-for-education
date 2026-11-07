@@ -1,16 +1,25 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { AppRuntimeStatus } from './components/AppRuntimeStatus';
 import { AuthGate } from './components/AuthGate';
+
+// Restore the chosen appearance before React paints the authentication gate.
+// App.tsx keeps this in sync after authentication; doing the first read here
+// prevents a signed-out dark-mode student from seeing a light-only flash.
+try {
+  const dark = JSON.parse(localStorage.getItem('hsc28_soft_theme') || '"light"') === 'dark';
+  document.documentElement.classList.toggle('dark', dark);
+} catch {
+  document.documentElement.classList.remove('dark');
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthGate />
+    <AppErrorBoundary>
+      <AuthGate />
+    </AppErrorBoundary>
+    <AppRuntimeStatus />
   </StrictMode>
 );
-
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}

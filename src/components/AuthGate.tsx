@@ -18,13 +18,25 @@ type AccountRole = 'student' | 'admin';
 
 function message(error: unknown, bn: boolean): string {
   const text = error instanceof Error ? error.message : String(error);
-  if (!bn) return text;
-  if (/invalid login credentials/i.test(text)) return 'ইমেইল বা পাসওয়ার্ড সঠিক নয়। নতুন অ্যাকাউন্ট হলে আগে রেজিস্ট্রেশন করুন।';
-  if (/email not confirmed/i.test(text)) return 'প্রথমে ইমেইল যাচাই করুন।';
-  if (/already registered/i.test(text)) return 'এই ইমেইলে আগে থেকেই অ্যাকাউন্ট আছে।';
-  if (/rate limit|too many/i.test(text)) return 'অনেকবার চেষ্টা হয়েছে। একটু পরে আবার চেষ্টা করুন।';
-  if (/fetch|network/i.test(text)) return 'ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।';
-  return 'কাজটি সম্পন্ন হয়নি। আবার চেষ্টা করুন। (' + text + ')';
+  if (/invalid login credentials/i.test(text)) {
+    return bn
+      ? 'ইমেইল বা পাসওয়ার্ড সঠিক নয়। নতুন অ্যাকাউন্ট হলে আগে রেজিস্ট্রেশন করুন।'
+      : 'The email or password is incorrect. Register first if this is a new account.';
+  }
+  if (/email not confirmed/i.test(text)) {
+    return bn ? 'প্রথমে ইমেইল যাচাই করুন।' : 'Verify your email before signing in.';
+  }
+  if (/already registered/i.test(text)) {
+    return bn ? 'এই ইমেইলে আগে থেকেই অ্যাকাউন্ট আছে।' : 'An account already exists for this email.';
+  }
+  if (/rate limit|too many/i.test(text)) {
+    return bn ? 'অনেকবার চেষ্টা হয়েছে। একটু পরে আবার চেষ্টা করুন।' : 'Too many attempts. Please wait and try again.';
+  }
+  if (/fetch|network|offline/i.test(text)) {
+    return bn ? 'ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।' : 'Check your internet connection and try again.';
+  }
+  // Do not expose raw Auth/database errors on the public screen.
+  return bn ? 'কাজটি সম্পন্ন হয়নি। আবার চেষ্টা করুন।' : 'The request could not be completed. Please try again.';
 }
 
 export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () => Promise<SupabaseClient> } = {}) {
@@ -51,6 +63,19 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
   const recovery = useRef(false);
   const preparingUser = useRef<string | null>(null);
   const adminRequested = useRef(/^#\/admin(?:\/|$)/i.test(window.location.hash));
+
+  useEffect(() => {
+    localStorage.setItem('hsc28_lang', JSON.stringify(lang));
+    document.documentElement.lang = lang;
+    if (status !== 'ready') {
+      const title = mode === 'signup'
+        ? (bn ? 'রেজিস্ট্রেশন' : 'Register')
+        : mode === 'forgot' || mode === 'recovery'
+          ? (bn ? 'পাসওয়ার্ড পুনরুদ্ধার' : 'Password recovery')
+          : (bn ? 'লগইন' : 'Sign in');
+      document.title = `${title} — ${bn ? 'নক্ষত্র HSC ’28' : 'Nokkhotro HSC ’28'}`;
+    }
+  }, [bn, lang, mode, status]);
 
   async function prepare(next: Session) {
     const run = ++sequence.current;
@@ -188,7 +213,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
     </>;
   }
   if (status === 'loading' || status === 'preparing') return <div className="min-h-dvh grid place-items-center bg-slate-950 text-white" role="status"><div className="text-center"><LoaderCircle className="animate-spin mx-auto mb-4" /><p>{status === 'preparing' ? (bn ? 'আপনার ডেটা নিরাপদে প্রস্তুত হচ্ছে…' : 'Preparing your data safely…') : (bn ? 'নক্ষত্র চালু হচ্ছে…' : 'Starting Nokkhotro…')}</p></div></div>;
-  return <main className="auth-page">
+  return <main id="auth-content" className="auth-page">
     <div className="auth-shell">
       <section className="auth-story">
         <div className="auth-story-image" aria-hidden="true" />
@@ -201,13 +226,13 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         <div className="auth-panel-heading"><span className="auth-panel-sparkle">✦</span><h2>{mode === 'recovery' ? (bn ? 'নতুন পাসওয়ার্ড' : 'Set a new password') : mode === 'signup' ? (bn ? 'যাত্রা শুরু করো' : 'Start your journey') : mode === 'forgot' ? (bn ? 'পাসওয়ার্ড রিসেট' : 'Reset your password') : (bn ? 'আবারও স্বাগতম!' : 'Welcome back!')}</h2><p>{bn ? 'তোমার লক্ষ্য পূরণের যাত্রাটা এখান থেকেই শুরু।' : 'Your journey toward your goals starts here.'}</p></div>
         {status === 'error' && session ? <div role="alert" className="auth-message error"><p>{bn ? 'ডেটা প্রস্তুত করা যায়নি। তোমার আগের ডেটা ডিভাইসে রয়ে গেছে।' : 'Could not prepare your data. Your previous data remains on this device.'} {error}</p><button type="button" onClick={() => void prepare(session)}>{bn ? 'আবার চেষ্টা করুন' : 'Retry'}</button></div> : <>
           {(mode === 'login' || mode === 'signup') && <div className="auth-tabs" role="group" aria-label={bn ? 'অ্যাকাউন্ট অপশন' : 'Account options'}>{(['login', 'signup'] as const).map(m => <button type="button" aria-pressed={mode === m} key={m} onClick={() => { setMode(m); setError(''); setNotice(''); }} className={mode === m ? 'active' : ''}>{m === 'login' ? (bn ? 'লগইন' : 'Sign in') : (bn ? 'রেজিস্ট্রেশন' : 'Register')}</button>)}</div>}
-          <form onSubmit={submit} className="auth-form">
-            {mode === 'signup' && <label>{bn ? 'তোমার পুরো নাম' : 'Full name'}<input required autoComplete="name" placeholder={bn ? 'নাম লিখুন' : 'Enter your name'} value={name} onChange={e => setName(e.target.value)} /></label>}
-            {mode !== 'recovery' && <label>{bn ? 'ইমেইল ঠিকানা' : 'Email address'}<input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>}
-            {mode !== 'forgot' && <label>{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="auth-password"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={bn ? 'পাসওয়ার্ড লিখুন' : 'Enter your password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
+          <form onSubmit={submit} className="auth-form" aria-busy={busy}>
+            {mode === 'signup' && <label>{bn ? 'তোমার পুরো নাম' : 'Full name'}<input required maxLength={80} autoComplete="name" placeholder={bn ? 'নাম লিখুন' : 'Enter your name'} value={name} onChange={e => setName(e.target.value)} /></label>}
+            {mode !== 'recovery' && <label>{bn ? 'ইমেইল ঠিকানা' : 'Email address'}<input required type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} maxLength={254} placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} /></label>}
+            {mode !== 'forgot' && <label>{bn ? 'পাসওয়ার্ড' : 'Password'}<span className="auth-password"><input required minLength={mode === 'login' ? 6 : 8} maxLength={72} type={show ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} autoCapitalize="none" spellCheck={false} placeholder={bn ? 'পাসওয়ার্ড লিখুন' : 'Enter your password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-label={show ? (bn ? 'পাসওয়ার্ড লুকান' : 'Hide password') : (bn ? 'পাসওয়ার্ড দেখুন' : 'Show password')} onClick={() => setShow(!show)}>{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span>{mode !== 'login' && <small className="auth-password-help">{bn ? 'কমপক্ষে ৮ অক্ষরের একটি নতুন পাসওয়ার্ড ব্যবহার করুন।' : 'Use a new password with at least 8 characters.'}</small>}</label>}
             {mode === 'login' && <button type="button" className="auth-forgot" onClick={() => { setMode('forgot'); setError(''); setNotice(''); }}>{bn ? 'পাসওয়ার্ড ভুলে গেছ?' : 'Forgot password?'}</button>}
             {error && <p role="alert" className="auth-message error">{error}</p>}{notice && <p role="status" className="auth-message success">{notice}</p>}
-            <button disabled={busy} className="auth-submit">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')} <span>→</span></button>
+            <button type="submit" disabled={busy} className="auth-submit">{busy ? (bn ? 'অপেক্ষা করুন…' : 'Please wait…') : mode === 'login' ? (bn ? 'লগইন করুন' : 'Sign in') : mode === 'signup' ? (bn ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create account') : mode === 'forgot' ? (bn ? 'রিসেট লিংক পাঠান' : 'Send reset link') : (bn ? 'পাসওয়ার্ড বদলান' : 'Update password')} <span>→</span></button>
           </form>
           {mode === 'forgot' && <button className="auth-back" onClick={() => { setMode('login'); setError(''); setNotice(''); }}>← {bn ? 'লগইনে ফিরে যান' : 'Back to sign in'}</button>}
         </>}
