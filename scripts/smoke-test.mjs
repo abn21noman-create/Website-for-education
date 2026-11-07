@@ -172,7 +172,7 @@ for (const route of routes) {
         mcq: ['HSC বোর্ড প্যাটার্ন', 'মেডিকেল (১০০ MCQ)', 'মিশ্র প্র্যাকটিস'],
         gpa: ['SSC GPA (৫.০০-এর মধ্যে)', 'মেডিকেল ও ডেন্টাল'],
         admission: ['পরীক্ষার কাঠামো', 'যাচাই করা হয়েছে'],
-        analytics: ['এই সপ্তাহের রিভিউ', 'আগামী ৭ দিনের ৩টি লক্ষ্য'],
+        analytics: ['এই সপ্তাহের রিভিউ', 'আগামী ৭ দিনের ৩টি লক্ষ্য', '৫ প্রশ্ন'],
         hub: ['প্রাইভেট-ফার্স্ট', 'তাৎক্ষণিক কনসেপ্ট'],
         leaderboard: ['নিজের অগ্রগতি ও কমিউনিটি XP', 'শুধু আমি'],
         life: ['রিমাইন্ডার'],
@@ -2493,6 +2493,48 @@ check(
     !/SELECT[^;]*\bemail\b/is.test(leaderboardConsentMigration),
   'community XP SQL is private by default, opt-in only, authenticated-only, and excludes email'
 );
+
+const studentPulseMigration = await readFile(
+  new URL('../supabase/migrations/2026-11-07-student-pulse.sql', import.meta.url),
+  'utf8'
+);
+const surveyAggregateFunction = studentPulseMigration.slice(
+  studentPulseMigration.indexOf('CREATE OR REPLACE FUNCTION public.hsc28_admin_survey_insights'),
+  studentPulseMigration.indexOf('REVOKE ALL ON FUNCTION public.hsc28_admin_survey_insights')
+);
+check(
+  studentPulseMigration.includes('CREATE TABLE IF NOT EXISTS public.hsc28_student_feedback') &&
+    studentPulseMigration.includes('ENABLE ROW LEVEL SECURITY') &&
+    studentPulseMigration.includes("primary_need IN ('daily_plan', 'board_practice', 'revision', 'admission_prep')") &&
+    studentPulseMigration.includes('app_helpfulness BETWEEN 1 AND 5') &&
+    studentPulseMigration.includes('WITH CHECK ((SELECT auth.uid()) = user_id)') &&
+    studentPulseMigration.includes('REVOKE ALL ON TABLE public.hsc28_student_feedback FROM PUBLIC, anon, authenticated'),
+  'student pulse SQL constrains five answers and keeps each response owner-scoped'
+);
+check(
+  surveyAggregateFunction.includes('hsc28_assert_admin') &&
+    surveyAggregateFunction.includes("'responses'") &&
+    surveyAggregateFunction.includes("'averageHelpfulness'") &&
+    surveyAggregateFunction.includes("'nextPriorities'") &&
+    surveyAggregateFunction.includes('privacy_threshold constant integer := 5') &&
+    surveyAggregateFunction.includes('response_total < privacy_threshold') &&
+    surveyAggregateFunction.includes("'insightsReady', false") &&
+    !surveyAggregateFunction.includes('auth.users') &&
+    !/\bemail\b|\bfull_name\b/i.test(surveyAggregateFunction) &&
+    studentPulseMigration.includes('GRANT EXECUTE ON FUNCTION public.hsc28_admin_survey_insights() TO authenticated'),
+  'survey admin RPC returns aggregate research only, without names or email'
+);
+const pulsePrivacyPatch = await readFile(
+  new URL('../supabase/migrations/2026-11-07-student-pulse-privacy-threshold.sql', import.meta.url),
+  'utf8'
+);
+check(
+  pulsePrivacyPatch.includes('privacy_threshold constant integer := 5') &&
+    pulsePrivacyPatch.includes('response_total < privacy_threshold') &&
+    pulsePrivacyPatch.includes("'insightsReady', false") &&
+    pulsePrivacyPatch.includes('hsc28_assert_admin'),
+  'survey aggregate suppresses scores and choices below five responses'
+);
 const appCommunityPrivacySource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
 check(
   appCommunityPrivacySource.includes('leaderboard_visible: nextProfile.leaderboardVisible === true') &&
@@ -2585,6 +2627,13 @@ container.innerHTML = '';
 window.history.replaceState(null, '', '/#/admin');
 const adminSession = { user: { id: '55555555-5555-4555-8555-555555555555', email: 'owner@example.invalid' } };
 const adminListCalls = [];
+let adminSurveyData = {
+  responses: 8, updatedLast30Days: 6, privacyThreshold: 5, insightsReady: true,
+  averageHelpfulness: 4.2, averagePlanClarity: 3.8,
+  primaryNeeds: { daily_plan: 5, revision: 3 },
+  biggestBlockers: { stay_consistent: 6, find_time: 2 },
+  nextPriorities: { more_mcq: 7, routine_reminders: 1 },
+};
 const adminClient = {
   auth: {
     onAuthStateChange: callback => {
@@ -2597,6 +2646,7 @@ const adminClient = {
   rpc: async (name, args = {}) => {
     if (name === 'hsc28_is_admin') return { data: true, error: null };
     if (name === 'hsc28_admin_overview') return { data: { totalUsers: 21, confirmedUsers: 21, newLast7Days: 1, activeLast7Days: 1, adminUsers: 1, totalStudyMinutes: 120, totalXp: 50, openDoubts: 0, totalReplies: 0 }, error: null };
+    if (name === 'hsc28_admin_survey_insights') return { data: adminSurveyData, error: null };
     if (name === 'hsc28_admin_list_users') {
       adminListCalls.push(args);
       const offset = Number(args.p_offset || 0);
@@ -2622,6 +2672,12 @@ await new Promise(resolve => setTimeout(resolve, 700));
 check(!!container.querySelector('[data-admin-portal="true"]') && !container.querySelector('.premium-sidebar'), 'server-approved account opens the isolated admin portal');
 check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'admin portal exposes the same accessibility settings without exposing admin publicly');
 check(container.textContent.includes('owner@example.invalid'), 'admin portal renders the authenticated owner and account directory');
+check(
+  !!container.querySelector('#admin-survey') && container.textContent.includes('What students need next') &&
+    container.textContent.includes('4.2') && container.textContent.includes('More MCQs') &&
+    !container.querySelector('#admin-survey')?.textContent.includes('owner@example.invalid'),
+  'admin portal shows aggregate survey insight without per-student identity'
+);
 const nextAdminPage = container.querySelector('[aria-label="Next page"], [aria-label="পরের পৃষ্ঠা"]');
 nextAdminPage?.click();
 await new Promise(resolve => setTimeout(resolve, 160));
@@ -2630,6 +2686,20 @@ check(
     adminListCalls.some(args => args.p_limit === 20 && args.p_offset === 20) &&
     container.textContent.includes('student20@example.invalid'),
   'admin directory paginates through bounded server requests'
+);
+adminSurveyData = {
+  responses: 2, updatedLast30Days: 2, privacyThreshold: 5, insightsReady: false,
+  averageHelpfulness: 0, averagePlanClarity: 0,
+  primaryNeeds: {}, biggestBlockers: {}, nextPriorities: {},
+};
+const adminRefresh = container.querySelector('button[aria-label="Refresh data"], button[aria-label="ডেটা রিফ্রেশ করুন"]');
+adminRefresh?.click();
+await new Promise(resolve => setTimeout(resolve, 120));
+check(
+  !!adminRefresh &&
+    (container.textContent.includes('Small-sample answers are hidden') || container.textContent.includes('ছোট sample-এর উত্তর গোপন রাখা হয়েছে')) &&
+    !container.querySelector('.admin-survey-metrics'),
+  'admin survey hides scores and choices until the five-response privacy threshold'
 );
 root.unmount(); root = null;
 
@@ -3224,6 +3294,101 @@ check(
     !appBackupSource.includes("from './lib/weeklyGoals'"),
   'weekly goals join portable backups without entering the initial app bundle'
 );
+
+// The roadmap pulse is exactly five constrained questions, saves locally first,
+// and can be edited without creating duplicate research responses.
+const studentPulse = await vite.ssrLoadModule('/src/lib/studentPulse.ts');
+localStorage.removeItem(studentPulse.STUDENT_PULSE_STORAGE_KEY);
+const pulseAnswers = {
+  primaryNeed: 'daily_plan',
+  biggestBlocker: 'stay_consistent',
+  appHelpfulness: 4,
+  todayPlanClarity: 5,
+  nextPriority: 'more_mcq',
+};
+const firstPulse = studentPulse.buildStudentPulseResponse(
+  pulseAnswers,
+  null,
+  new Date('2026-11-07T12:00:00.000Z')
+);
+const updatedPulse = studentPulse.buildStudentPulseResponse(
+  { ...pulseAnswers, nextPriority: 'more_cq_models' },
+  firstPulse,
+  new Date('2026-11-08T12:00:00.000Z')
+);
+check(
+  studentPulse.normalizeStudentPulse({ ...firstPulse, appHelpfulness: 7 }) === null &&
+    studentPulse.normalizeStudentPulse({ ...firstPulse, nextPriority: 'free-text' }) === null &&
+    updatedPulse.submittedAt === firstPulse.submittedAt &&
+    updatedPulse.updatedAt !== firstPulse.updatedAt,
+  'student pulse rejects malformed choices and preserves one response while editing'
+);
+const localPulseSave = await studentPulse.saveStudentPulse(firstPulse, null);
+check(
+  localPulseSave.localSaved && localPulseSave.cloud === 'local-only' &&
+    studentPulse.loadStudentPulse()?.todayPlanClarity === 5 &&
+    appBackupSource.includes("'hsc28_student_pulse_v1'") &&
+    !appBackupSource.includes("from './lib/studentPulse'"),
+  'student pulse saves offline and joins portable backup without entering the initial bundle'
+);
+const localPulseDelete = await studentPulse.deleteStudentPulse(null);
+check(
+  localPulseDelete.localDeleted && localPulseDelete.cloud === 'local-only' &&
+    studentPulse.loadStudentPulse() === null,
+  'a student can delete the local pulse response instead of only editing it'
+);
+
+localStorage.removeItem(studentPulse.STUDENT_PULSE_STORAGE_KEY);
+const { StudentPulseCard } = await vite.ssrLoadModule('/src/components/StudentPulseCard.tsx');
+root = createRoot(container);
+root.render(React.createElement(StudentPulseCard, { lang: 'en', theme: 'light', authUserId: null }));
+await new Promise(resolve => setTimeout(resolve, 50));
+const pulseRoot = () => container.querySelector('[data-student-pulse="true"]');
+const clickPulse = text => {
+  const button = [...(pulseRoot()?.querySelectorAll('button') || [])].find(item => item.textContent.includes(text));
+  button?.click();
+  return Boolean(button);
+};
+const pulseProgress = pulseRoot()?.querySelector('[role="progressbar"]');
+const pulseUiStarted = pulseProgress?.getAttribute('aria-valuemax') === '5' &&
+  pulseRoot()?.textContent.includes('What do you need most from Nokkhotro right now?');
+clickPulse('A clear plan for what to study today');
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('Next');
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('It is hard to stay consistent');
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('Next');
+await new Promise(resolve => setTimeout(resolve, 20));
+pulseRoot()?.querySelector('button[aria-label="4: Very"]')?.click();
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('Next');
+await new Promise(resolve => setTimeout(resolve, 20));
+pulseRoot()?.querySelector('button[aria-label="5: Completely"]')?.click();
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('Next');
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('More chapter-wise MCQs');
+await new Promise(resolve => setTimeout(resolve, 20));
+clickPulse('Save five answers');
+await new Promise(resolve => setTimeout(resolve, 80));
+const savedPulseFromUi = studentPulse.loadStudentPulse();
+check(
+  pulseUiStarted && savedPulseFromUi?.primaryNeed === 'daily_plan' &&
+    savedPulseFromUi?.biggestBlocker === 'stay_consistent' &&
+    savedPulseFromUi?.appHelpfulness === 4 && savedPulseFromUi?.todayPlanClarity === 5 &&
+    savedPulseFromUi?.nextPriority === 'more_mcq' &&
+    pulseRoot()?.textContent.includes('Your five answers are saved'),
+  'five-step pulse is keyboard-readable, completes once, and confirms the local save'
+);
+clickPulse('Update answers');
+await new Promise(resolve => setTimeout(resolve, 30));
+check(
+  pulseRoot()?.querySelectorAll('button[aria-pressed="true"]').length === 1 &&
+    pulseRoot()?.textContent.includes('What do you need most'),
+  'a saved pulse reopens with the previous answer selected for editing'
+);
+root.unmount(); root = null;
 
 // Display preferences are validated, applied before paint, persisted, and
 // exposed through a keyboard-contained dialog in every app shell.

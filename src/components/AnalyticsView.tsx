@@ -25,10 +25,12 @@ import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 import { WeeklyReviewCard } from './WeeklyReviewCard';
 import { SectorStats } from './SectorStats';
+import { StudentPulseCard } from './StudentPulseCard';
 
 interface AnalyticsViewProps {
   lang: Lang;
   theme: Theme;
+  authUserId: string | null;
   profile: StudentProfile;
   progressMap: Record<string, ChapterProgressState>;
   quizHistory: QuizAttemptRecord[];
@@ -42,6 +44,7 @@ interface AnalyticsViewProps {
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   lang,
   theme,
+  authUserId,
   profile,
   progressMap,
   quizHistory,
@@ -162,6 +165,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         sessions={sessions}
         onNavigate={onNavigate}
       />
+
+      <StudentPulseCard lang={lang} theme={theme} authUserId={authUserId} />
 
       <SectorStats label={lang === 'bn' ? 'পারফরম্যান্স সারসংক্ষেপ' : 'Performance overview'} items={[
         { label: lang === 'bn' ? 'প্রশ্নপ্রতি গড় সময়' : 'Average time / MCQ', value: totalQuestionsAnswered > 0 ? `${formatNum(avgSecPerQuestion, lang)} ${lang === 'bn' ? 'সেকেন্ড' : 'sec'}` : '—', hint: totalQuestionsAnswered > 0 ? (lang === 'bn' ? 'পরীক্ষার ইতিহাস অনুযায়ী' : 'From your exam history') : (lang === 'bn' ? 'এখনও পরীক্ষা নেই' : 'No exams yet'), icon: <Clock size={19} />, tone: 'purple' },

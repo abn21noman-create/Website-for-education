@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   MessageCircleQuestion,
+  MessageSquareText,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -48,6 +49,18 @@ interface AdminOverview {
   totalReplies: number;
 }
 
+interface AdminSurveyInsights {
+  responses: number;
+  updatedLast30Days: number;
+  privacyThreshold: number;
+  insightsReady: boolean;
+  averageHelpfulness: number;
+  averagePlanClarity: number;
+  primaryNeeds: Record<string, number>;
+  biggestBlockers: Record<string, number>;
+  nextPriorities: Record<string, number>;
+}
+
 interface AdminUserRow {
   user_id: string;
   email: string;
@@ -77,6 +90,39 @@ const EMPTY_OVERVIEW: AdminOverview = {
   totalReplies: 0,
 };
 
+const EMPTY_SURVEY: AdminSurveyInsights = {
+  responses: 0,
+  updatedLast30Days: 0,
+  privacyThreshold: 5,
+  insightsReady: false,
+  averageHelpfulness: 0,
+  averagePlanClarity: 0,
+  primaryNeeds: {},
+  biggestBlockers: {},
+  nextPriorities: {},
+};
+
+const SURVEY_LABELS = {
+  primaryNeeds: {
+    daily_plan: { bn: 'আজকের স্পষ্ট পরিকল্পনা', en: 'Clear daily plan' },
+    board_practice: { bn: 'বোর্ড MCQ ও CQ', en: 'Board MCQ and CQ' },
+    revision: { bn: 'রিভিশন ও ভুল সংশোধন', en: 'Revision and mistakes' },
+    admission_prep: { bn: 'ভর্তি প্রস্তুতি', en: 'Admission preparation' },
+  },
+  biggestBlockers: {
+    know_what_next: { bn: 'পরের কাজ জানা', en: 'Knowing what is next' },
+    understand_concepts: { bn: 'কঠিন ধারণা', en: 'Understanding concepts' },
+    stay_consistent: { bn: 'নিয়মিত থাকা', en: 'Staying consistent' },
+    find_time: { bn: 'সময় বের করা', en: 'Finding time' },
+  },
+  nextPriorities: {
+    more_mcq: { bn: 'আরও MCQ', en: 'More MCQs' },
+    more_cq_models: { bn: 'আরও CQ ও মডেল উত্তর', en: 'More CQs and model answers' },
+    routine_reminders: { bn: 'রুটিন ও রিমাইন্ডার', en: 'Routines and reminders' },
+    simpler_faster: { bn: 'সহজ ও দ্রুত অ্যাপ', en: 'Simpler and faster app' },
+  },
+} as const;
+
 function numberValue(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -94,6 +140,32 @@ function normalizeOverview(value: unknown): AdminOverview {
     totalXp: numberValue(row.totalXp),
     openDoubts: numberValue(row.openDoubts),
     totalReplies: numberValue(row.totalReplies),
+  };
+}
+
+function normalizeCountMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, count]) => [key, Math.max(0, Math.floor(numberValue(count)))])
+      .filter(([, count]) => Number(count) > 0)
+  );
+}
+
+function normalizeSurvey(value: unknown): AdminSurveyInsights {
+  const row = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const responses = Math.max(0, Math.floor(numberValue(row.responses)));
+  const privacyThreshold = Math.min(100, Math.max(2, Math.floor(numberValue(row.privacyThreshold) || 5)));
+  return {
+    responses,
+    updatedLast30Days: Math.max(0, Math.floor(numberValue(row.updatedLast30Days))),
+    privacyThreshold,
+    insightsReady: row.insightsReady === true && responses >= privacyThreshold,
+    averageHelpfulness: Math.min(5, Math.max(0, numberValue(row.averageHelpfulness))),
+    averagePlanClarity: Math.min(5, Math.max(0, numberValue(row.averagePlanClarity))),
+    primaryNeeds: normalizeCountMap(row.primaryNeeds),
+    biggestBlockers: normalizeCountMap(row.biggestBlockers),
+    nextPriorities: normalizeCountMap(row.nextPriorities),
   };
 }
 
@@ -118,6 +190,8 @@ export function AdminPortal({
 }: AdminPortalProps) {
   const bn = lang === 'bn';
   const [overview, setOverview] = useState<AdminOverview>(EMPTY_OVERVIEW);
+  const [survey, setSurvey] = useState<AdminSurveyInsights>(EMPTY_SURVEY);
+  const [surveyAvailable, setSurveyAvailable] = useState(true);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -143,13 +217,14 @@ export function AdminPortal({
     setError('');
     try {
       const client = await clientFactory();
-      const [overviewResult, usersResult] = await Promise.all([
+      const [overviewResult, usersResult, surveyResult] = await Promise.all([
         client.rpc('hsc28_admin_overview'),
         client.rpc('hsc28_admin_list_users', {
           p_search: search.trim(),
           p_limit: ADMIN_PAGE_SIZE,
           p_offset: nextPage * ADMIN_PAGE_SIZE,
         }),
+        client.rpc('hsc28_admin_survey_insights'),
       ]);
       if (overviewResult.error) throw overviewResult.error;
       if (usersResult.error) throw usersResult.error;
@@ -157,6 +232,12 @@ export function AdminPortal({
 
       const rows = Array.isArray(usersResult.data) ? usersResult.data as AdminUserRow[] : [];
       setOverview(normalizeOverview(overviewResult.data));
+      if (surveyResult?.error) {
+        setSurveyAvailable(false);
+      } else {
+        setSurvey(normalizeSurvey(surveyResult?.data));
+        setSurveyAvailable(true);
+      }
       setUsers(rows);
       setPage(nextPage);
       if (rows[0]) setTotalCount(numberValue(rows[0].total_count));
@@ -188,6 +269,28 @@ export function AdminPortal({
     () => new Intl.NumberFormat(bn ? 'bn-BD' : 'en-US'),
     [bn]
   );
+
+  const surveyGroups: Array<{
+    key: 'primaryNeeds' | 'biggestBlockers' | 'nextPriorities';
+    title: string;
+    labels: Record<string, { bn: string; en: string }>;
+  }> = [
+    {
+      key: 'primaryNeeds',
+      title: bn ? 'এখন সবচেয়ে বেশি দরকার' : 'Needed most right now',
+      labels: SURVEY_LABELS.primaryNeeds,
+    },
+    {
+      key: 'biggestBlockers',
+      title: bn ? 'সবচেয়ে বড় বাধা' : 'Biggest study blocker',
+      labels: SURVEY_LABELS.biggestBlockers,
+    },
+    {
+      key: 'nextPriorities',
+      title: bn ? 'পরের উন্নতির অগ্রাধিকার' : 'Priority for the next improvement',
+      labels: SURVEY_LABELS.nextPriorities,
+    },
+  ];
 
   const cards = [
     {
@@ -247,6 +350,7 @@ export function AdminPortal({
         <div className="admin-sidebar-label">{bn ? 'ওয়ার্কস্পেস' : 'WORKSPACE'}</div>
         <nav aria-label={bn ? 'অ্যাডমিন নেভিগেশন' : 'Admin navigation'}>
           <button className="is-active"><LayoutDashboard size={18} /><span>{bn ? 'ওভারভিউ' : 'Overview'}</span></button>
+          <a href="#admin-survey" onClick={() => setMobileNav(false)}><MessageSquareText size={18} /><span>{bn ? 'শিক্ষার্থী মতামত' : 'Student pulse'}</span><small>{fmt.format(survey.responses)}</small></a>
           <a href="#admin-users" onClick={() => setMobileNav(false)}><Users size={18} /><span>{bn ? 'ব্যবহারকারী' : 'Users'}</span><small>{fmt.format(overview.totalUsers)}</small></a>
         </nav>
 
@@ -299,6 +403,54 @@ export function AdminPortal({
                 <div><small>{card.label}</small><strong>{loading ? '—' : card.value}</strong><span>{card.note}</span></div>
               </article>;
             })}
+          </section>
+
+          <section className="admin-survey-panel" id="admin-survey" aria-labelledby="admin-survey-title">
+            <div className="admin-panel-head">
+              <div>
+                <span>{bn ? '৫-প্রশ্নের ইন-অ্যাপ গবেষণা' : 'FIVE-QUESTION IN-APP RESEARCH'}</span>
+                <h2 id="admin-survey-title">{bn ? 'শিক্ষার্থীরা পরের ধাপে কী চায়' : 'What students need next'}</h2>
+                <p>{bn ? 'শুধু aggregate total—কোনো নাম, ইমেইল, user ID, খোলা লেখা বা ব্যক্তিগত উত্তর এখানে আসে না।' : 'Aggregate totals only—no name, email, user ID, free text, or individual response is returned here.'}</p>
+              </div>
+              <div className="admin-survey-count"><MessageSquareText size={18} /><strong>{loading ? '—' : fmt.format(survey.responses)}</strong><span>{bn ? 'মোট উত্তর' : 'responses'}</span></div>
+            </div>
+
+            {!surveyAvailable ? (
+              <div className="admin-survey-empty" role="status">{bn ? 'সার্ভে aggregate এখন পাওয়া যাচ্ছে না; মূল অ্যাডমিন ডেটা অক্ষুণ্ণ আছে।' : 'Survey aggregates are unavailable right now; core admin data remains available.'}</div>
+            ) : survey.responses === 0 ? (
+              <div className="admin-survey-empty"><MessageSquareText size={23} /><div><strong>{bn ? 'এখনো কোনো উত্তর নেই' : 'No responses yet'}</strong><span>{bn ? 'শিক্ষার্থী Analytics-এ ৫টি উত্তর সেভ করলে aggregate এখানে আসবে।' : 'Aggregates appear after a student saves the five answers in Analytics.'}</span></div></div>
+            ) : !survey.insightsReady ? (
+              <div className="admin-survey-empty"><ShieldCheck size={23} /><div><strong>{bn ? 'ছোট sample-এর উত্তর গোপন রাখা হয়েছে' : 'Small-sample answers are hidden'}</strong><span>{bn
+                ? `কমপক্ষে ${fmt.format(survey.privacyThreshold)}টি account উত্তর দিলে score ও choice distribution দেখা যাবে—আর ${fmt.format(Math.max(0, survey.privacyThreshold - survey.responses))}টি দরকার।`
+                : `Scores and choice distributions unlock at ${fmt.format(survey.privacyThreshold)} accounts; ${fmt.format(Math.max(0, survey.privacyThreshold - survey.responses))} more needed.`}</span></div></div>
+            ) : (
+              <>
+                <div className="admin-survey-metrics">
+                  <div><small>{bn ? 'গত ৩০ দিনে আপডেট' : 'Updated in 30 days'}</small><strong>{fmt.format(survey.updatedLast30Days)}</strong></div>
+                  <div><small>{bn ? 'অ্যাপের সহায়তা' : 'App helpfulness'}</small><strong>{survey.averageHelpfulness.toFixed(1)} <span>/ 5</span></strong></div>
+                  <div><small>{bn ? 'আজকের প্ল্যান কতটা স্পষ্ট' : 'Today-plan clarity'}</small><strong>{survey.averagePlanClarity.toFixed(1)} <span>/ 5</span></strong></div>
+                </div>
+                <div className="admin-survey-groups">
+                  {surveyGroups.map(group => (
+                    <article key={group.key}>
+                      <h3>{group.title}</h3>
+                      <div className="admin-survey-bars">
+                        {Object.entries(group.labels).map(([key, label]) => {
+                          const count = survey[group.key][key] || 0;
+                          const percent = survey.responses > 0
+                            ? Math.min(100, Math.max(0, Math.round((count / survey.responses) * 100)))
+                            : 0;
+                          return <div className="admin-survey-bar" key={key}>
+                            <div><span>{label[lang]}</span><strong>{fmt.format(count)} · {fmt.format(percent)}%</strong></div>
+                            <i><b style={{ width: `${percent}%` }} /></i>
+                          </div>;
+                        })}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
 
           <section className="admin-users-panel" id="admin-users">
