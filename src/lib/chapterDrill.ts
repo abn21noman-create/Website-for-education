@@ -65,23 +65,3 @@ export function takeChapterDrill(): ChapterDrillRequest | null {
     return null;
   }
 }
-
-/** The chapter's questions, capped at the requested count. */
-export function pickChapterQuestions<T extends { id: string; subjectKey: string; chapter: { bn: string } }>(
-  questions: T[],
-  request: ChapterDrillRequest
-): T[] {
-  if (request.questionIds && request.questionIds.length > 0) {
-    const order = new Map(request.questionIds.map((id, index) => [id, index]));
-    return questions
-      .filter((question) => order.has(question.id))
-      .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
-      .slice(0, request.count);
-  }
-  const pool = questions.filter(
-    (question) =>
-      (!request.subjectKey || question.subjectKey === request.subjectKey) &&
-      question.chapter.bn === request.chapterBn
-  );
-  return pool.slice(0, request.count);
-}

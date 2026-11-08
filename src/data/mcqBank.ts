@@ -4,8 +4,8 @@ import { GK_CATEGORIES, GK_QUESTIONS } from './gkBank';
 /**
  * MCQ bank, split per paper.
  *
- * Every paper is its own module so a single-paper drill downloads ~10-20
- * questions instead of the whole 147-question bank. Weighted patterns
+ * Every paper is its own module so a single-paper drill downloads only that
+ * paper's questions instead of the whole bank. Weighted patterns
  * (BUET / medical / DU) and mixed practice need several papers, so they ask
  * for more loaders at once — the cache means each paper is fetched only once
  * per session.
@@ -28,7 +28,7 @@ export const ALL_SUBJECT_KEYS: SubjectKey[] = [
 ];
 
 export const MCQ_COUNTS: Record<SubjectKey, number> = {
-  physics1: 16,
+  physics1: 30,
   physics2: 16,
   chemistry1: 16,
   chemistry2: 17,

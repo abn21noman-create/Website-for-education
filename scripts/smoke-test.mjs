@@ -699,6 +699,7 @@ const eligibility = await vite.ssrLoadModule('/src/lib/eligibility.ts');
 const mistakeTags = await vite.ssrLoadModule('/src/lib/mistakeTags.ts');
 const reminders = await vite.ssrLoadModule('/src/lib/reminders.ts');
 const mcqBank = await vite.ssrLoadModule('/src/data/mcqBank.ts');
+const mcqChapters = await vite.ssrLoadModule('/src/lib/mcqChapters.ts');
 const allQuestions = await mcqBank.loadAllMcq();
 const allExamQuestions = await mcqBank.loadAllExamQuestions();
 
@@ -732,11 +733,19 @@ check(
   'a single-paper drill loads only that paper',
   `${singlePaper.length} questions`
 );
+const physicsChapterInventory = mcqChapters.mcqChapterInventory(singlePaper, 'physics1');
+check(
+  singlePaper.length === 30 &&
+    physicsChapterInventory.length === 10 &&
+    physicsChapterInventory.reduce((sum, item) => sum + item.count, 0) === 30,
+  'Physics 1st has a 30-question practice pool across all 10 syllabus chapters',
+  `${singlePaper.length} questions / ${physicsChapterInventory.length} chapters`
+);
 
 const bankIds = allQuestions.map((q) => q.id);
 check(
-  allQuestions.length >= 175,
-  'MCQ bank passed 175 questions',
+  allQuestions.length >= 190,
+  'MCQ bank passed 190 questions',
   String(allQuestions.length)
 );
 
@@ -754,6 +763,19 @@ check(
   new Set(bankIds).size === bankIds.length,
   'every MCQ id is unique (mistake bank depends on it)',
   `${bankIds.length - new Set(bankIds).size} duplicates`
+);
+check(
+  allQuestions.every(
+    (question) =>
+      question.options.length === 4 &&
+      question.correctIndex >= 0 &&
+      question.correctIndex < 4 &&
+      Boolean(question.options[question.correctIndex]?.bn) &&
+      Boolean(question.question.bn && question.question.en) &&
+      Boolean(question.explanation.bn && question.explanation.en) &&
+      ['easy', 'medium', 'hard'].includes(question.difficulty)
+  ),
+  'every MCQ has four options, a valid answer, bilingual text and a difficulty'
 );
 
 const cqBank = await vite.ssrLoadModule('/src/data/cqData.ts');
@@ -800,8 +822,27 @@ check(
   JSON.stringify(scored)
 );
 
-const boardScored = patterns.scoreForPattern(patterns.getPatternById('hsc-board'), 7, 3, 10);
+const hscBoardPattern = patterns.getPatternById('hsc-board');
+const boardScored = patterns.scoreForPattern(hscBoardPattern, 7, 3, 10);
 check(boardScored.score === 7, 'HSC board pattern never deducts', JSON.stringify(boardScored));
+const physicsPracticalPaper = patterns.pickPatternQuestions(
+  singlePaper,
+  patterns.getPatternById('hsc-practical'),
+  25
+);
+const physicsRevisionSet = patterns.pickPatternQuestions(
+  singlePaper,
+  patterns.getPatternById('custom'),
+  30
+);
+check(
+  physicsPracticalPaper.length === 25 &&
+    physicsRevisionSet.length === 30 &&
+    [...physicsPracticalPaper, ...physicsRevisionSet].every(
+      (question) => question.subjectKey === 'physics1'
+    ),
+  'Physics 1st covers the real 25-MCQ practical paper with five extra questions for rotation'
+);
 
 const medicalPick = patterns.pickPatternQuestions(allExamQuestions, medical, 20);
 const pickedSubjects = new Set(medicalPick.map((q) => q.subjectKey));
@@ -830,6 +871,64 @@ const findButton = (needle) =>
   );
 const waitForUi = (milliseconds = 400) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+// A student can now build a drill from one canonical syllabus chapter. The
+// empty difficulty combination must stay empty instead of silently falling
+// back to unrelated questions.
+window.localStorage.removeItem('hsc28_chapter_drill_v1');
+if (root) root.unmount();
+container.innerHTML = '';
+root = createRoot(container);
+root.render(
+  React.createElement(McqExamView, {
+    lang: 'bn',
+    theme: 'light',
+    quizHistory: [],
+    mistakeIds: [],
+    onUpdateMistakeIds: () => {},
+    onCompleteQuiz: () => {},
+  })
+);
+await waitForUi(800);
+const physicsSubjectButton = findButton('পদার্থ ১ম');
+physicsSubjectButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(250);
+const chapterPicker = container.querySelector('[data-mcq-chapter-picker]');
+const waveChapterButton = Array.from(chapterPicker?.querySelectorAll('button') || []).find(
+  (button) => (button.textContent || '').includes('তরঙ্গ')
+);
+const pickerText = chapterPicker?.textContent || '';
+waveChapterButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(100);
+const hardDifficultyButton = findButton('কঠিন (BUET)');
+hardDifficultyButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(100);
+const emptyFilterButton = findButton('এই অধ্যায় ও difficulty-তে এখনো প্রশ্ন নেই');
+check(
+  Boolean(physicsSubjectButton) &&
+    Boolean(waveChapterButton) &&
+    pickerText.includes('১০/১০ অধ্যায়ে প্রশ্ন আছে') &&
+    pickerText.includes('৩০ টি প্রশ্ন') &&
+    Boolean(emptyFilterButton?.disabled),
+  'chapter picker exposes all Physics 1st chapters and never leaks unrelated questions through an empty filter'
+);
+const allDifficultyButton = findButton('সব স্তর');
+allDifficultyButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(100);
+const startWaveDrillButton = findButton('পরীক্ষা শুরু করুন');
+startWaveDrillButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await waitForUi(500);
+const waveDrillText = container.textContent || '';
+check(
+  container.querySelectorAll('h3').length === 2 &&
+    waveDrillText.includes('340 m/s') &&
+    waveDrillText.includes('256 Hz'),
+  'a selected chapter starts a drill containing only that chapter\u2019s questions',
+  `${container.querySelectorAll('h3').length} rendered questions`
+);
+root.unmount();
+container.innerHTML = '';
+
 const medicalGkIds = new Set(mcqBank.MEDICAL_GK_MCQ.map((question) => question.id));
 let reportedMedicalMistakes = [];
 let completedMedicalAttempt = null;
@@ -1570,6 +1669,7 @@ check(
 );
 
 const chapterDrill = await vite.ssrLoadModule('/src/lib/chapterDrill.ts');
+const mcqChapterDrill = await vite.ssrLoadModule('/src/lib/mcqChapterDrill.ts');
 chapterDrill.requestChapterDrill({
   subjectKey: 'biology1',
   chapterBn: firstBio.chapter.bn,
@@ -1588,7 +1688,7 @@ check(
   chapterDrill.takeChapterDrill() === null,
   'the drill request is consumed exactly once'
 );
-const pickedDrill = chapterDrill.pickChapterQuestions(bioBank, {
+const pickedDrill = mcqChapterDrill.pickChapterQuestions(bioBank, {
   subjectKey: 'biology1',
   chapterBn: firstBio.chapter.bn,
   chapterEn: firstBio.chapter.en,
@@ -1600,6 +1700,23 @@ check(
     pickedDrill.every((question) => question.chapter.bn === firstBio.chapter.bn),
   'a chapter drill only draws that chapter\u2019s questions',
   `${pickedDrill.length} question(s)`
+);
+const canonicalGravityQuestions = physicsBank.filter(
+  (question) => mcqChapters.mcqChapter(question)?.id === 'phy1-ch6'
+);
+const canonicalGravityDrill = mcqChapterDrill.pickChapterQuestions(physicsBank, {
+  subjectKey: 'physics1',
+  chapterId: 'phy1-ch6',
+  chapterBn: 'মহাকর্ষ ও অভিকর্ষ',
+  chapterEn: 'Gravitation & Gravity',
+  count: 30,
+});
+check(
+  canonicalGravityQuestions.length >= 3 &&
+    canonicalGravityDrill.length === canonicalGravityQuestions.length &&
+    canonicalGravityDrill.some((question) => question.chapter.bn === 'মহাকর্ষ'),
+  'canonical chapter IDs keep older MCQ labels inside the right routine drill',
+  `${canonicalGravityDrill.length} gravity questions`
 );
 
 const weeklyTarget = await vite.ssrLoadModule('/src/lib/weeklyTarget.ts');
@@ -1792,7 +1909,7 @@ const idDrill = {
   questionIds: [bioBank[1].id, physicsBank[1].id],
   createdAt: '2026-01-01T00:00:00.000Z',
 };
-const idPicked = chapterDrill.pickChapterQuestions([...bioBank, ...physicsBank], idDrill);
+const idPicked = mcqChapterDrill.pickChapterQuestions([...bioBank, ...physicsBank], idDrill);
 check(
   idPicked.length === 2 &&
     idPicked[0].id === bioBank[1].id &&
