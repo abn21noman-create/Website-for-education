@@ -64,7 +64,11 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           if [[ $status -ne 0 ]]; then
-            message=$(tail -n 100 "$RUNNER_TEMP/gradle-build.log")
+            message=$({
+              grep -E 'FAILURE:|What went wrong|Execution failed|BUILD FAILED|(^| )error:|^e: |Caused by:|Lint found' "$RUNNER_TEMP/gradle-build.log" | tail -n 25
+              echo '--- final output ---'
+              tail -n 25 "$RUNNER_TEMP/gradle-build.log"
+            } | sed -E $'s/\\x1B\\[[0-9;]*[mK]//g')
             message=${message//'%'/'%25'}
             message=${message//$'\r'/'%0D'}
             message=${message//$'\n'/'%0A'}
