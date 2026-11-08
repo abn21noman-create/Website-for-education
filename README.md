@@ -3,6 +3,7 @@
 🌐 **Live Production Website:** [https://nokkhotro-hsc-2028.vercel.app](https://nokkhotro-hsc-2028.vercel.app)
 
 [![Build & Typecheck](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml/badge.svg)](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml)
+[![Android CI](https://github.com/abn21noman-create/Website-for-education/actions/workflows/android-ci.yml/badge.svg)](https://github.com/abn21noman-create/Website-for-education/actions/workflows/android-ci.yml)
 
 **Open source:** [MIT License](LICENSE) · [Contributing guide](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md)
 
@@ -35,7 +36,7 @@ Bug, feature, প্রশ্ন এবং documentation-এর জন্য [st
 1. **কমান্ড সেন্টার ড্যাশবোর্ড (`DashboardView`)**
    - মে ২০২৮ লক্ষ্যমাত্রার লাইভ কাউন্টডাউন, সামগ্রিক সিলেবাস সম্পন্নতা, XP পয়েন্ট, ফোকাস ঘণ্টা এবং সব ১১টি পত্রের তাৎক্ষণিক ওভারভিউ।
    - Life Hub-এ লুকিয়ে না থেকে এখন আজ/আগামীকালের পরীক্ষা ও ডেডলাইন, দৈনিক ১০-মিনিটের স্টাডি নাজ এবং নোটিফিকেশন অনুমতি **ড্যাশবোর্ডেই রিমাইন্ডার কার্ডে** দেখা যায়; “সব দেখুন” সরাসরি Life Hub-এ নেয়।
-   - **আজকের বই-পড়া + Focus Lock:** প্রতিটি routine chapter-এ মূল বইয়ের exact key-topic boundary, topic count ও স্বচ্ছ হিসাবের সময় (৫ মিনিট preview + topic-পিছু প্রায় ১০ মিনিট, ২৫–৫০ মিনিটে bounded) দেখা যায়। “ফোকাস শুরু” fullscreen countdown চালায়; অন্য tab/app-এ গেলে, page লুকালে বা fullscreen ছাড়লে timer সঙ্গে সঙ্গে থামে—ফিরে explicit resume না করা পর্যন্ত বাইরে কাটানো সময় study time হয় না। Browser অন্য app প্রযুক্তিগতভাবে block করতে পারে না, তাই UI-তেও এই সীমা স্পষ্ট বলা আছে; live countdown device-local, কোনো activity server-এ যায় না। পূর্ণ হলে শুধু textbook-reading step tick হয়, real minutes study log-এ যায় এবং পরের block স্বাধীন থাকে।
+   - **আজকের বই-পড়া + Focus Lock:** প্রতিটি routine chapter-এ মূল বইয়ের exact key-topic boundary, topic count ও স্বচ্ছ হিসাবের সময় (৫ মিনিট preview + topic-পিছু প্রায় ১০ মিনিট, ২৫–৫০ মিনিটে bounded) দেখা যায়। “ফোকাস শুরু” countdown চালায়। Web/PWA-তে অন্য tab/app-এ গেলে, page লুকালে বা fullscreen ছাড়লে timer সঙ্গে সঙ্গে থামে—ফিরে explicit resume না করা পর্যন্ত বাইরের সময় study time হয় না। Direct Kotlin Android app-এ একই audited UI APK-র ভেতরে bundle থাকে এবং student start করার পর Android-এর trusted **Lock Task / Screen Pinning** চাওয়া হয়; confirmation-এর সময় timer paused থাকে, pin খুলে গেলে সঙ্গে সঙ্গে pause হয়, completion/emergency exit-এ native lock release হয়। সাধারণ ফোনে Android-এর confirmation ও manual unpin অক্ষুণ্ণ থাকে; external school DPC allowlist ছাড়া unattended kiosk দাবি করা হয় না। Live countdown device-local, কোনো app-activity server-এ যায় না। পূর্ণ হলে শুধু textbook-reading step tick হয়, real minutes study log-এ যায় এবং পরের block স্বাধীন থাকে।
 2. **৯৩-অধ্যায়ের সিলেবাস ট্র্যাকার ও পূর্বশর্ত ম্যাপ (`SyllabusTrackerView`)**
    - পদার্থ ১ম/২য়, রসায়ন ১ম/২য়, উচ্চতর গণিত ১ম/২য়, জীববিজ্ঞান ১ম/২য়, ICT, বাংলা ও ইংরেজির ৪-ধাপের অগ্রগতি (মূল বই, নোটস, MCQ, সৃজনশীল CQ)।
    - **Prerequisite Learning Map (`পূর্বশর্ত অধ্যায় ম্যাপ`)** ও একাদশ শ্রেণি (১ম বর্ষ) ফিল্টার।
@@ -107,11 +108,20 @@ Bug, feature, প্রশ্ন এবং documentation-এর জন্য [st
 - **Production security headers:** Vercel-এ CSP, anti-framing, MIME sniffing protection, referrer/permissions policy, HSTS এবং service-worker no-cache policy enforced; Supabase HTTPS/WSS ছাড়া অপ্রয়োজনীয় external connection বন্ধ।
 - **স্মোক টেস্ট:** `npm run smoke` — বিল্ড, সোর্স স্মোক টেস্ট, font/security/PWA budget এবং jsdom-এ আসল প্রোডাকশন বান্ডলের বুট-চেক চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
 
+## Native Android app (Kotlin + Play App Signing)
+
+- `android/`-এ direct Kotlin host; Capacitor/Expo নয়। `WebViewAssetLoader` audited Vite build-কে APK/AAB-এর ভেতর থেকে `https://appassets.androidplatform.net` origin-এ serve করে—কোনো arbitrary remote site bridge access পায় না।
+- Android Focus Mode শুধু documented `startLockTask()` / `stopLockTask()` ব্যবহার করে। Personal device-এ trusted Screen Pinning consent ও manual unpin থাকে; managed kiosk শুধু external school DPC allowlist করলে সম্ভব।
+- Manifest-এ শুধু Internet + network-state normal permission; Accessibility Service, overlay, package scan, storage, covert Device Admin বা dynamic executable download নেই।
+- Debug APK, Android CI, signed release AAB, GitHub secret names, Play Console checklist এবং physical-device acceptance test: **[`docs/android-release.md`](docs/android-release.md)**।
+- দ্রুত build: `npm ci && npm run android:apk` (JDK 17 + Android SDK 36 প্রয়োজন)। Web-only build ও PWA fallback অপরিবর্তিত।
+
 ## গবেষণা ও রোডম্যাপ (Research)
 - **প্রতিবেদন:** [`docs/research-hsc2028-student-needs.md`](docs/research-hsc2028-student-needs.md) — HSC-2028 বিজ্ঞান শিক্ষার্থীর চাহিদা, প্রতিযোগী বিশ্লেষণ, পরীক্ষা-ভর্তির কাঠামো, কনটেন্ট-গ্যাপ ও P0/P1/P2 রোডম্যাপ।
 
 ## প্রযুক্তিগত কাঠামো (Tech Stack)
 - **Frontend:** React 19 + TypeScript + Vite 6 + Tailwind CSS v4 + Lucide Icons
+- **Android:** Kotlin + Android System WebView + AndroidX `WebViewAssetLoader` + Lock Task/Screen Pinning; min API 26, target API 36
 - **Backend & Cloud Sync:** Supabase Auth + PostgreSQL (`public.hsc28_*` tables with Row Level Security) + Offline `localStorage` fallback
 - **Navigation:** কীবোর্ড `⌘K` কমান্ড প্যালেট ও হ্যাশ-রাউটিং (`#/life`, `#/mcq/...`) — লিংক বুকমার্ক ও শেয়ারযোগ্য
 - **Design System:** Smooth Eye-Comfort Soft Pastel Light (`#f4f7fb`) & Midnight Slate Dark (`#0f172a`), Bilingual (`বাংলা` / `English`), `Ctrl+K` Global Search, Print-ready CSS & PWA Manifest

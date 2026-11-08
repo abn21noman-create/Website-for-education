@@ -2,6 +2,12 @@
 <html lang="bn">
   <head>
     <meta charset="UTF-8" />
+    <!-- Also enforced in the bundled Android host, where Vercel response headers
+         are not present. Remote frames/scripts never receive the native bridge. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>নক্ষত্র HSC ’28 — বিজ্ঞান বিভাগের পূর্ণাঙ্গ একাডেমিক প্ল্যাটফর্ম</title>
     <meta

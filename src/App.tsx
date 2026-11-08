@@ -56,6 +56,11 @@ import {
   type StudyFocusPlan,
 } from './lib/focusSession';
 import { completeRoutineReading, loadRoutineState } from './lib/routineStore';
+import {
+  isNativeAndroidHost,
+  releaseNativeFocusLock,
+  requestNativeFocusLock,
+} from './lib/nativeFocus';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -1298,21 +1303,51 @@ export function App() {
   );
 
   const handleStartStudyFocus = useCallback((plan: StudyFocusPlan) => {
-    // Fullscreen requests must happen synchronously inside the student's click
-    // gesture. The session still works when an embedded/iOS browser denies it.
-    try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        void document.documentElement.requestFullscreen().catch(() => {});
+    const nativeHost = isNativeAndroidHost();
+
+    if (!nativeHost) {
+      // Fullscreen requests must happen synchronously inside the student's click
+      // gesture. The session still works when an embedded/iOS browser denies it.
+      try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          void document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } catch {
+        // Page Visibility + window blur remain available as the fallback guard.
       }
-    } catch {
-      // Page Visibility + window blur remain available as the fallback guard.
     }
-    const next = saveFocusSession(createFocusSession(plan));
-    setFocusSession(next);
+
+    let next: StoredFocusSession = createFocusSession(plan);
+    if (nativeHost) {
+      // Never count the Android consent prompt as study time. The native host
+      // emits an active event only after Lock Task/Screen Pinning is confirmed.
+      next = {
+        ...next,
+        status: 'paused',
+        pauseReason: 'native-lock-pending',
+        updatedAt: Date.now(),
+      };
+      const accepted = requestNativeFocusLock(
+        plan.durationMinutes * 60,
+        `${plan.subjectEn} — ${plan.chapterEn}`
+      );
+      if (!accepted) {
+        next = {
+          ...next,
+          pauseReason: 'native-lock-lost',
+          updatedAt: Date.now(),
+        };
+      }
+    }
+
+    setFocusSession(saveFocusSession(next));
   }, []);
 
   const handleCompleteStudyFocus = useCallback(
     (completed: StoredFocusSession) => {
+      // Timer completion must immediately return control to Android, before any
+      // logging work or duplicate-completion guard runs.
+      releaseNativeFocusLock();
       if (completedFocusIdsRef.current.has(completed.id)) return;
       completedFocusIdsRef.current.add(completed.id);
 
@@ -1334,6 +1369,9 @@ export function App() {
   );
 
   const handleCloseStudyFocus = useCallback(() => {
+    // This covers the confirmed emergency exit as well as the final completion
+    // dismissal. It is a no-op in browsers.
+    releaseNativeFocusLock();
     clearFocusSession();
     setFocusSession(null);
   }, []);

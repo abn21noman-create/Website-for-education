@@ -465,6 +465,100 @@ console.log(
 );
 failures += strictFocusWorks ? 0 : 1;
 
+// The same audited UI uses Android's narrow bridge when hosted in the native
+// app. Consent time is paused, confirmed pinning starts the clock, a lost pin
+// pauses it, retry requests pinning again, and emergency exit releases it.
+let nativeRequested = false;
+let nativeActive = false;
+let nativeStartCount = 0;
+let nativeStopCount = 0;
+window.NokkhotroNative = {
+  getCapabilities() {
+    return JSON.stringify({
+      platform: 'android', bridgeVersion: 1, focusLock: true, lockTask: true,
+      managedKiosk: false, appVersion: 'smoke-test',
+    });
+  },
+  getFocusState() {
+    return JSON.stringify({
+      state: nativeActive ? 'active' : 'inactive',
+      requested: nativeRequested,
+      lockTaskMode: nativeActive ? 2 : 0,
+      managedKiosk: false,
+    });
+  },
+  startFocusSession(durationSeconds, label) {
+    nativeStartCount += 1;
+    nativeRequested = Number.isInteger(durationSeconds) && durationSeconds >= 60 && label.length > 0;
+    return JSON.stringify({ accepted: nativeRequested, mode: 'requested' });
+  },
+  stopFocusSession() {
+    nativeStopCount += 1;
+    nativeRequested = false;
+    nativeActive = false;
+    return true;
+  },
+};
+
+focusStart?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 650));
+let nativeOverlay = container.querySelector('[data-study-focus-session="true"]');
+const nativeWaitsForConsent =
+  nativeStartCount === 1 &&
+  nativeOverlay?.getAttribute('data-focus-status') === 'paused' &&
+  (nativeOverlay?.textContent || '').includes('Screen Pinning');
+
+nativeActive = true;
+window.dispatchEvent(new window.CustomEvent('nokkhotro:native-focus-active'));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const nativeRunsAfterConfirmation =
+  nativeOverlay?.getAttribute('data-focus-status') === 'running' &&
+  (nativeOverlay?.textContent || '').includes('Android Screen Pinning চালু');
+
+nativeActive = false;
+nativeRequested = false;
+window.dispatchEvent(new window.CustomEvent('nokkhotro:native-focus-lost', {
+  detail: { reason: 'lock-released' },
+}));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const nativePausesOnLoss =
+  nativeOverlay?.getAttribute('data-focus-status') === 'paused' &&
+  (nativeOverlay?.textContent || '').includes('Screen Pinning চালু হয়নি বা খুলে গেছে');
+const nativeRetry = Array.from(nativeOverlay?.querySelectorAll('button') || []).find(
+  (button) => (button.textContent || '').includes('Screen Pinning চালু করুন')
+);
+nativeRetry?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 80));
+nativeActive = true;
+window.dispatchEvent(new window.CustomEvent('nokkhotro:native-focus-active'));
+await new Promise((resolve) => setTimeout(resolve, 100));
+
+const nativeEmergency = Array.from(nativeOverlay?.querySelectorAll('button') || []).find(
+  (button) => (button.textContent || '').includes('জরুরি বন্ধ')
+);
+nativeEmergency?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 80));
+const nativeAbandon = Array.from(container.querySelectorAll('button')).find(
+  (button) => (button.textContent || '').includes('সেশন বাদ দিন')
+);
+nativeAbandon?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const nativeReleasesOnEmergency =
+  nativeStartCount === 2 &&
+  nativeStopCount === 1 &&
+  !container.querySelector('[data-study-focus-session="true"]') &&
+  localStorage.getItem('hsc28_focus_session_v1') === null;
+const nativeFocusWorks =
+  nativeWaitsForConsent && nativeRunsAfterConfirmation &&
+  nativePausesOnLoss && nativeReleasesOnEmergency;
+console.log(
+  nativeFocusWorks
+    ? '✓ Android focus waits for trusted pinning, pauses on loss and releases on emergency exit'
+    : `✗ Android focus bridge failed (wait=${nativeWaitsForConsent}, active=${nativeRunsAfterConfirmation}, loss=${nativePausesOnLoss}, release=${nativeReleasesOnEmergency})`
+);
+failures += nativeFocusWorks ? 0 : 1;
+delete window.NokkhotroNative;
+
 const dashboardTracks = (container.textContent || '').includes('ভর্তি প্রস্তুতি:');
 console.log(
   dashboardTracks

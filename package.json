@@ -11,8 +11,13 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
+    "build:android": "tsc -b && vite build --outDir android/app/src/main/assets --emptyOutDir",
+    "android:policy": "node scripts/android-policy-check.mjs",
+    "android:test": "./android/gradlew -p android testDebugUnitTest lintDebug",
+    "android:apk": "./android/gradlew -p android assembleDebug",
+    "android:bundle": "./android/gradlew -p android bundleRelease",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
-    "smoke": "npm run build && node scripts/smoke-test.mjs && npm run prod-check",
+    "smoke": "npm run build && node scripts/smoke-test.mjs && npm run android:policy && npm run prod-check",
     "prod-check": "node --experimental-vm-modules scripts/prod-check.mjs"
   },
   "dependencies": {

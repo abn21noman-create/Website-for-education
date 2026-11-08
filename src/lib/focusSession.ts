@@ -16,7 +16,19 @@ export type FocusPauseReason =
   | 'window-blur'
   | 'fullscreen-exit'
   | 'reload'
-  | 'emergency';
+  | 'emergency'
+  | 'native-lock-pending'
+  | 'native-lock-lost';
+
+const FOCUS_PAUSE_REASONS: readonly FocusPauseReason[] = [
+  'tab-hidden',
+  'window-blur',
+  'fullscreen-exit',
+  'reload',
+  'emergency',
+  'native-lock-pending',
+  'native-lock-lost',
+];
 
 export interface StudyFocusPlan {
   dateKey: string;
@@ -152,6 +164,7 @@ function isStoredFocusSession(value: unknown): value is StoredFocusSession {
     Number(item.remainingSeconds) > 0 &&
     Number(item.remainingSeconds) <= totalSeconds &&
     (item.status === 'running' || item.status === 'paused') &&
+    (item.pauseReason === undefined || FOCUS_PAUSE_REASONS.includes(item.pauseReason)) &&
     Number.isInteger(item.interruptions) &&
     Number(item.interruptions) >= 0 &&
     Number(item.interruptions) <= 10_000
