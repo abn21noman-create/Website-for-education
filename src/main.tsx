@@ -4,6 +4,8 @@ import './index.css';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { AppRuntimeStatus } from './components/AppRuntimeStatus';
 import { AuthGate } from './components/AuthGate';
+import { PublicLegalPage } from './components/PublicLegalPages';
+import { getPublicRoute } from './lib/publicUrls';
 import {
   applyAccessibilityPreferences,
   loadAccessibilityPreferences,
@@ -23,11 +25,13 @@ try {
 // so the public login and app shell do not jump after React mounts.
 applyAccessibilityPreferences(loadAccessibilityPreferences());
 
+const publicRoute = getPublicRoute(window.location.pathname);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      <AuthGate />
+      {publicRoute ? <PublicLegalPage route={publicRoute} /> : <AuthGate />}
     </AppErrorBoundary>
-    <AppRuntimeStatus />
+    {!publicRoute && <AppRuntimeStatus />}
   </StrictMode>
 );

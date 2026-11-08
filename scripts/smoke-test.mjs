@@ -2916,7 +2916,7 @@ const fakeAuth = { auth: { onAuthStateChange: (callback) => { emitAuth = callbac
 root = createRoot(container);
 root.render(React.createElement(AuthGate, { clientFactory: async () => fakeAuth }));
 await new Promise(resolve => setTimeout(resolve, 120));
-check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'signed-out visitor sees login and no app navigation');
+check(!!container.querySelector('input[type=email]') && !container.querySelector('nav.premium-sidebar'), 'signed-out visitor sees login and no app navigation');
 const publicAdminTabs = Array.from(container.querySelectorAll('.auth-tabs button')).filter(button => ['Admin', 'অ্যাডমিন'].includes((button.textContent || '').trim()));
 check(publicAdminTabs.length === 0, 'public login exposes no admin tab');
 check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'public login exposes reading and accessibility settings');
@@ -2934,7 +2934,7 @@ check(!!container.querySelector('button[aria-haspopup="dialog"]'), 'student work
 check(window.location.hash === '#/planner', 'signed-in transition preserves the deep link');
 emitAuth('SIGNED_OUT', null);
 await new Promise(resolve => setTimeout(resolve, 100));
-check(!!container.querySelector('input[type=email]') && !container.querySelector('nav'), 'sign-out closes the app and returns to the gate');
+check(!!container.querySelector('input[type=email]') && !container.querySelector('nav.premium-sidebar'), 'sign-out closes the app and returns to the gate');
 root.unmount(); root = null;
 
 // A persisted session on page load must take the same path as a new login.

@@ -25,6 +25,7 @@ import {
   ensureSyncSaved,
   initSyncNetworkWatcher,
   pauseSyncUser,
+  resumeSyncUser,
   setSyncUser,
   syncWrite,
   useSyncStatus,
@@ -42,6 +43,10 @@ import {
   takeRestoreNotice,
 } from './lib/cloudVault';
 import { performStudyDataReset } from './lib/studyDataReset';
+import {
+  accountDeletionErrorMessage,
+  deleteCurrentAccount,
+} from './lib/accountDeletion';
 import {
   ACCESSIBILITY_STORAGE_KEY,
   refreshAccessibilityPreferences,
@@ -1463,6 +1468,42 @@ export function App() {
     });
   };
 
+  const handleDeleteAccount = async (password: string) => {
+    if (!authUserId) throw new Error(accountDeletionErrorMessage(new Error(), lang));
+    const deletingUserId = authUserId;
+
+    // Stop this tab before reauthentication, but preserve its queue until the
+    // server confirms deletion so a wrong password/network error loses no work.
+    // On success the account-space cleanup discards it; database foreign keys
+    // reject stale writes from any sibling tab after the Auth row is removed.
+    pauseSyncUser(deletingUserId);
+    startCloudVault(null);
+    setSyncUser(null);
+
+    try {
+      await deleteCurrentAccount(password);
+    } catch (error) {
+      // Nothing was confirmed deleted, so restore normal sync for a retry.
+      startCloudVault(deletingUserId);
+      try {
+        await ensureVaultReady();
+        resumeSyncUser(deletingUserId);
+        setSyncUser(deletingUserId);
+      } catch {
+        // Keep writes paused if the cloud state cannot be checked safely.
+      }
+      throw new Error(accountDeletionErrorMessage(error, lang));
+    }
+
+    setAuthUserId(null);
+    profileRef.current = DEFAULT_GUEST_PROFILE;
+    setProfile(DEFAULT_GUEST_PROFILE);
+    const successUrl = isNativeAndroidHost()
+      ? '/index.html?account_deleted=1#/'
+      : '/?account_deleted=1';
+    window.location.replace(successUrl);
+  };
+
   const handleUpdateProfileMeta = async (updates: Partial<StudentProfile>) => {
     commitProfile({ ...profileRef.current, ...updates }, authUserId);
   };
@@ -1747,6 +1788,7 @@ export function App() {
         onAuthSuccess={hydrateFromCloud}
         onSignOut={handleSignOut}
         onClearStudyData={handleClearStudyData}
+        onDeleteAccount={handleDeleteAccount}
         onUpdateProfileMeta={handleUpdateProfileMeta}
       />
       </Suspense>

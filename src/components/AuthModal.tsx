@@ -11,11 +11,14 @@ import {
   User,
   CheckCircle2,
   AlertCircle,
+  ShieldAlert,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 import { Lang, StudentProfile, Theme } from '../types';
 import { EDUCATION_BOARDS, TARGET_GOALS, formatNum, getBoardLabel } from '../lib/i18n';
 import { getSupabase } from '../lib/supabase';
+import { ACCOUNT_DELETION_URL, PRIVACY_POLICY_URL } from '../lib/publicUrls';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,6 +30,7 @@ interface AuthModalProps {
   onAuthSuccess: (userId: string, email: string, meta?: Partial<StudentProfile>) => Promise<void>;
   onSignOut: () => Promise<void>;
   onClearStudyData: () => Promise<void>;
+  onDeleteAccount: (password: string) => Promise<void>;
   onUpdateProfileMeta: (updates: Partial<StudentProfile>) => Promise<void>;
 }
 
@@ -40,6 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onAuthSuccess,
   onSignOut,
   onClearStudyData,
+  onDeleteAccount,
   onUpdateProfileMeta,
 }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
@@ -56,6 +61,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showAccountDeletion, setShowAccountDeletion] = useState(false);
+  const [deletionPassword, setDeletionPassword] = useState('');
+  const [deletionPhrase, setDeletionPhrase] = useState('');
+  const [deletionAcknowledged, setDeletionAcknowledged] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -96,6 +105,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) return;
+    setShowAccountDeletion(false);
+    setDeletionPassword('');
+    setDeletionPhrase('');
+    setDeletionAcknowledged(false);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -450,10 +467,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setSuccessMsg(lang === 'bn' ? 'অতিথি-ডেটার নিরাপদ কপি ডাউনলোড হয়েছে।' : 'Guest-data archive downloaded.');
               } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Could not download guest data'); } finally { setLoading(false); }
             }}>{lang === 'bn' ? 'পুরোনো অতিথি-ডেটার কপি ডাউনলোড' : 'Download guest-data archive'}</button>
-            <button type="button" disabled={loading} className="mt-5 text-xs text-rose-600 underline disabled:opacity-50" onClick={async () => {
-              setLoading(true); setErrorMsg(null);
-              try { await onClearStudyData(); } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Delete failed'); } finally { setLoading(false); }
-            }}>{lang === 'bn' ? 'নিজের ব্যক্তিগত পড়াশোনার ডেটা মুছুন' : 'Delete my private study data'}</button>
+            <section className={`mt-5 rounded-2xl border p-3.5 ${isDark ? 'border-slate-700 bg-slate-900/45' : 'border-slate-200 bg-slate-50'}`} aria-label={lang === 'bn' ? 'ডেটা নিয়ন্ত্রণ' : 'Data controls'}>
+              <div className="flex items-start gap-2.5">
+                <ShieldAlert className={`w-4 h-4 mt-0.5 shrink-0 ${isDark ? 'text-amber-300' : 'text-amber-600'}`} />
+                <div>
+                  <h3 className="text-xs font-bold">{lang === 'bn' ? 'ডেটা ও অ্যাকাউন্ট নিয়ন্ত্রণ' : 'Data and account controls'}</h3>
+                  <p className={`mt-1 text-[10px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{lang === 'bn' ? 'Study reset account ও community post রাখে। Full account deletion সব সংশ্লিষ্ট live data মুছে দেয়।' : 'A study reset keeps your account and community posts. Full account deletion removes the account and associated live data.'}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2">
+                <button type="button" disabled={loading} className={`min-h-11 rounded-xl border px-3 text-left text-[10px] font-bold disabled:opacity-50 ${isDark ? 'border-slate-600 text-slate-200 hover:border-amber-400/50' : 'border-slate-300 text-slate-700 hover:border-amber-400'}`} onClick={async () => {
+                  setLoading(true); setErrorMsg(null); setSuccessMsg(null);
+                  try { await onClearStudyData(); } catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Reset failed'); } finally { setLoading(false); }
+                }}>{lang === 'bn' ? 'শুধু Study data reset করুন — account রাখুন' : 'Reset study data only — keep my account'}</button>
+                <button type="button" disabled={loading} aria-expanded={showAccountDeletion} className={`min-h-11 rounded-xl border px-3 text-left text-[10px] font-bold disabled:opacity-50 ${isDark ? 'border-rose-400/30 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-700'}`} onClick={() => {
+                  setShowAccountDeletion((value) => !value);
+                  setErrorMsg(null); setSuccessMsg(null);
+                }}><span className="inline-flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" />{lang === 'bn' ? 'Account ও সব সংশ্লিষ্ট data স্থায়ীভাবে মুছুন' : 'Permanently delete account and all associated data'}</span></button>
+              </div>
+
+              {showAccountDeletion && <div className={`mt-3 rounded-xl border p-3 ${isDark ? 'border-rose-400/25 bg-slate-950/55' : 'border-rose-200 bg-white'}`}>
+                <p className={`text-[10px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{lang === 'bn' ? 'এতে Auth account, profile, private study/life data, student pulse, leaderboard consent, নিজের প্রশ্ন/উত্তর ও vote মুছে যাবে। নিজের শুরু করা thread মুছলে তার replies-ও চলে যেতে পারে। এটি ফেরানো যাবে না।' : 'This deletes the Auth account, profile, private study/life data, student pulse, leaderboard consent, authored questions/replies, and votes. Replies inside a thread you started may also disappear. This cannot be undone.'}</p>
+                <label className="mt-3 block text-[10px] font-semibold">{lang === 'bn' ? 'বর্তমান পাসওয়ার্ড' : 'Current password'}
+                  <input className={`${inputClass} mt-1.5`} required type="password" minLength={6} maxLength={72} autoComplete="current-password" value={deletionPassword} onChange={(event) => setDeletionPassword(event.target.value)} />
+                </label>
+                <label className="mt-3 block text-[10px] font-semibold">{lang === 'bn' ? 'নিশ্চিত করতে DELETE লিখুন' : 'Type DELETE to confirm'}
+                  <input className={`${inputClass} mt-1.5`} required type="text" autoComplete="off" spellCheck={false} placeholder="DELETE" value={deletionPhrase} onChange={(event) => setDeletionPhrase(event.target.value)} />
+                </label>
+                <label className={`mt-3 flex items-start gap-2 text-[10px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <input className="mt-0.5 h-4 w-4 shrink-0 accent-rose-600" type="checkbox" checked={deletionAcknowledged} onChange={(event) => setDeletionAcknowledged(event.target.checked)} />
+                  <span>{lang === 'bn' ? 'আমি বুঝেছি—এটি study reset নয়; account ও সংশ্লিষ্ট live data স্থায়ীভাবে মুছে যাবে।' : 'I understand this is not a study reset; the account and associated live data will be permanently deleted.'}</span>
+                </label>
+                <button type="button" disabled={loading || deletionPhrase !== 'DELETE' || !deletionPassword || !deletionAcknowledged} className="mt-3 min-h-11 w-full rounded-xl bg-rose-600 px-3 text-[10px] font-extrabold text-white hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-45" onClick={async () => {
+                  setLoading(true); setErrorMsg(null); setSuccessMsg(null);
+                  try { await onDeleteAccount(deletionPassword); } catch (error) { setErrorMsg(error instanceof Error ? error.message : (lang === 'bn' ? 'Account মোছা নিশ্চিত করা যায়নি।' : 'Account deletion could not be confirmed.')); } finally { setLoading(false); }
+                }}>{loading ? (lang === 'bn' ? 'মুছছে…' : 'Deleting…') : (lang === 'bn' ? 'হ্যাঁ, account স্থায়ীভাবে মুছুন' : 'Yes, permanently delete my account')}</button>
+              </div>}
+              <div className={`mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}><a className="underline" href={PRIVACY_POLICY_URL}>{lang === 'bn' ? 'গোপনীয়তা নীতি' : 'Privacy Policy'}</a><a className="underline" href={ACCOUNT_DELETION_URL}>{lang === 'bn' ? 'Web deletion page' : 'Web deletion page'}</a></div>
+            </section>
           </div>
         ) : (
           <div>
