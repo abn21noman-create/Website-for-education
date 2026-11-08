@@ -93,6 +93,8 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           REQUIRE_RELEASE_SIGNING: 'true'
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
         run: |
           gradle_version=$(gradle --version | awk '/^Gradle / { print $2 }')
           if [[ "$gradle_version" != "9.8.2" ]]; then
@@ -100,8 +102,8 @@ jobs:
             exit 1
           fi
           gradle -p android --no-daemon \
-            -PVERSION_CODE=${{ inputs.version_code }} \
-            -PVERSION_NAME=${{ inputs.version_name }} \
+            -PVERSION_CODE="$VERSION_CODE" \
+            -PVERSION_NAME="$VERSION_NAME" \
             testReleaseUnitTest lintRelease bundleRelease
 
       - name: Verify bundle signature and checksum

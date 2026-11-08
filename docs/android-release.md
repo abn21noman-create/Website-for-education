@@ -132,10 +132,11 @@ The `.gitignore` excludes `*.jks` and `*.keystore`, but secrets should still be 
 2. Enroll in **Play App Signing**. The local/GitHub key is the upload key; Google protects the app-signing key and signs distributed APKs.
 3. Run the signed-AAB workflow with a new version code. Download and verify its checksum before upload.
 4. Upload first to **Internal testing**, not Production.
-5. Complete the privacy policy, Data safety, app-access, content-rating, target-audience, ads, and account-deletion declarations from the behavior of the exact release. Authentication and optional cloud study sync must be disclosed accurately; native focus state stays on-device and does not inspect which other app the student opens.
-6. Use a real support URL/email and screenshots that show Android's confirmation honestly. Do not advertise uninstall prevention, silent kiosk mode, surveillance, or guaranteed app blocking on personal phones.
-7. Review the pre-launch report, Android vitals, policy warnings, and Play Protect result before expanding the testing track.
-8. Preserve the upload keystore, passwords, source commit, AAB checksum, and R8 `mapping.txt` for every release.
+5. Keep `https://nokkhotro-hsc-2028.vercel.app/` on Supabase Auth's allowed redirect list. The private `appassets` host is not publicly routable, so native email verification and password-recovery links intentionally finish in that audited production web app; the updated credentials then work in Android.
+6. Complete the privacy policy, Data safety, app-access, content-rating, target-audience, ads, and account-deletion declarations from the behavior of the exact release. Authentication and optional cloud study sync must be disclosed accurately; native focus state stays on-device and does not inspect which other app the student opens.
+7. Use a real support URL/email and screenshots that show Android's confirmation honestly. Do not advertise uninstall prevention, silent kiosk mode, surveillance, or guaranteed app blocking on personal phones.
+8. Review the pre-launch report, Android vitals, policy warnings, and Play Protect result before expanding the testing track.
+9. Preserve the upload keystore, passwords, source commit, AAB checksum, and R8 `mapping.txt` for every release.
 
 ## Physical-device acceptance test
 
