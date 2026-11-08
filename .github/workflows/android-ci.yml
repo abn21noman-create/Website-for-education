@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify-android:
-    name: Test, lint & debug APK
+    name: Test, lint, APK & release bundle
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 
@@ -52,7 +52,21 @@ jobs:
       - name: Install locked web dependencies
         run: npm ci
 
-      - name: Run native unit tests, Android lint and build debug APK
+      - name: Create ephemeral CI-only upload key
+        run: |
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/ci-upload.jks" \
+            -storepass android-ci-only -keypass android-ci-only \
+            -alias ci-upload -keyalg RSA -keysize 2048 -validity 1 \
+            -dname "CN=Nokkhotro CI, O=Ephemeral, C=BD"
+
+      - name: Run tests, lint, debug APK and signed release bundle
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/ci-upload.jks
+          ANDROID_KEYSTORE_PASSWORD: android-ci-only
+          ANDROID_KEY_ALIAS: ci-upload
+          ANDROID_KEY_PASSWORD: android-ci-only
+          REQUIRE_RELEASE_SIGNING: 'true'
         run: |
           set +e
           gradle_version=$(gradle --version | awk '/^Gradle / { print $2 }')
@@ -60,7 +74,10 @@ jobs:
             echo "::error::Runner Gradle is $gradle_version; expected the repository-pinned 9.8.2"
             exit 1
           fi
-          gradle -p android --no-daemon testDebugUnitTest lintDebug assembleDebug 2>&1 | tee "$RUNNER_TEMP/gradle-build.log"
+          gradle -p android --no-daemon \
+            testDebugUnitTest testReleaseUnitTest \
+            lintDebug lintRelease assembleDebug bundleRelease \
+            2>&1 | tee "$RUNNER_TEMP/gradle-build.log"
           status=${PIPESTATUS[0]}
           set -e
           if [[ $status -ne 0 ]]; then
@@ -76,6 +93,12 @@ jobs:
             exit "$status"
           fi
 
+      - name: Verify the CI release bundle is signed
+        run: |
+          BUNDLE="android/app/build/outputs/bundle/release/app-release.aab"
+          jarsigner -verify -verbose -certs "$BUNDLE" | tee "$RUNNER_TEMP/ci-jarsigner-output.txt"
+          grep -q "jar verified." "$RUNNER_TEMP/ci-jarsigner-output.txt"
+
       - name: Upload debug APK and lint reports
         uses: actions/upload-artifact@v7
         with:
@@ -86,4 +109,7 @@ jobs:
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/reports/lint-results-debug.html
             android/app/build/reports/lint-results-debug.sarif
+            android/app/build/reports/lint-results-release.html
+            android/app/build/reports/lint-results-release.sarif
             android/app/build/test-results/testDebugUnitTest/
+            android/app/build/test-results/testReleaseUnitTest/

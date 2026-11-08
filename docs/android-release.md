@@ -73,7 +73,7 @@ Optional Gradle properties:
 
 ### Pull requests and debug APKs
 
-`.github/workflows/android-ci.yml` runs native JVM tests, Android lint, and `assembleDebug` on pull requests. A successful run publishes the debug APK and lint reports as a workflow artifact. It uses no signing secret and is safe for pull requests.
+`.github/workflows/android-ci.yml` runs native JVM tests, debug/release Android lint, `assembleDebug`, and an R8-minified `bundleRelease` on pull requests. It signs that release bundle with a one-day, throwaway key generated inside the job and verifies the signature, so the complete release path is compiled without exposing or requiring a repository secret. The throwaway AAB is never uploaded; only the debug APK and lint/test reports become workflow artifacts. It is safe for pull requests.
 
 ### Signed Play bundle
 
