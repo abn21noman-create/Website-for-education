@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, CloudOff, RefreshCw } from 'lucide-react';
+import { isNativeAndroidHost } from '../lib/nativeFocus';
 
 type AppLanguage = 'bn' | 'en';
 
@@ -57,7 +58,14 @@ export function AppRuntimeStatus() {
   }, []);
 
   useEffect(() => {
-    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+    // The Android APK already contains a versioned, audited copy of every Vite
+    // asset. Registering a PWA worker on the appassets origin would add a second
+    // stale cache and could leave the native/web bridge versions mismatched.
+    if (
+      isNativeAndroidHost() ||
+      !import.meta.env.PROD ||
+      !('serviceWorker' in navigator)
+    ) return;
 
     let disposed = false;
     let registration: ServiceWorkerRegistration | null = null;

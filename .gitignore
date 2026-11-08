@@ -5,3 +5,11 @@ dist-ssr
 *.tsbuildinfo
 .DS_Store
 .vercel
+
+# Native Android outputs and local machine/signing material
+android/.gradle/
+android/local.properties
+android/**/build/
+android/app/src/main/assets/
+*.jks
+*.keystore

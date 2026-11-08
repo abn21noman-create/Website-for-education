@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nokkhotro HSC 2028</string>
+    <string name="focus_pin_required_bn">ফোকাস চালাতে Android-এর “Pin app” অনুমতি দিন।</string>
+    <string name="focus_pin_required_en">Allow Android “Pin app” to start strict focus.</string>
+</resources>
