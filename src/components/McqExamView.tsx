@@ -43,8 +43,14 @@ import { classifyMistakeAttempt } from '../lib/mistakeBank';
 import { SelfExplainBox } from './SelfExplainBox';
 import { SectorStats } from './SectorStats';
 import { selfNoteCount } from '../lib/selfNotes';
-import { pickChapterQuestions, takeChapterDrill } from '../lib/chapterDrill';
+import { takeChapterDrill } from '../lib/chapterDrill';
 import type { ChapterDrillRequest } from '../lib/chapterDrill';
+import { pickChapterQuestions } from '../lib/mcqChapterDrill';
+import {
+  mcqChapterInventory,
+  mcqMatchesChapter,
+  syllabusChapterCount,
+} from '../lib/mcqChapters';
 import {
   confidenceSummary,
   loadConfidence,
@@ -83,6 +89,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   // Notes written during earlier sessions; refreshed whenever the setup screen mounts.
   const [writtenNotes] = useState(() => selfNoteCount());
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>('all');
+  const [selectedChapterId, setSelectedChapterId] = useState<string>('all');
   const [patternId, setPatternId] = useState<string>('custom');
   const [difficultyFilter, setDifficultyFilter] = useState<
     'all' | 'easy' | 'medium' | 'hard'
@@ -134,6 +141,27 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   const activePattern = getPatternById(patternId);
   const isWeighted = activePattern.subjectMode === 'weighted';
+  const chapterOptions = React.useMemo(
+    () =>
+      selectedSubject === 'all'
+        ? []
+        : mcqChapterInventory(bank, selectedSubject),
+    [bank, selectedSubject]
+  );
+  const selectedChapter =
+    selectedChapterId === 'all'
+      ? null
+      : chapterOptions.find((item) => item.chapter.id === selectedChapterId)?.chapter ?? null;
+  const paperQuestionCount =
+    selectedSubject === 'all'
+      ? bank.length
+      : bank.filter((question) => question.subjectKey === selectedSubject).length;
+  const mappedChapterQuestionCount = chapterOptions.reduce(
+    (sum, item) => sum + item.count,
+    0
+  );
+  const totalSyllabusChapters =
+    selectedSubject === 'all' ? 0 : syllabusChapterCount(selectedSubject);
   /** Custom sets honour the manual toggle; real patterns follow their own rule. */
   const scoringPattern: ExamPattern =
     activePattern.kind === 'custom'
@@ -142,6 +170,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   const filteredPool = bank.filter((q) => {
     if (selectedSubject !== 'all' && q.subjectKey !== selectedSubject) return false;
+    if (
+      activePattern.kind === 'custom' &&
+      selectedChapterId !== 'all' &&
+      !mcqMatchesChapter(q, selectedChapterId)
+    ) {
+      return false;
+    }
     if (difficultyFilter !== 'all' && q.difficulty !== difficultyFilter) return false;
     return true;
   });
@@ -158,10 +193,16 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
   const availablePoolCount = patternPool.length;
 
+  const chooseSubject = (nextSubject: SubjectKey | 'all') => {
+    setSelectedSubject(nextSubject);
+    setSelectedChapterId('all');
+  };
+
   /** Picking a pattern sets the clock, the marking and the question count. */
   const applyPattern = (nextId: string) => {
     const next = getPatternById(nextId);
     setPatternId(nextId);
+    setSelectedChapterId('all');
     setNegativeMarking(next.negativeMarking);
     setExamMode('timed');
 
@@ -332,8 +373,9 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
   };
 
   const startExam = () => {
-    const basePool = patternPool.length > 0 ? patternPool : bank;
-    const picked = pickPatternQuestions(basePool, activePattern, questionCount);
+    if (patternPool.length === 0) return;
+    const picked = pickPatternQuestions(patternPool, activePattern, questionCount);
+    if (picked.length === 0) return;
 
     setExamQuestions(picked);
     setIsMistakeRun(false);
@@ -381,6 +423,10 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             ? ''
             : ` • ${getSubjectByKey(selectedSubject).name[lang]}`
         }`
+      : selectedChapter
+      ? lang === 'bn'
+        ? `${selectedChapter.title.bn} — অধ্যায় ড্রিল`
+        : `${selectedChapter.title.en} — Chapter Drill`
       : selectedSubject === 'all'
       ? lang === 'bn'
         ? 'সমন্বিত HSC বিজ্ঞান মডেল টেস্ট'
@@ -428,6 +474,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
     scoringPattern,
     startedAt,
     selectedSubject,
+    selectedChapter,
     lang,
     onCompleteQuiz,
     onUpdateMistakeIds,
@@ -646,7 +693,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedSubject('all')}
+                  onClick={() => chooseSubject('all')}
                   className={`p-3 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
                     selectedSubject === 'all'
                       ? isDark
@@ -671,7 +718,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                     <button
                       type="button"
                       key={s.key}
-                      onClick={() => setSelectedSubject(s.key)}
+                      onClick={() => chooseSubject(s.key)}
                       className={`p-3 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
                         active
                           ? isDark
@@ -692,6 +739,87 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               </div>
             </div>
 
+            )}
+
+            {activePattern.kind === 'custom' && selectedSubject !== 'all' && (
+              <div data-mcq-chapter-picker>
+                <div className="flex flex-wrap items-end justify-between gap-2 mb-2.5">
+                  <label className="block text-xs font-mono uppercase tracking-wider font-bold opacity-65">
+                    {lang === 'bn' ? '০৩. অধ্যায় নির্বাচন' : '03. SELECT CHAPTER'}
+                  </label>
+                  <span className="text-[10px] font-mono opacity-60">
+                    {lang === 'bn'
+                      ? `${formatNum(chapterOptions.length, lang)}/${formatNum(
+                          totalSyllabusChapters,
+                          lang
+                        )} অধ্যায়ে প্রশ্ন আছে`
+                      : `${chapterOptions.length}/${totalSyllabusChapters} chapters covered`}
+                  </span>
+                </div>
+                <p className={`text-[11px] leading-relaxed mb-2.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {lang === 'bn'
+                    ? 'আজ যে অধ্যায় পড়ছ, শুধু সেটির প্রশ্ন দিয়ে ছোট drill বানাও। পূর্ণ paper pattern বাছলে সব অধ্যায় স্বয়ংক্রিয়ভাবে মিশবে।'
+                    : 'Build a focused drill from the chapter you are studying. Full-paper patterns mix chapters automatically.'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChapterId('all')}
+                    aria-pressed={selectedChapterId === 'all'}
+                    className={`min-h-11 p-3 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                      selectedChapterId === 'all'
+                        ? isDark
+                          ? 'bg-teal-500/20 text-teal-200 border-teal-400/40'
+                          : 'bg-teal-50 text-teal-900 border-teal-300'
+                        : isDark
+                        ? 'bg-slate-900/50 border-slate-700/80 text-slate-300 hover:border-slate-500'
+                        : 'bg-slate-50/70 border-slate-200/85 text-slate-700 hover:border-teal-300 hover:bg-white'
+                    }`}
+                  >
+                    <span>{lang === 'bn' ? 'সব উপলভ্য অধ্যায়' : 'All available chapters'}</span>
+                    <span className="block text-[10px] font-mono font-normal opacity-65 mt-0.5">
+                      {formatNum(paperQuestionCount, lang)} {lang === 'bn' ? 'টি প্রশ্ন' : 'questions'}
+                    </span>
+                  </button>
+                  {chapterOptions.map(({ chapter, count }) => {
+                    const active = selectedChapterId === chapter.id;
+                    return (
+                      <button
+                        type="button"
+                        key={chapter.id}
+                        onClick={() => setSelectedChapterId(chapter.id)}
+                        aria-pressed={active}
+                        className={`min-h-11 p-3 rounded-xl border text-xs font-bold text-left transition-all cursor-pointer ${
+                          active
+                            ? isDark
+                              ? 'bg-teal-500/20 text-teal-200 border-teal-400/40'
+                              : 'bg-teal-50 text-teal-900 border-teal-300'
+                            : isDark
+                            ? 'bg-slate-900/50 border-slate-700/80 text-slate-300 hover:border-slate-500'
+                            : 'bg-slate-50/70 border-slate-200/85 text-slate-700 hover:border-teal-300 hover:bg-white'
+                        }`}
+                      >
+                        <span className="block truncate">
+                          {formatNum(chapter.chapterNumber, lang)}. {chapter.title[lang]}
+                        </span>
+                        <span className="block text-[10px] font-mono font-normal opacity-65 mt-0.5">
+                          {formatNum(count, lang)} {lang === 'bn' ? 'টি প্রশ্ন' : 'questions'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {paperQuestionCount > mappedChapterQuestionCount && (
+                  <p className={`text-[10px] leading-relaxed mt-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {lang === 'bn'
+                      ? `পুরোনো label-এর ${formatNum(
+                          paperQuestionCount - mappedChapterQuestionCount,
+                          lang
+                        )}টি প্রশ্ন “সব উপলভ্য অধ্যায়”-এ আছে; ভুল chapter-এ দেখানোর বদলে সেগুলো আলাদা রাখা হয়েছে।`
+                      : `${paperQuestionCount - mappedChapterQuestionCount} legacy-labelled question(s) remain in “All available chapters” rather than being assigned to the wrong chapter.`}
+                  </p>
+                )}
+              </div>
             )}
 
             {isWeighted && (
@@ -799,7 +927,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
-                  {lang === 'bn' ? '০৩. প্রশ্ন সংখ্যা' : '03. QUESTION COUNT'}
+                  {lang === 'bn' ? '০৪. প্রশ্ন সংখ্যা' : '04. QUESTION COUNT'}
                 </label>
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {[5, 10, 20, 25, 50].map((n) => (
@@ -817,7 +945,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                           : 'bg-slate-50/70 border-slate-200 text-slate-700'
                       }`}
                     >
-                      {formatNum(Math.min(n, Math.max(1, availablePoolCount)), lang)}
+                      {formatNum(Math.min(n, availablePoolCount), lang)}
                       <span className="block text-[10px] font-mono font-normal opacity-60 leading-none mt-0.5">
                         {n === 25
                           ? lang === 'bn'
@@ -834,7 +962,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
 
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
-                  {lang === 'bn' ? '০৩. মূল্যায়ন পদ্ধতি' : '03. MODE'}
+                  {lang === 'bn' ? '০৫. মূল্যায়ন পদ্ধতি' : '05. MODE'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -874,7 +1002,7 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             {/* Difficulty Filter */}
             <div>
               <label className="block text-xs font-mono uppercase tracking-wider font-bold mb-2 opacity-65">
-                {lang === 'bn' ? '০৫. প্রশ্নের মান (Difficulty)' : '05. DIFFICULTY LEVEL'}
+                {lang === 'bn' ? '০৬. প্রশ্নের মান (Difficulty)' : '06. DIFFICULTY LEVEL'}
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(
@@ -1014,10 +1142,12 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             <button
               type="button"
               onClick={startExam}
-              disabled={bankLoading || bank.length === 0}
+              disabled={bankLoading || availablePoolCount === 0}
               className={`w-full py-3.5 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-colors shadow-xs ${
-                bankLoading || bank.length === 0
+                bankLoading
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-wait'
+                  : availablePoolCount === 0
+                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-not-allowed'
                   : 'bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer'
               }`}
             >
@@ -1027,35 +1157,43 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
                   {lang === 'bn' ? 'প্রশ্ন লোড হচ্ছে…' : 'loading questions…'}
                 </span>
               )}
-              <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+              {availablePoolCount > 0 ? (
+                <span className="flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+                  <span>
+                    {lang === 'bn'
+                      ? `পরীক্ষা শুরু করুন (${formatNum(
+                          Math.min(questionCount, availablePoolCount),
+                          lang
+                        )}টি প্রশ্ন)`
+                      : `Begin Examination (${Math.min(
+                          questionCount,
+                          availablePoolCount
+                        )} questions)`}
+                  </span>
+                  <span className="text-[11px] font-mono opacity-85">
+                    {lang === 'bn'
+                      ? `• ${formatNum(
+                          patternTimeFor(
+                            scoringPattern,
+                            Math.min(questionCount, availablePoolCount)
+                          ) / 60,
+                          lang
+                        )} মিনিট`
+                      : `• ${Math.round(
+                          patternTimeFor(
+                            scoringPattern,
+                            Math.min(questionCount, availablePoolCount)
+                          ) / 60
+                        )} min`}
+                  </span>
+                </span>
+              ) : !bankLoading ? (
                 <span>
                   {lang === 'bn'
-                    ? `পরীক্ষা শুরু করুন (${formatNum(
-                        Math.min(questionCount, availablePoolCount),
-                        lang
-                      )}টি প্রশ্ন)`
-                    : `Begin Examination (${Math.min(
-                        questionCount,
-                        availablePoolCount
-                      )} questions)`}
+                    ? 'এই অধ্যায় ও difficulty-তে এখনো প্রশ্ন নেই'
+                    : 'No questions match this chapter and difficulty yet'}
                 </span>
-                <span className="text-[11px] font-mono opacity-85">
-                  {lang === 'bn'
-                    ? `• ${formatNum(
-                        patternTimeFor(
-                          scoringPattern,
-                          Math.min(questionCount, availablePoolCount)
-                        ) / 60,
-                        lang
-                      )} মিনিট`
-                    : `• ${Math.round(
-                        patternTimeFor(
-                          scoringPattern,
-                          Math.min(questionCount, availablePoolCount)
-                        ) / 60
-                      )} min`}
-                </span>
-              </span>
+              ) : null}
             </button>
           </div>
 

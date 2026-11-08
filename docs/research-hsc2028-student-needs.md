@@ -11,7 +11,7 @@
 | প্রশ্ন | গবেষণার উত্তর |
 |---|---|
 | অ্যাপের কাঠামো (feature) কতটা পূর্ণ? | **প্রায় ৯০%** — ১৪টি রুট, HSC + ৩টি ভর্তি ট্র্যাক, অফলাইন, ক্লাউড সিঙ্ক সব আছে |
-| কনটেন্ট কতটা আছে? | **প্রায় ১৫%** — ৯৩ অধ্যায়ের বিপরীতে ১৭৮টি MCQ, ২৫টি CQ, ৫১টি সূত্র (৩০ অক্টোবর: +১০১ MCQ, +১৩ CQ) |
+| কনটেন্ট কতটা আছে? | **প্রায় ১৫%** — ৯৩ অধ্যায়ের বিপরীতে ১৯২টি MCQ, ২৫টি CQ, ৫১টি সূত্র; পদার্থবিজ্ঞান ১ম পত্রে সব ১০ অধ্যায়জুড়ে ৩০টি MCQ (৩০ অক্টোবরের পর ধারাবাহিক content batches) |
 | শিক্ষার্থী মূলত কী চায়? | (১) বোর্ড-স্ট্যান্ডার্ড প্রশ্নের ভাণ্ডার, (২) নিজের দুর্বলতা দেখা, (৩) ভর্তি পরীক্ষার হুবহু মডেল টেস্ট, (৪) ফোনে-অফলাইনে কাজ করা, (৫) টাকা লাগবে না |
 | বড় প্রতিযোগীরা কোথায় দুর্বল? | ভিডিও/ব্যাচ-নির্ভর, সাবস্ক্রিপশন-নির্ভর, ইন্টারনেট ছাড়া অচল, আর সবই "শিক্ষক যা বলবেন" কেন্দ্রিক — **"নিজের ডেটা নিজের হাতে"** কেন্দ্রিক কেউ নেই |
 | সবচেয়ে বড় একক ঝুঁকি | কনটেন্ট-গভীরতা। UI নয়, প্রশ্নসংখ্যাই এখন সীমাবদ্ধতা |
@@ -161,7 +161,7 @@ HSC-2028 ব্যাচের একজন শিক্ষার্থীর �
 |---|---|---|
 | অধ্যায়ভিত্তিক সিলেবাস ট্র্যাকিং | ✅ `SyllabusView`, ৯৩ অধ্যায়, ১১ পত্র | শক্ত |
 | দৈনিক রিভিশন (spacing) | ✅ `formulas` + SRS | শক্ত |
-| MCQ প্র্যাকটিস | ⚠️ `McqExamView`, ১৭৮টি প্রশ্ন (১১ পত্রে ১৪–১৯টি) | **সংখ্যাই এখনো সমস্যা** |
+| MCQ প্র্যাকটিস | ⚠️ `McqExamView`, ১৯২টি প্রশ্ন (১১ পত্রে ১৪–৩০টি), canonical chapter drill | **সংখ্যাই এখনো সমস্যা** |
 | CQ (সৃজনশীল) প্র্যাকটিস | ⚠️ `CqView`, ১২টি | ৯৩ অধ্যায়ের জন্য অপ্রতুল |
 | HSC-প্যাটার্ন টাইমড পরীক্ষা (৭০+৩০ / ৫০+২৫+২৫) | ✅ `examPatterns.ts`-এ আলাদা প্রিসেট | বোর্ড/সেশনের প্যাটার্ন বদলালে ডেটা হালনাগাদ করতে হবে |
 | ভুলের খাতা + পুনরায় অনুশীলন | ✅ mistake bank | প্রতিযোগীর তুলনায় অনন্য |
@@ -180,7 +180,7 @@ HSC-2028 ব্যাচের একজন শিক্ষার্থীর �
 | উপাদান | আছে | "একটি পূর্ণ অ্যাপ" ধরলে দরকার (আনুমানিক) | পূরণের হার |
 |---|---|---|---|
 | অধ্যায় | ৯৩ | ৯৩ | **১০০%** |
-| MCQ | ১৭৮ | ~৩,০০০ (প্রতি অধ্যায় ~৩০, বা প্রতি পত্রে ৩০-প্রশ্নের ৩টি সেট) | **~৫%** |
+| MCQ | ১৯২ | ~৩,০০০ (প্রতি অধ্যায় ~৩০, বা প্রতি পত্রে ৩০-প্রশ্নের ৩টি সেট) | **~৬%** |
 | CQ | ২৫ | ~৫০০ | **~৪%** |
 | সূত্র | ৩০ | ~৩০০ | **১০%** |
 | ব্যবহারিক | ৫ | ~৩০ | **~১৭%** |
@@ -340,7 +340,7 @@ HSC-2028 ব্যাচের একজন শিক্ষার্থীর �
 | ৬ | ভর্তি তথ্যে যাচাইয়ের তারিখ ও সরকারি লিংক | `src/data/admissionTracks.ts` | রুট টেক্সট যাচাই |
 | ৭ | কনটেন্ট: সবচেয়ে পাতলা ৬টি পত্রে +৩০টি বোর্ড-ধাঁচের MCQ | `src/data/mcqData.ts` | ব্যাংক ১০০+, আইডি ইউনিক |
 
-**যা এখনো বাকি (গবেষণার ক্রম অনুযায়ী):** MCQ ১৭৮ → ১,০০০+, CQ ২৫ → ২০০+, প্রতি বিষয়ে ৫টি মডেল টেস্ট, ব্যাখ্যা-লেখা মোড, ইংরেজি ও GK ড্রিল, ফন্ট সেলফ-হোস্ট, সিঙ্ক egress কমানো।
+**যা এখনো বাকি (গবেষণার ক্রম অনুযায়ী):** MCQ ১৯২ → ১,০০০+, CQ ২৫ → ২০০+, বাকি পত্রগুলোতে পূর্ণ ২৫/৩০-question coverage এবং প্রতি বিষয়ে ৫টি মডেল টেস্ট। ব্যাখ্যা-লেখা, ইংরেজি/GK drill, self-hosted font ও sync egress কাজগুলো ইতিমধ্যে ship হয়েছে।
 
 **একটি নতুন আবিষ্কার:** ব্যাংকে ১১টি ডুপ্লিকেট প্রশ্ন-আইডি ছিল — এতে একটি প্রশ্ন ভুল হলে মিস্টেক-ব্যাংকে দুটি জমা হতো। সব আইডি এখন ইউনিক, এবং স্মোক টেস্টে এই নিয়ম পাহারা দেওয়া হচ্ছে।
 
@@ -580,3 +580,12 @@ HSC-2028 ব্যাচের একজন শিক্ষার্থীর �
 - **ছোট sample-এ aggregate-ও নয়:** live migration `20261107174523_student_pulse_privacy_threshold` (`2026-11-07-student-pulse-privacy-threshold.sql`)-এ response count দেখা গেলেও ৫টি account-এর আগে score average ও choice distribution server থেকেই খালি ফেরে। Admin UI কতটি উত্তর আরও দরকার তা দেখায়; zero-response, privacy-threshold ও migration-unavailable state তিনটি আলাদা। তাই এক ব্যক্তির উত্তরকে “aggregate” বলে প্রকাশ করা হয় না। ৬ মাসের “১০০+ উত্তর” metric বাস্তবে মাপা যাবে, কিন্তু student directory-র সঙ্গে কোনো ব্যক্তিগত উত্তর জোড়া যাবে না।
 - **পারফরম্যান্স:** survey শুধু lazy Analytics chunk-এ; initial main JS কার্যত একই (~68.8 KB gzip)। Analytics route ~13.8 KB gzip এবং isolated Admin route ~6.6 KB gzip—দুটিই 50 KB route budget-এর নিচে। কোনো নতুন dependency বা cold-start API read নেই।
 - **যাচাই:** malformed/out-of-range choice reject, edit-এ single-response identity, offline local save, backup inclusion without eager import, পাঁচ ধাপের real UI completion ও edit restore, SQL RLS/constraint/admin-only aggregate, Admin aggregate rendering without identity—সব full smoke suite ও production-bundle boot check-এর অংশ। Live catalog check-এ RLS on, anon table/RPC off, authenticated own-row access, ৪ policy, ৬ constraint, `SECURITY DEFINER` + admin guard, ৫-response suppression body এবং zero existing response নিশ্চিত; কোনো real/synthetic response লেখা হয়নি।
+
+
+### ১২.২৭ অষ্টাবিংশ ধাপ: syllabus-aware chapter drill ও প্রথম ৩০-MCQ chapter-complete practice pool
+
+- **পত্র থেকে ঠিক অধ্যায়ে:** Custom Set-এ কোনো পত্র বাছলে এখন শুধু সেই পত্রের question-bearing canonical syllabus chapters, chapter number এবং real question count দেখা যায়। `aria-pressed`-সহ ৪৪px chapter controls থেকে এক ট্যাপে focused drill শুরু হয়; পূর্ণ HSC/admission pattern বাছলে filter reset হয়ে paper-এর নিয়ম অনুযায়ী সব অধ্যায় মেশে।
+- **নামের পার্থক্যে route আর ভাঙে না:** `src/lib/mcqChapters.ts` পুরোনো short label (`মহাকর্ষ`) ও tracker-এর canonical title (`মহাকর্ষ ও অভিকর্ষ`) একই stable chapter ID-তে মেলায়। Routine deep link, mistake report/main block এবং MCQ picker একই resolver ব্যবহার করে; যেসব legacy label নিশ্চিতভাবে map করা যায় না সেগুলো ভুল অধ্যায়ে দেখানোর বদলে শুধু “সব উপলভ্য অধ্যায়”-এ থাকে। Lightweight request writer initial Dashboard bundle-এ রাখতে matcher আলাদা lazy `mcqChapterDrill.ts`-এ রাখা হয়েছে।
+- **Physics 1st এখন পূর্ণ:** ১৪টি original bilingual concept MCQ যোগ হয়েছে—measurement, vectors, kinematics, Newtonian mechanics, work-power, gravitation, structural properties, SHM, waves এবং kinetic theory। এগুলো কোনো অতীত board question বলে দাবি করে না; tag স্পষ্টভাবে “ধারণাভিত্তিক অনুশীলন / Concept practice”। পত্রটি এখন সব ১০ syllabus chapter জুড়ে **৩০টি**—ব্যবহারিকসহ বাস্তব ২৫-MCQ section পূরণ করে এবং repeated practice-এর জন্য ৫টি extra rotation দেয়; মোট HSC bank **১৯২**।
+- **শূন্য filter fail-closed:** আগে chapter/difficulty combination-এ ০ প্রশ্ন হলে `startExam` silently পুরো bank থেকে unrelated প্রশ্ন তুলত। এখন start disabled থেকে সৎ “প্রশ্ন নেই” state দেখায়; filter কখনো bypass হয় না।
+- **পারফরম্যান্স ও যাচাই:** initial main bundle **~68.70 KB gzip**-এ কার্যত অপরিবর্তিত; `McqExamView` **~17.50 KB gzip**, canonical resolver lazy **~2.50 KB gzip**, এবং বড় হওয়া Physics 1st paper **~6.58 KB gzip**। Static/real count parity, ১৯০+ total, Physics 30/10 chapter coverage, legacy alias route, empty-filter guard এবং real UI-তে Waves-only ২-question drill—সব full smoke suite-এ regression-checked।

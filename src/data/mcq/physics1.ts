@@ -641,7 +641,569 @@ const QUESTIONS: McqQuestion[] = [
       "en": "All Boards"
     },
     "difficulty": "easy"
+  },
+
+  {
+    "id": "q-phy1-17",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "ভৌত জগৎ ও পরিমাপ",
+      "en": "Physical World & Measurement"
+    },
+    "question": {
+      "bn": "চাপের মাত্রা সমীকরণ কোনটি?",
+      "en": "Which is the dimensional formula of pressure?"
+    },
+    "options": [
+      {
+        "bn": "[MLT⁻²]",
+        "en": "[MLT⁻²]"
+      },
+      {
+        "bn": "[ML⁻¹T⁻²]",
+        "en": "[ML⁻¹T⁻²]"
+      },
+      {
+        "bn": "[ML²T⁻²]",
+        "en": "[ML²T⁻²]"
+      },
+      {
+        "bn": "[M⁻¹LT⁻²]",
+        "en": "[M⁻¹LT⁻²]"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "চাপ = বল/ক্ষেত্রফল। তাই [P] = [MLT⁻²]/[L²] = [ML⁻¹T⁻²]।",
+      "en": "Pressure is force per unit area, so [P] = [MLT⁻²]/[L²] = [ML⁻¹T⁻²]."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy1-18",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "ভৌত জগৎ ও পরিমাপ",
+      "en": "Physical World & Measurement"
+    },
+    "question": {
+      "bn": "একটি স্ক্রু গজের পিচ 0.5 mm এবং বৃত্তাকার স্কেলে 50টি ভাগ থাকলে লঘিষ্ঠ গণন কত?",
+      "en": "A screw gauge has a pitch of 0.5 mm and 50 circular-scale divisions. What is its least count?"
+    },
+    "options": [
+      {
+        "bn": "0.1 mm",
+        "en": "0.1 mm"
+      },
+      {
+        "bn": "0.05 mm",
+        "en": "0.05 mm"
+      },
+      {
+        "bn": "0.01 mm",
+        "en": "0.01 mm"
+      },
+      {
+        "bn": "0.001 mm",
+        "en": "0.001 mm"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "লঘিষ্ঠ গণন = পিচ/বৃত্তাকার স্কেলের ভাগসংখ্যা = 0.5/50 = 0.01 mm।",
+      "en": "Least count = pitch / circular-scale divisions = 0.5/50 = 0.01 mm."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy1-19",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "ভেক্টর",
+      "en": "Vectors"
+    },
+    "question": {
+      "bn": "A⃗ = 3î + 4ĵ হলে A⃗-এর দিকে একক ভেক্টর কোনটি?",
+      "en": "If A⃗ = 3î + 4ĵ, which is the unit vector along A⃗?"
+    },
+    "options": [
+      {
+        "bn": "3î + 4ĵ",
+        "en": "3î + 4ĵ"
+      },
+      {
+        "bn": "(4/5)î + (3/5)ĵ",
+        "en": "(4/5)î + (3/5)ĵ"
+      },
+      {
+        "bn": "(3/5)î + (4/5)ĵ",
+        "en": "(3/5)î + (4/5)ĵ"
+      },
+      {
+        "bn": "(3/7)î + (4/7)ĵ",
+        "en": "(3/7)î + (4/7)ĵ"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "|A⃗| = √(3²+4²) = 5। তাই Â = A⃗/|A⃗| = (3/5)î + (4/5)ĵ।",
+      "en": "|A⃗| = √(3²+4²) = 5, hence Â = A⃗/|A⃗| = (3/5)î + (4/5)ĵ."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-20",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "গতিবিদ্যা",
+      "en": "Dynamics"
+    },
+    "question": {
+      "bn": "স্থির অবস্থা থেকে একটি বস্তু 2 m/s² সুষম ত্বরণে 5 s চললে কত দূরত্ব অতিক্রম করবে?",
+      "en": "Starting from rest, how far does an object travel in 5 s with uniform acceleration 2 m/s²?"
+    },
+    "options": [
+      {
+        "bn": "10 m",
+        "en": "10 m"
+      },
+      {
+        "bn": "20 m",
+        "en": "20 m"
+      },
+      {
+        "bn": "25 m",
+        "en": "25 m"
+      },
+      {
+        "bn": "50 m",
+        "en": "50 m"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "s = ut + ½at² = 0 + ½ × 2 × 5² = 25 m।",
+      "en": "s = ut + ½at² = 0 + ½ × 2 × 5² = 25 m."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-21",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "নিউটনিয়ান বলবিদ্যা",
+      "en": "Newtonian Mechanics"
+    },
+    "question": {
+      "bn": "2 kg ভরের বস্তুর ওপর 10 N লব্ধি বল কাজ করলে ত্বরণ কত হবে?",
+      "en": "What acceleration is produced when a net force of 10 N acts on a 2 kg mass?"
+    },
+    "options": [
+      {
+        "bn": "2 m/s²",
+        "en": "2 m/s²"
+      },
+      {
+        "bn": "5 m/s²",
+        "en": "5 m/s²"
+      },
+      {
+        "bn": "10 m/s²",
+        "en": "10 m/s²"
+      },
+      {
+        "bn": "20 m/s²",
+        "en": "20 m/s²"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "নিউটনের দ্বিতীয় সূত্রে a = F/m = 10/2 = 5 m/s²।",
+      "en": "By Newton's second law, a = F/m = 10/2 = 5 m/s²."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-22",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "নিউটনিয়ান বলবিদ্যা",
+      "en": "Newtonian Mechanics"
+    },
+    "question": {
+      "bn": "2 kg ভরের একটি বস্তু 4 m/s বেগে এসে স্থির 2 kg বস্তুর সঙ্গে লেগে গেলে যৌথ বেগ কত?",
+      "en": "A 2 kg object moving at 4 m/s sticks to a stationary 2 kg object. What is their common speed?"
+    },
+    "options": [
+      {
+        "bn": "1 m/s",
+        "en": "1 m/s"
+      },
+      {
+        "bn": "2 m/s",
+        "en": "2 m/s"
+      },
+      {
+        "bn": "3 m/s",
+        "en": "3 m/s"
+      },
+      {
+        "bn": "4 m/s",
+        "en": "4 m/s"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ভরবেগ সংরক্ষণে v = (2×4 + 2×0)/(2+2) = 2 m/s।",
+      "en": "Conservation of momentum gives v = (2×4 + 2×0)/(2+2) = 2 m/s."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy1-23",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "কাজ, শক্তি ও ক্ষমতা",
+      "en": "Work, Energy & Power"
+    },
+    "question": {
+      "bn": "60 kg ভরের একজন শিক্ষার্থী 10 s-এ 5 m উঁচু সিঁড়ি উঠলে তার গড় ক্ষমতা কত? (g = 10 m/s²)",
+      "en": "A 60 kg student climbs 5 m in 10 s. What is the average power? (g = 10 m/s²)"
+    },
+    "options": [
+      {
+        "bn": "30 W",
+        "en": "30 W"
+      },
+      {
+        "bn": "150 W",
+        "en": "150 W"
+      },
+      {
+        "bn": "300 W",
+        "en": "300 W"
+      },
+      {
+        "bn": "600 W",
+        "en": "600 W"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "P = mgh/t = (60×10×5)/10 = 300 W।",
+      "en": "P = mgh/t = (60×10×5)/10 = 300 W."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-24",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "মহাকর্ষ ও অভিকর্ষ",
+      "en": "Gravitation & Gravity"
+    },
+    "question": {
+      "bn": "পৃথিবীপৃষ্ঠের নিকটে কক্ষীয় বেগ vₒ এবং মুক্তিবেগ vₑ-এর সম্পর্ক কোনটি?",
+      "en": "Near Earth's surface, what is the relation between orbital speed vₒ and escape speed vₑ?"
+    },
+    "options": [
+      {
+        "bn": "vₒ = vₑ",
+        "en": "vₒ = vₑ"
+      },
+      {
+        "bn": "vₒ = √2vₑ",
+        "en": "vₒ = √2vₑ"
+      },
+      {
+        "bn": "vₒ = vₑ/√2",
+        "en": "vₒ = vₑ/√2"
+      },
+      {
+        "bn": "vₒ = vₑ/2",
+        "en": "vₒ = vₑ/2"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "vₒ = √(gR) এবং vₑ = √(2gR)। তাই vₒ = vₑ/√2।",
+      "en": "Since vₒ = √(gR) and vₑ = √(2gR), vₒ = vₑ/√2."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy1-25",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "পদার্থের গাঠনিক ধর্ম",
+      "en": "Structural Properties of Matter"
+    },
+    "question": {
+      "bn": "কোনো তারে পীড়ন 2×10⁸ Pa এবং বিকৃতি 1×10⁻³ হলে ইয়াং-এর গুণাঙ্ক কত?",
+      "en": "A wire has stress 2×10⁸ Pa and strain 1×10⁻³. What is Young's modulus?"
+    },
+    "options": [
+      {
+        "bn": "2×10⁵ Pa",
+        "en": "2×10⁵ Pa"
+      },
+      {
+        "bn": "2×10⁸ Pa",
+        "en": "2×10⁸ Pa"
+      },
+      {
+        "bn": "2×10¹¹ Pa",
+        "en": "2×10¹¹ Pa"
+      },
+      {
+        "bn": "5×10¹¹ Pa",
+        "en": "5×10¹¹ Pa"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "Y = পীড়ন/বিকৃতি = (2×10⁸)/(1×10⁻³) = 2×10¹¹ Pa।",
+      "en": "Y = stress/strain = (2×10⁸)/(1×10⁻³) = 2×10¹¹ Pa."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy1-26",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "পদার্থের গাঠনিক ধর্ম",
+      "en": "Structural Properties of Matter"
+    },
+    "question": {
+      "bn": "স্টোকসের সূত্র অনুযায়ী অন্য সব অপরিবর্তিত রেখে একটি গোলকের ব্যাসার্ধ দ্বিগুণ করলে প্রান্তীয় বেগ কতগুণ হয়?",
+      "en": "By Stokes' law, if a sphere's radius is doubled while everything else stays constant, how does terminal speed change?"
+    },
+    "options": [
+      {
+        "bn": "2 গুণ",
+        "en": "2 times"
+      },
+      {
+        "bn": "4 গুণ",
+        "en": "4 times"
+      },
+      {
+        "bn": "8 গুণ",
+        "en": "8 times"
+      },
+      {
+        "bn": "অপরিবর্তিত",
+        "en": "Unchanged"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "প্রান্তীয় বেগ vₜ ∝ r²। তাই r দ্বিগুণ হলে vₜ চার গুণ হয়।",
+      "en": "Terminal speed vₜ ∝ r², so doubling r makes vₜ four times as large."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "hard"
+  },
+  {
+    "id": "q-phy1-27",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "পর্যাবৃত্ত গতি",
+      "en": "Periodic Motion"
+    },
+    "question": {
+      "bn": "সরল ছন্দিত স্পন্দনে কণা সাম্য অবস্থানে থাকলে তার ত্বরণ কত?",
+      "en": "In simple harmonic motion, what is the particle's acceleration at equilibrium?"
+    },
+    "options": [
+      {
+        "bn": "সর্বাধিক",
+        "en": "Maximum"
+      },
+      {
+        "bn": "সর্বনিম্ন কিন্তু শূন্য নয়",
+        "en": "Minimum but non-zero"
+      },
+      {
+        "bn": "শূন্য",
+        "en": "Zero"
+      },
+      {
+        "bn": "অসীম",
+        "en": "Infinite"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "SHM-এ a = −ω²x। সাম্য অবস্থানে x = 0, তাই a = 0।",
+      "en": "For SHM, a = −ω²x. At equilibrium x = 0, so a = 0."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-28",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "তরঙ্গ",
+      "en": "Waves"
+    },
+    "question": {
+      "bn": "340 m/s বেগের শব্দের কম্পাঙ্ক 170 Hz হলে তরঙ্গদৈর্ঘ্য কত?",
+      "en": "A sound wave travels at 340 m/s with frequency 170 Hz. What is its wavelength?"
+    },
+    "options": [
+      {
+        "bn": "0.5 m",
+        "en": "0.5 m"
+      },
+      {
+        "bn": "1 m",
+        "en": "1 m"
+      },
+      {
+        "bn": "2 m",
+        "en": "2 m"
+      },
+      {
+        "bn": "510 m",
+        "en": "510 m"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "λ = v/f = 340/170 = 2 m।",
+      "en": "λ = v/f = 340/170 = 2 m."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-29",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "তরঙ্গ",
+      "en": "Waves"
+    },
+    "question": {
+      "bn": "256 Hz ও 260 Hz কম্পাঙ্কের দুটি সুর একসঙ্গে বাজালে প্রতি সেকেন্ডে কয়টি বীট শোনা যাবে?",
+      "en": "How many beats per second are heard when tones of 256 Hz and 260 Hz sound together?"
+    },
+    "options": [
+      {
+        "bn": "2",
+        "en": "2"
+      },
+      {
+        "bn": "4",
+        "en": "4"
+      },
+      {
+        "bn": "8",
+        "en": "8"
+      },
+      {
+        "bn": "516",
+        "en": "516"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "বীট কম্পাঙ্ক = |f₁ − f₂| = |260 − 256| = 4 Hz।",
+      "en": "Beat frequency = |f₁ − f₂| = |260 − 256| = 4 Hz."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy1-30",
+    "subjectKey": "physics1",
+    "chapter": {
+      "bn": "আদর্শ গ্যাস ও গ্যাসের গতিতত্ত্ব",
+      "en": "Ideal Gas & Kinetic Theory of Gases"
+    },
+    "question": {
+      "bn": "একই গ্যাসের পরম তাপমাত্রা চার গুণ করলে অণুগুলোর RMS বেগ কতগুণ হবে?",
+      "en": "For the same gas, if absolute temperature becomes four times, how does molecular RMS speed change?"
+    },
+    "options": [
+      {
+        "bn": "2 গুণ",
+        "en": "2 times"
+      },
+      {
+        "bn": "4 গুণ",
+        "en": "4 times"
+      },
+      {
+        "bn": "8 গুণ",
+        "en": "8 times"
+      },
+      {
+        "bn": "16 গুণ",
+        "en": "16 times"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "vᵣₘₛ ∝ √T। তাই T চার গুণ হলে RMS বেগ √4 = 2 গুণ হয়।",
+      "en": "vᵣₘₛ ∝ √T, so quadrupling T doubles the RMS speed."
+    },
+    "boardTag": {
+      "bn": "ধারণাভিত্তিক অনুশীলন",
+      "en": "Concept practice"
+    },
+    "difficulty": "medium"
   }
+
 ];
 
 export default QUESTIONS;

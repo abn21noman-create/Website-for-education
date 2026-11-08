@@ -1,6 +1,7 @@
 import { CHAPTERS } from '../data/syllabusData';
 import { dailyFocus } from './trackProgress';
 import type { DailyFocus, TrackKey } from './trackProgress';
+import { mcqChapter } from './mcqChapters';
 import type { ChapterProgressState, McqQuestion } from '../types';
 
 /**
@@ -31,17 +32,9 @@ const normalise = (text: string) =>
     .replace(/[\s\u200c\u200d.,;:!?'"‘’“”()\-–—/]/g, '')
     .toLowerCase();
 
-/** Looks up the syllabus chapter for a question, by exact title then by name. */
+/** Looks up the stable syllabus chapter, including historical label aliases. */
 export function chapterIdForQuestion(question: McqQuestion): string | null {
-  if (question.subjectKey === 'medical-gk') return null;
-  const bn = normalise(question.chapter.bn);
-  const en = normalise(question.chapter.en);
-  const match = CHAPTERS.find(
-    (chapter) =>
-      chapter.subjectKey === question.subjectKey &&
-      (normalise(chapter.title.bn) === bn || normalise(chapter.title.en) === en)
-  );
-  return match ? match.id : null;
+  return mcqChapter(question)?.id ?? null;
 }
 
 /** Groups wrong and skipped questions by chapter, highest miss count first. */
@@ -55,7 +48,8 @@ export function mistakesByChapter(
 
   for (const question of questions) {
     if (!wanted.has(question.id)) continue;
-    const chapterId = chapterIdForQuestion(question);
+    const canonicalChapter = mcqChapter(question);
+    const chapterId = canonicalChapter?.id ?? null;
     const key = chapterId || `${question.subjectKey}::${normalise(question.chapter.bn)}`;
     const existing = buckets.get(key);
     if (existing) {
@@ -65,8 +59,8 @@ export function mistakesByChapter(
       buckets.set(key, {
         chapterId,
         subjectKey: question.subjectKey,
-        chapterBn: question.chapter.bn,
-        chapterEn: question.chapter.en,
+        chapterBn: canonicalChapter?.title.bn ?? question.chapter.bn,
+        chapterEn: canonicalChapter?.title.en ?? question.chapter.en,
         questionIds: [question.id],
         missedCount: 1,
       });
