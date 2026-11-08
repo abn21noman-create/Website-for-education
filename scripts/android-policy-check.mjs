@@ -109,9 +109,10 @@ check(
 );
 
 check(
-  wrapperProperties.includes('gradle-8.11.1-bin.zip') &&
+  wrapperProperties.includes('downloads.gradle.org/distributions/gradle-8.11.1-bin.zip') &&
+    wrapperProperties.includes('distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6') &&
     wrapperProperties.includes('validateDistributionUrl=true'),
-  'Gradle wrapper pins 8.11.1 and validates its distribution URL'
+  'Gradle wrapper pins 8.11.1 and verifies the official distribution checksum'
 );
 const wrapperJar = await readFile(new URL('../android/gradle/wrapper/gradle-wrapper.jar', import.meta.url));
 const wrapperSha = createHash('sha256').update(wrapperJar).digest('hex');
