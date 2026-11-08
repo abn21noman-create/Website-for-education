@@ -55,7 +55,8 @@ jobs:
       - name: Run native unit tests, Android lint and build debug APK
         run: |
           set +e
-          ./android/gradlew -p android --no-daemon testDebugUnitTest lintDebug assembleDebug 2>&1 | tee "$RUNNER_TEMP/gradle-build.log"
+          gradle --version
+          gradle -p android --no-daemon testDebugUnitTest lintDebug assembleDebug 2>&1 | tee "$RUNNER_TEMP/gradle-build.log"
           status=${PIPESTATUS[0]}
           set -e
           if [[ $status -ne 0 ]]; then
