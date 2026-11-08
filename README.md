@@ -5,7 +5,7 @@
 [![Build & Typecheck](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml/badge.svg)](https://github.com/abn21noman-create/Website-for-education/actions/workflows/ci.yml)
 [![Android CI](https://github.com/abn21noman-create/Website-for-education/actions/workflows/android-ci.yml/badge.svg)](https://github.com/abn21noman-create/Website-for-education/actions/workflows/android-ci.yml)
 
-**Open source:** [MIT License](LICENSE) · [Contributing guide](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md)
+**Open source:** [MIT License](LICENSE) · [Contributing guide](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md) · [Privacy Policy](https://nokkhotro-hsc-2028.vercel.app/privacy) · [Delete account](https://nokkhotro-hsc-2028.vercel.app/account-deletion)
 
 `package.json`-এর `"private": true` শুধু accidental npm publishing বন্ধ করে; repository-টি private নয়।
 
@@ -106,7 +106,8 @@ Bug, feature, প্রশ্ন এবং documentation-এর জন্য [st
 - **নিরাপদ PWA আপডেট:** Android/Chrome-এ install prompt, হোম স্ক্রিন শর্টকাট (MCQ, সিলেবাস, লাইফ হাব) ও অফলাইন ক্যাশ (`sw.js` v7)। নতুন deployment পুরোনো খোলা tab-এর lazy chunk মুছে দেয় না—নতুন worker অপেক্ষা করে, “আপডেট” চাপলে সব tab নিরাপদে refresh হয়। Offline/online status-ও দেখা যায়।
 - **ক্র্যাশ রিকভারি ও accessibility:** global recovery screen কোনো study data না মুছে retry/reload দেয়; keyboard skip-link, route-aware page title, global focus ring, dark public login এবং live status announcement আছে। Login, student workspace ও Admin—তিন জায়গাতেই **পড়া ও অ্যাক্সেসিবিলিটি** কন্ট্রোল থেকে ৩টি reading scale, high contrast এবং explicit reduced motion বাছা যায়; সেটিং প্রথম paint-এর আগেই প্রয়োগ হয়, keyboard focus-trapped dialog-এ চলে, JSON backup ও Cloud Vault-এ যায়, আর “study data reset” করলেও readability preference মুছে যায় না।
 - **Production security headers:** Vercel-এ CSP, anti-framing, MIME sniffing protection, referrer/permissions policy, HSTS এবং service-worker no-cache policy enforced; Supabase HTTPS/WSS ছাড়া অপ্রয়োজনীয় external connection বন্ধ।
-- **স্মোক টেস্ট:** `npm run smoke` — বিল্ড, সোর্স স্মোক টেস্ট, font/security/PWA budget এবং jsdom-এ আসল প্রোডাকশন বান্ডলের বুট-চেক চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
+- **Play-ready privacy controls:** signed-out অবস্থায়ও public [`/privacy`](https://nokkhotro-hsc-2028.vercel.app/privacy) পড়া যায় এবং [`/account-deletion`](https://nokkhotro-hsc-2028.vercel.app/account-deletion)-এ owner login → password reauthentication → typed `DELETE` confirmation দিয়ে deletion শুরু করতে পারে। App-এর profile modal-এ একই full deletion আছে; আলাদা Study reset account/community content রাখে। Server-only Edge Function verified JWT-এর user-ই hard-delete করে—service-role key browser/Android bundle-এ যায় না। বিস্তারিত [`PRIVACY.md`](PRIVACY.md) ও [`docs/play-data-safety.md`](docs/play-data-safety.md)।
+- **স্মোক টেস্ট:** `npm run smoke` — build, source regression, public privacy/deletion route, server-deletion policy, font/security/PWA budget এবং jsdom-এ আসল production bundle boot-check চালায়। শুধু প্রোডাকশন বুট পরীক্ষা করতে আগে `npm run build`, তারপর `npm run prod-check` চালান।
 
 ## Native Android app (Kotlin + Play App Signing)
 
@@ -134,6 +135,7 @@ Bug, feature, প্রশ্ন এবং documentation-এর জন্য [st
 - **লগইন করলে:** নেভবারে `সংরক্ষণ হচ্ছে…` → `সেভড · HH:MM`; সর্বশেষ সফল cloud-save সময়টি দৃশ্যমান ও screen-reader label-এ থাকে। অন্য ডিভাইসে লগইন করলেও সব ফিরে আসে।
 - **অফলাইনে:** লেখা হারায় না — লোকাল কিউতে জমা থাকে, নেভবারে ঠিক কতটি sync বাকি দেখা যায়, আর ইন্টারনেট ফিরলেই নিজে থেকেই পাঠানো হয়।
 - **সার্ভার আটকালে:** আর চুপচাপ হারায় না — `সিঙ্ক ব্যর্থ` + কারণ দেখায়।
+- **Study reset বনাম account deletion:** Study reset শুধু private study rows/reset marker বদলে account ও community post রাখে। Full deletion password পুনরায় যাচাই করে Auth user, profile, সব private/cloud row, pulse/leaderboard choice, admin membership/allowlist এবং নিজের community content/vote মুছে; initiating browser-এর account-space ও session-ও পরিষ্কার করে।
 
 **লাইফ হাবের ডেটা** (অভ্যাস, উপস্থিতি, ডেডলাইন, পরীক্ষা, ফলাফল, চেকলিস্ট, ক্লাস রুটিন) ব্রাউজারে
 (`localStorage`, key `hsc28_life_v1`) থাকে, JSON ব্যাকআপে অন্তর্ভুক্ত, এবং লগইন করলে

@@ -7,6 +7,7 @@ import { setSyncUser, withUserSyncWriteLock } from '../lib/sync';
 import { finishGuestMigration, selectAccountSpace } from '../lib/accountSpace';
 import { refreshAccessibilityPreferences } from '../lib/accessibility';
 import { isNativeAndroidHost } from '../lib/nativeFocus';
+import { ACCOUNT_DELETION_URL, PRIVACY_POLICY_URL } from '../lib/publicUrls';
 import { AccessibilityMenu } from './AccessibilityMenu';
 import App from '../App';
 
@@ -71,7 +72,13 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
   const [name, setName] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('account_deleted') === '1'
+        ? (bn ? 'আপনার অ্যাকাউন্ট ও সংশ্লিষ্ট live data মুছে গেছে।' : 'Your account and associated live data have been deleted.')
+        : '';
+    } catch { return ''; }
+  });
   const [error, setError] = useState('');
   const sequence = useRef(0);
   const recovery = useRef(false);
@@ -255,6 +262,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
           {mode === 'forgot' && <button className="auth-back" onClick={() => { setMode('login'); setError(''); setNotice(''); }}>← {bn ? 'লগইনে ফিরে যান' : 'Back to sign in'}</button>}
         </>}
         <div className="auth-panel-footer"><ShieldCheck size={16} /><span>{bn ? 'তোমার তথ্য সুরক্ষিত রাখতে আমরা যত্নশীল' : 'Thoughtfully designed for your learning'}</span></div>
+        <nav className="auth-legal-links" aria-label={bn ? 'গোপনীয়তা ও অ্যাকাউন্ট' : 'Privacy and account'}><a href={PRIVACY_POLICY_URL}>{bn ? 'গোপনীয়তা নীতি' : 'Privacy Policy'}</a><span>·</span><a href={ACCOUNT_DELETION_URL}>{bn ? 'অ্যাকাউন্ট মুছুন' : 'Delete account'}</a></nav>
       </section>
     </div>
     <p className="auth-copyright">© নক্ষত্র HSC ’28 &nbsp; · &nbsp; Made for your journey ✦</p>

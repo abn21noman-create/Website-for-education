@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 import type { ActiveTab, Lang, Theme } from '../types';
+import { ACCOUNT_DELETION_URL, PRIVACY_POLICY_URL } from '../lib/publicUrls';
 
 interface FooterProps {
   lang: Lang;
@@ -18,6 +19,8 @@ export const Footer: React.FC<FooterProps> = ({ lang, theme, onNavigate }) => {
       <button onClick={() => onNavigate('routine')}>{bn ? 'রুটিন' : 'Routine'}</button>
       <button onClick={() => onNavigate('admission')}>{bn ? 'অ্যাডমিশন' : 'Admission'}</button>
       <button onClick={() => onNavigate('hub')}>{bn ? 'স্টুডেন্ট হাব' : 'Student hub'}</button>
+      <a href={PRIVACY_POLICY_URL}>{bn ? 'গোপনীয়তা' : 'Privacy'}</a>
+      <a href={ACCOUNT_DELETION_URL}>{bn ? 'অ্যাকাউন্ট মুছুন' : 'Delete account'}</a>
     </div>
     <span className="premium-footer-note">{bn ? 'শিক্ষার্থীদের জন্য তৈরি ✦' : 'Made for students ✦'}</span>
   </footer>;

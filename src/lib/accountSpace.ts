@@ -54,3 +54,43 @@ export function selectAccountSpace(userId: string): { guestData: Values | null }
 }
 
 export function finishGuestMigration(userId: string): void { localStorage.removeItem(PENDING + userId); }
+
+/**
+ * Remove every browser copy owned by an account after the server confirms that
+ * the Auth user has been hard-deleted. Other accounts and guest work on the
+ * same browser are deliberately left alone.
+ */
+export function clearDeletedAccountSpace(userId: string): void {
+  const oldOwner = localStorage.getItem(OWNER) || legacyOwner();
+
+  if (oldOwner === userId) {
+    for (const key of Object.keys(capture())) localStorage.removeItem(key);
+    localStorage.removeItem(OWNER);
+  }
+
+  localStorage.removeItem(SPACE + userId);
+  localStorage.removeItem(PENDING + userId);
+  localStorage.removeItem('nokkhotro_pre_import_' + userId);
+  localStorage.removeItem('nokkhotro_cloud_reset_boot_v1_' + userId);
+  localStorage.removeItem('nokkhotro_cloud_reset_pending_v1_' + userId);
+
+  // The durable queue is shared by account spaces, so remove only this user's
+  // operations rather than deleting another account's offline work.
+  try {
+    const raw = localStorage.getItem(QUEUE);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      const remaining = parsed.filter((item) =>
+        !item || typeof item !== 'object' || (item as { userId?: unknown }).userId !== userId
+      );
+      if (remaining.length) localStorage.setItem(QUEUE, JSON.stringify(remaining));
+      else localStorage.removeItem(QUEUE);
+    } else {
+      localStorage.removeItem(QUEUE);
+    }
+  } catch {
+    // A malformed queue cannot be safely replayed and may still contain the
+    // deleted account's data, so fail closed by removing it.
+    localStorage.removeItem(QUEUE);
+  }
+}
