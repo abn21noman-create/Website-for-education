@@ -47,6 +47,15 @@ import {
   refreshAccessibilityPreferences,
 } from './lib/accessibility';
 import { buildHash, parseRoute } from './lib/router';
+import {
+  clearFocusSession,
+  createFocusSession,
+  loadFocusSession,
+  saveFocusSession,
+  type StoredFocusSession,
+  type StudyFocusPlan,
+} from './lib/focusSession';
+import { completeRoutineReading, loadRoutineState } from './lib/routineStore';
 import { CHAPTERS, SUBJECTS } from './data/syllabusData';
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
@@ -80,6 +89,12 @@ import {
   preloadLikelyRoutes,
   preloadRoute,
 } from './lib/lazyViews';
+
+const loadStudyFocusSession = () => import('./components/StudyFocusSession');
+const LazyStudyFocusSession = React.lazy(async () => {
+  const module = await loadStudyFocusSession();
+  return { default: module.StudyFocusSession };
+});
 
 const STORAGE_KEYS = {
   lang: 'hsc28_lang',
@@ -253,6 +268,10 @@ export function App() {
   const [sessions, setSessions] = useState<StudySessionRecord[]>(() =>
     readLocal(STORAGE_KEYS.sessions, [])
   );
+  const [focusSession, setFocusSession] = useState<StoredFocusSession | null>(() =>
+    loadFocusSession()
+  );
+  const completedFocusIdsRef = useRef(new Set<string>());
   const [personalNotes, setPersonalNotes] = useState<PersonalNote[]>(() =>
     readLocal(STORAGE_KEYS.notes, [])
   );
@@ -285,6 +304,22 @@ export function App() {
     // After the dashboard has settled, fill the cache in the background so the
     // whole app (and its service-worker copy) is available offline.
     prefetchAllRoutes();
+    const preloadFocus = () => { void loadStudyFocusSession(); };
+    const idleWindow = window as unknown as {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const idle = idleWindow.requestIdleCallback;
+    const focusPreloadId = idle
+      ? idle(preloadFocus, { timeout: 1800 })
+      : window.setTimeout(preloadFocus, 1200);
+    return () => {
+      if (idle && idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(focusPreloadId);
+      } else {
+        window.clearTimeout(focusPreloadId);
+      }
+    };
   }, []);
 
   // Read/restore the vault before replaying table writes. In particular, a
@@ -358,6 +393,7 @@ export function App() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        if (document.querySelector('[data-study-focus-session="true"]')) return;
         setIsSearchOpen((prev) => !prev);
       }
     };
@@ -1261,6 +1297,47 @@ export function App() {
     [authUserId, commitProfile, lang, showToast]
   );
 
+  const handleStartStudyFocus = useCallback((plan: StudyFocusPlan) => {
+    // Fullscreen requests must happen synchronously inside the student's click
+    // gesture. The session still works when an embedded/iOS browser denies it.
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        void document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch {
+      // Page Visibility + window blur remain available as the fallback guard.
+    }
+    const next = saveFocusSession(createFocusSession(plan));
+    setFocusSession(next);
+  }, []);
+
+  const handleCompleteStudyFocus = useCallback(
+    (completed: StoredFocusSession) => {
+      if (completedFocusIdsRef.current.has(completed.id)) return;
+      completedFocusIdsRef.current.add(completed.id);
+
+      completeRoutineReading(
+        loadRoutineState(),
+        completed.dateKey,
+        completed.slotIndex,
+        completed.durationMinutes
+      );
+      handleLogSession(
+        completed.subjectKey,
+        completed.durationMinutes,
+        lang === 'bn'
+          ? `${completed.chapterBn} — বইয়ের ${completed.topicsBn.length}টি topic ফোকাসে পড়া`
+          : `${completed.chapterEn} — ${completed.topicsEn.length} textbook topics in focus mode`
+      );
+    },
+    [handleLogSession, lang]
+  );
+
+  const handleCloseStudyFocus = useCallback(() => {
+    clearFocusSession();
+    setFocusSession(null);
+  }, []);
+
   // Filtering the syllabus by paper is a refinement, not a new destination, so
   // it rewrites the current history entry instead of pushing a new one.
   const handleSyllabusSubjectChange = useCallback(
@@ -1416,6 +1493,7 @@ export function App() {
               quizHistory={quizHistory}
               tasks={tasks}
               onNavigate={handleNavigate}
+              onStartFocus={handleStartStudyFocus}
               onOpenAuth={() => { preloadAuthModal(); setIsAuthModalOpen(true); }}
             />
           )}
@@ -1599,6 +1677,25 @@ export function App() {
         lang={lang}
         theme={theme}
       />
+
+      {focusSession && (
+        <Suspense
+          fallback={
+            <div className="study-focus-overlay study-focus-loading" role="status">
+              <span>{lang === 'bn' ? 'ফোকাস সেশন প্রস্তুত হচ্ছে…' : 'Preparing focus session…'}</span>
+            </div>
+          }
+        >
+          <LazyStudyFocusSession
+            key={focusSession.id}
+            lang={lang}
+            theme={theme}
+            initialSession={focusSession}
+            onComplete={handleCompleteStudyFocus}
+            onClose={handleCloseStudyFocus}
+          />
+        </Suspense>
+      )}
 
       {isAuthModalOpen && (
       <Suspense fallback={null}>

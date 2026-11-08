@@ -32,6 +32,9 @@ import {
 import { CHAPTERS, SUBJECTS, getSubjectByKey } from '../data/syllabusData';
 import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';
 import { requestChapterDrill } from '../lib/chapterDrill';
+import { focusPlanForSlot, type StudyFocusPlan } from '../lib/focusSession';
+import { classSlotsForDay, dayNumberForDate, toDateKey } from '../lib/masterRoutine';
+import { loadRoutineState, taskKey } from '../lib/routineStore';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 import { DashboardTodayFocus } from './DashboardTodayFocus';
@@ -54,6 +57,7 @@ interface DashboardViewProps {
   quizHistory: QuizAttemptRecord[];
   tasks: StudyTask[];
   onNavigate: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
+  onStartFocus: (plan: StudyFocusPlan) => void;
   onOpenAuth: () => void;
 }
 
@@ -68,6 +72,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   quizHistory,
   tasks,
   onNavigate,
+  onStartFocus,
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
@@ -139,6 +144,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )
       : Math.round(profile.bestAccuracy);
 
+  const startTodayFocus = () => {
+    const routine = loadRoutineState();
+    const todayKey = toDateKey(new Date());
+    const dayNumber = dayNumberForDate(routine.startDate, todayKey);
+    if (dayNumber) {
+      const slots = classSlotsForDay(dayNumber);
+      const slotIndex = slots.findIndex(
+        (_slot, index) => !routine.tasks[taskKey(todayKey, index, 2)]
+      );
+      if (slotIndex >= 0) {
+        onStartFocus(focusPlanForSlot(slots[slotIndex], todayKey, slotIndex, lang));
+        return;
+      }
+    }
+    onNavigate('routine');
+  };
+
   return (
     <div className="space-y-7">
       <div className="dashboard-welcome">
@@ -154,6 +176,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         theme={theme}
         progressMap={progressMap}
         onNavigate={onNavigate}
+        onStartFocus={onStartFocus}
       />
 
       <div className="dashboard-hero-grid">
@@ -162,7 +185,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="hero-kicker"><span>✦</span> {lang === 'bn' ? 'HSC ২০২৮ · বিজ্ঞান বিভাগ' : 'HSC 2028 · SCIENCE'}</span>
             <h2>{lang === 'bn' ? <>তোমার লক্ষ্য,<br /><em>তোমার আগামী।</em></> : <>Your goal.<br /><em>Your tomorrow.</em></>}</h2>
             <p>{lang === 'bn' ? 'পরিকল্পনা থেকে অনুশীলন—প্রস্তুতির প্রতিটি ধাপে নক্ষত্র আছে তোমার পাশে।' : 'From planning to practice, Nokkhotro is with you at every step.'}</p>
-            <div className="hero-actions"><button onClick={() => onNavigate('routine')} className="hero-primary">{lang === 'bn' ? 'আজকের পড়া শুরু করো' : 'Start studying'} <ArrowRight size={16} /></button><button onClick={() => onNavigate('mcq')} className="hero-secondary">{lang === 'bn' ? 'মডেল টেস্ট' : 'Take a test'} <ArrowUpRight size={15} /></button></div>
+            <div className="hero-actions"><button onClick={startTodayFocus} className="hero-primary">{lang === 'bn' ? 'আজকের পড়া শুরু করো' : 'Start studying'} <ArrowRight size={16} /></button><button onClick={() => onNavigate('mcq')} className="hero-secondary">{lang === 'bn' ? 'মডেল টেস্ট' : 'Take a test'} <ArrowUpRight size={15} /></button></div>
             {!isAuthenticated && <button className="hero-login" onClick={onOpenAuth}>{lang === 'bn' ? 'অগ্রগতি সেভ করতে লগইন করো' : 'Sign in to save your progress'} →</button>}
           </div>
           <div className="hero-image" aria-hidden="true" />

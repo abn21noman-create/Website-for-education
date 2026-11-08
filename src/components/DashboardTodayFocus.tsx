@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
   BellRing,
+  BookOpen,
   CalendarClock,
   Check,
   Clock3,
   RotateCcw,
+  Timer,
 } from 'lucide-react';
 import type {
   ActiveTab,
@@ -30,8 +32,11 @@ import {
   learnedChapters,
   loadRoutineState,
   revisionTaskKey,
+  ROUTINE_CHANGED_EVENT,
+  ROUTINE_KEY,
   taskKey,
 } from '../lib/routineStore';
+import { focusPlanForSlot, type StudyFocusPlan } from '../lib/focusSession';
 import { allTrackReadiness, tracksByPriority } from '../lib/trackProgress';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
@@ -46,6 +51,7 @@ interface DashboardTodayFocusProps {
   theme: Theme;
   progressMap: Record<string, ChapterProgressState>;
   onNavigate: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
+  onStartFocus: (plan: StudyFocusPlan) => void;
 }
 
 /**
@@ -58,9 +64,24 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
   theme,
   progressMap,
   onNavigate,
+  onStartFocus,
 }) => {
   const isDark = theme === 'dark';
-  const [routine] = useState(loadRoutineState);
+  const [routine, setRoutine] = useState(loadRoutineState);
+
+  useEffect(() => {
+    const refresh = () => setRoutine(loadRoutineState());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === ROUTINE_KEY || event.key === null) refresh();
+    };
+    window.addEventListener(ROUTINE_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(ROUTINE_CHANGED_EVENT, refresh);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
   const todayKey = toDateKey(new Date());
   const dayNumber = dayNumberForDate(routine.startDate, todayKey);
   const slots = dayNumber ? classSlotsForDay(dayNumber) : [];
@@ -72,12 +93,24 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
 
   const slotProgress = slots.map((slot, slotIndex) => ({
     ...slot,
+    slotIndex,
+    focusPlan: focusPlanForSlot(slot, todayKey, slotIndex, lang),
+    readingDone: Boolean(routine.tasks[taskKey(todayKey, slotIndex, 2)]),
     completed: CLASS_TASKS.reduce(
       (count, _task, taskIndex) =>
         count + (routine.tasks[taskKey(todayKey, slotIndex, taskIndex)] ? 1 : 0),
       0
     ),
   }));
+  const totalFocusTopics = slotProgress.reduce(
+    (sum, slot) =>
+      sum + (lang === 'bn' ? slot.focusPlan.topicsBn.length : slot.focusPlan.topicsEn.length),
+    0
+  );
+  const totalFocusMinutes = slotProgress.reduce(
+    (sum, slot) => sum + slot.focusPlan.durationMinutes,
+    0
+  );
   const completedSteps = revisionDay
     ? REVISION_TASKS.reduce(
         (count, _task, taskIndex) =>
@@ -140,12 +173,11 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
     };
   }, [revisionDay, slotProgress]);
 
+  const nextUnreadSlot = slotProgress.find((slot) => !slot.readingDone);
+
   const startToday = () => {
-    const firstIncomplete = slotProgress.find(
-      (slot) => slot.completed < CLASS_TASKS.length
-    );
-    if (firstIncomplete) {
-      onNavigate('syllabus', firstIncomplete.subjectKey);
+    if (nextUnreadSlot) {
+      onStartFocus(nextUnreadSlot.focusPlan);
       return;
     }
     onNavigate('routine');
@@ -195,8 +227,8 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
                   ? lang === 'bn' ? 'রিভিশন ও সাপ্তাহিক পরীক্ষা' : 'Revision & weekly test'
                   : slotProgress.length > 0
                     ? lang === 'bn'
-                      ? `${formatNum(slotProgress.length, lang)}টি অধ্যায় • প্রথমটি এখন শুরু করুন`
-                      : `${slotProgress.length} chapters • start with the first`
+                      ? `${formatNum(slotProgress.length, lang)}টি অধ্যায় • ${formatNum(totalFocusTopics, lang)}টি topic • ${formatNum(totalFocusMinutes, lang)} মিনিট`
+                      : `${slotProgress.length} chapters • ${totalFocusTopics} topics • ${totalFocusMinutes} minutes`
                     : lang === 'bn' ? 'আজকের পড়া সেট করা নেই' : 'No study blocks set today'}
               </strong>
             </div>
@@ -261,6 +293,20 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
                     </div>
                     <p>{lang === 'bn' ? slot.subjectBn : slot.subjectEn}</p>
                     <h3>{lang === 'bn' ? slot.chapterBn : slot.chapterEn}</h3>
+                    <div className="dashboard-today-scope" data-today-study-scope="true">
+                      <span>
+                        <BookOpen size={12} aria-hidden="true" />
+                        {lang === 'bn'
+                          ? `বই থেকে ${formatNum(slot.focusPlan.topicsBn.length, lang)}টি topic`
+                          : `${slot.focusPlan.topicsEn.length} textbook topics`}
+                        <i aria-hidden="true">•</i>
+                        <Timer size={12} aria-hidden="true" />
+                        {formatNum(slot.focusPlan.durationMinutes, lang)} {lang === 'bn' ? 'মিনিট' : 'min'}
+                      </span>
+                      <small>
+                        {(lang === 'bn' ? slot.focusPlan.topicsBn : slot.focusPlan.topicsEn).join(' • ')}
+                      </small>
+                    </div>
                     <div className="dashboard-today-slot-progress">
                       <div
                         role="progressbar"
@@ -282,18 +328,32 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
                         {lang === 'bn' ? 'কাজ' : 'tasks'}
                       </small>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('syllabus', slot.subjectKey)}
-                      aria-label={
-                        lang === 'bn'
-                          ? `${slot.subjectBn}: ${slot.chapterBn} খুলুন`
-                          : `Open ${slot.subjectEn}: ${slot.chapterEn}`
-                      }
-                    >
-                      {lang === 'bn' ? 'অধ্যায় খুলুন' : 'Open chapter'}
-                      <ArrowUpRight size={14} aria-hidden="true" />
-                    </button>
+                    <div className="dashboard-today-slot-actions">
+                      <button
+                        type="button"
+                        className="is-focus"
+                        data-start-chapter-focus="true"
+                        disabled={slot.readingDone}
+                        onClick={() => onStartFocus(slot.focusPlan)}
+                      >
+                        {slot.readingDone
+                          ? <><Check size={13} aria-hidden="true" /> {lang === 'bn' ? 'বই পড়া শেষ' : 'Reading done'}</>
+                          : <><Timer size={13} aria-hidden="true" /> {lang === 'bn' ? 'ফোকাস শুরু' : 'Start focus'}</>}
+                      </button>
+                      <button
+                        type="button"
+                        className="is-open"
+                        onClick={() => onNavigate('syllabus', slot.subjectKey)}
+                        aria-label={
+                          lang === 'bn'
+                            ? `${slot.subjectBn}: ${slot.chapterBn} খুলুন`
+                            : `Open ${slot.subjectEn}: ${slot.chapterEn}`
+                        }
+                      >
+                        {lang === 'bn' ? 'অধ্যায় খুলুন' : 'Open chapter'}
+                        <ArrowUpRight size={13} aria-hidden="true" />
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -325,15 +385,14 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
             <button
               type="button"
               className="dashboard-today-start"
+              data-start-today-focus="true"
               onClick={startToday}
             >
-              {lang === 'bn'
-                ? slotProgress.some((slot) => slot.completed < CLASS_TASKS.length)
-                  ? 'এখন পড়া শুরু করুন'
-                  : 'রুটিন খুলুন'
-                : slotProgress.some((slot) => slot.completed < CLASS_TASKS.length)
-                  ? 'Start studying now'
-                  : 'Open routine'}
+              {nextUnreadSlot
+                ? lang === 'bn'
+                  ? `${formatNum(nextUnreadSlot.focusPlan.durationMinutes, lang)} মিনিটের ফোকাস শুরু`
+                  : `Start ${nextUnreadSlot.focusPlan.durationMinutes}-min focus`
+                : lang === 'bn' ? 'রুটিন খুলুন' : 'Open routine'}
               <ArrowRight size={15} aria-hidden="true" />
             </button>
           </div>

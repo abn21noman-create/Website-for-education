@@ -407,10 +407,14 @@ const dashboardHero = container.querySelector('.dashboard-hero-grid');
 const todayPriorityFirst = !!todayPriority && !!dashboardHero &&
   Boolean(todayPriority.compareDocumentPosition(dashboardHero) & Node.DOCUMENT_POSITION_FOLLOWING);
 const todayStudySlots = todayPriority?.querySelectorAll('[data-today-study-slot="true"]') || [];
+const todayStudyScopes = todayPriority?.querySelectorAll('[data-today-study-scope="true"]') || [];
 const todayPlanIsImmediate =
-  todayPriorityFirst && todayStudySlots.length === 2 &&
+  todayPriorityFirst && todayStudySlots.length === 2 && todayStudyScopes.length === 2 &&
   (todayPriority?.textContent || '').includes('১ · প্রথমে') &&
   (todayPriority?.textContent || '').includes('আজকের ২টি পড়া প্রস্তুত') &&
+  (todayPriority?.textContent || '').includes('বই থেকে') &&
+  (todayPriority?.textContent || '').includes('মিনিট') &&
+  (todayPriority?.textContent || '').includes('ফোকাস শুরু') &&
   (todayPriority?.textContent || '').includes('অধ্যায় খুলুন');
 console.log(
   todayPlanIsImmediate
@@ -418,6 +422,48 @@ console.log(
     : `✗ dashboard daily focus is not immediate/actionable (slots=${todayStudySlots.length})`
 );
 failures += todayPlanIsImmediate ? 0 : 1;
+
+// Starting today's reading opens the strict local focus surface. The browser
+// cannot block another app, so a real window-focus loss must pause the timer and
+// the student can use the explicit emergency escape without logging fake time.
+const focusStart = todayPriority?.querySelector('[data-start-today-focus="true"]');
+focusStart?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 1800));
+const focusOverlay = container.querySelector('[data-study-focus-session="true"]');
+const focusStarted =
+  !!focusStart &&
+  !!focusOverlay &&
+  !!focusOverlay.querySelector('[role="timer"]') &&
+  (focusOverlay.textContent || '').includes('আজ বই থেকে এইটুকুই') &&
+  (focusOverlay.textContent || '').includes('মূল বইয়ের বিষয়সীমা') &&
+  (focusOverlay.textContent || '').includes('Browser অন্য app বন্ধ করতে পারে না') &&
+  localStorage.getItem('hsc28_focus_session_v1') !== null;
+window.dispatchEvent(new window.Event('blur'));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const focusPaused =
+  focusOverlay?.getAttribute('data-focus-status') === 'paused' &&
+  (focusOverlay?.textContent || '').includes('Timer থেমেছে') &&
+  (focusOverlay?.textContent || '').includes('অন্য tab বা app-এ যাওয়ায়');
+const emergencyButton = Array.from(focusOverlay?.querySelectorAll('button') || []).find(
+  (button) => (button.textContent || '').includes('জরুরি বন্ধ')
+);
+emergencyButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 80));
+const abandonButton = Array.from(container.querySelectorAll('button')).find(
+  (button) => (button.textContent || '').includes('সেশন বাদ দিন')
+);
+abandonButton?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 120));
+const focusExitWorks =
+  !container.querySelector('[data-study-focus-session="true"]') &&
+  localStorage.getItem('hsc28_focus_session_v1') === null;
+const strictFocusWorks = focusStarted && focusPaused && focusExitWorks;
+console.log(
+  strictFocusWorks
+    ? '✓ today’s textbook scope opens a focus timer that pauses on tab/app exit'
+    : `✗ strict focus flow failed (started=${focusStarted}, paused=${focusPaused}, exit=${focusExitWorks})`
+);
+failures += strictFocusWorks ? 0 : 1;
 
 const dashboardTracks = (container.textContent || '').includes('ভর্তি প্রস্তুতি:');
 console.log(
@@ -1960,6 +2006,62 @@ check(
   routineState.minutes['2026-01-01'] === 90,
   'study minutes are logged per calendar day'
 );
+const focusedRoutine = routineStore.completeRoutineReading(
+  routineState,
+  '2026-01-01',
+  1,
+  35
+);
+const focusedRoutineAgain = routineStore.completeRoutineReading(
+  focusedRoutine,
+  '2026-01-01',
+  1,
+  35
+);
+check(
+  focusedRoutine.tasks[routineStore.taskKey('2026-01-01', 1, 2)] === true &&
+    focusedRoutine.minutes['2026-01-01'] === 125 &&
+    focusedRoutineAgain.minutes['2026-01-01'] === 125,
+  'a finished focus block closes only textbook reading and logs its minutes once'
+);
+
+const focusSessions = await vite.ssrLoadModule('/src/lib/focusSession.ts');
+const focusSlot = routine.classSlotsForDay(1)[0];
+const focusPlan = focusSessions.focusPlanForSlot(focusSlot, '2026-01-01', 0, 'bn');
+const englishFocusPlan = focusSessions.focusPlanForSlot(focusSlot, '2026-01-01', 0, 'en');
+check(
+  focusPlan.topicsBn.length >= 2 &&
+    focusPlan.topicsEn.length >= 2 &&
+    focusPlan.durationMinutes === focusSessions.focusMinutesForTopicCount(
+      focusPlan.topicsBn.length
+    ) &&
+    englishFocusPlan.durationMinutes === focusSessions.focusMinutesForTopicCount(
+      englishFocusPlan.topicsEn.length
+    ),
+  'today’s textbook boundary carries real topics and a deterministic focus time',
+  `${focusPlan.topicsBn.length} topics / ${focusPlan.durationMinutes} min`
+);
+check(
+  focusSessions.splitStudyTopics('এক, দুই, তিন').join('|') === 'এক|দুই|তিন' &&
+    focusSessions.focusMinutesForTopicCount(1) === 25 &&
+    focusSessions.focusMinutesForTopicCount(3) === 35 &&
+    focusSessions.focusMinutesForTopicCount(9) === 50,
+  'focus timing is bounded and derived from the visible topic count'
+);
+const focusCreatedAt = Date.now();
+const storedFocus = focusSessions.saveFocusSession(
+  focusSessions.createFocusSession(focusPlan, focusCreatedAt)
+);
+const restoredFocus = focusSessions.loadFocusSession(focusCreatedAt + 1000);
+check(
+  restoredFocus?.id === storedFocus.id &&
+    restoredFocus.status === 'paused' &&
+    restoredFocus.pauseReason === 'reload' &&
+    restoredFocus.remainingSeconds === storedFocus.remainingSeconds &&
+    restoredFocus.interruptions === 1,
+  'closing or reloading never counts away time toward a focus session'
+);
+focusSessions.clearFocusSession();
 
 const formulaBank = await vite.ssrLoadModule('/src/data/formulasData.ts');
 const formulaIds = formulaBank.FORMULAS.map((f) => f.id);
@@ -2145,6 +2247,15 @@ check(
 
 // ---------------------------------------------------------------- cloud vault
 const vault = await vite.ssrLoadModule('/src/lib/cloudVault.ts');
+const vaultSource = await readFile(new URL('../src/lib/cloudVault.ts', import.meta.url), 'utf8');
+const skippedVaultKeys = vaultSource.slice(
+  vaultSource.indexOf('const SKIPPED'),
+  vaultSource.indexOf(']);', vaultSource.indexOf('const SKIPPED')) + 3
+);
+check(
+  skippedVaultKeys.includes('FOCUS_SESSION_KEY'),
+  'a live focus countdown stays device-local instead of racing another device'
+);
 check(
   typeof vault.startCloudVault === 'function' &&
     typeof vault.pullFromCloud === 'function' &&
@@ -2210,11 +2321,13 @@ const beforeResetStorage = Object.fromEntries(Array.from(
 localStorage.clear();
 localStorage.setItem('hsc28_profile', JSON.stringify({ xp: 999, bookmarks: ['old'] }));
 localStorage.setItem('hsc28_tasks', JSON.stringify([{ id: 'stale-task' }]));
+localStorage.setItem('hsc28_focus_session_v1', JSON.stringify({ id: 'stale-focus' }));
 localStorage.setItem('hsc28_accessibility_v1', JSON.stringify({ version: 1, readingScale: 'large', highContrast: true, motion: 'reduce' }));
 localStorage.setItem('nokkhotro_local_space_v1_reset-user', JSON.stringify({ hsc28_profile: 'stale' }));
 const resetBooted = vault.applyCloudResetLocally('reset-user', 'reset-token-1');
 check(
   !resetBooted && !localStorage.getItem('hsc28_profile') && !localStorage.getItem('hsc28_tasks') &&
+    !localStorage.getItem('hsc28_focus_session_v1') &&
     localStorage.getItem('hsc28_accessibility_v1')?.includes('readingScale') &&
     !localStorage.getItem('nokkhotro_local_space_v1_reset-user') &&
     localStorage.getItem('hsc28_vault_meta')?.includes('reset-token-1') &&
@@ -2679,7 +2792,9 @@ check(
     deploymentHeader('Content-Security-Policy').includes('https://*.supabase.co') &&
     deploymentHeader('X-Content-Type-Options') === 'nosniff' &&
     deploymentHeader('X-Frame-Options') === 'DENY' &&
-    deploymentHeader('Permissions-Policy').includes('camera=()'),
+    deploymentHeader('Permissions-Policy').includes('camera=()') &&
+    deploymentHeader('Permissions-Policy').includes('fullscreen=(self)') &&
+    deploymentHeader('Permissions-Policy').includes('screen-wake-lock=(self)'),
   'production hosting enforces CSP, anti-framing and browser permission boundaries'
 );
 const recoveryBoundarySource = await readFile(new URL('../src/components/AppErrorBoundary.tsx', import.meta.url), 'utf8');
@@ -3604,6 +3719,39 @@ check(
   container.textContent.includes('Physics is first today') &&
     container.textContent.includes('Vectors chapter') && contextualStudyStarted,
   'dashboard reminder names the real study block and starts it directly'
+);
+root.unmount(); root = null;
+
+// A one-second fixture exercises the real completion boundary without making
+// the suite wait through a student-length 25–50 minute block.
+const { StudyFocusSession } = await vite.ssrLoadModule('/src/components/StudyFocusSession.tsx');
+const oneSecondFocus = {
+  ...focusSessions.createFocusSession(focusPlan),
+  remainingSeconds: 1,
+};
+focusSessions.saveFocusSession(oneSecondFocus);
+let completedFocusCount = 0;
+let closedCompletedFocus = false;
+root = createRoot(container);
+root.render(React.createElement(StudyFocusSession, {
+  lang: 'en',
+  theme: 'light',
+  initialSession: oneSecondFocus,
+  onComplete() { completedFocusCount += 1; },
+  onClose() { closedCompletedFocus = true; },
+}));
+await new Promise(resolve => setTimeout(resolve, 1400));
+const completedFocusSurface = container.querySelector('[data-focus-status="complete"]');
+const completedFocusButton = [...container.querySelectorAll('button')].find(
+  button => button.textContent.includes('Finish and return')
+);
+completedFocusButton?.click();
+check(
+  !!completedFocusSurface &&
+    completedFocusCount === 1 &&
+    localStorage.getItem('hsc28_focus_session_v1') === null &&
+    closedCompletedFocus,
+  'focus completion releases the student, clears the live timer and logs once'
 );
 root.unmount(); root = null;
 
