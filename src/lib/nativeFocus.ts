@@ -149,7 +149,9 @@ export function requestNativeFocusLock(durationSeconds: number, label: string): 
 /** Best-effort release; safe to call in the normal browser build. */
 export function releaseNativeFocusLock(): boolean {
   const bridge = getBridge();
-  if (!bridge || !getNativeHostCapabilities()) return false;
+  // Releasing is always safe. Do not leave a student pinned merely because a
+  // future capability payload is malformed or version-mismatched.
+  if (!bridge) return false;
   try {
     bridge.stopFocusSession();
     return true;

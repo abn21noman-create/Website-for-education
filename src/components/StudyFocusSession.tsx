@@ -126,6 +126,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
   const [confirmEnd, setConfirmEnd] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const completedRef = useRef(false);
+  const confirmEndRef = useRef(false);
   const lastTickRef = useRef(Date.now());
   const fullscreenSeenRef = useRef(Boolean(document.fullscreenElement));
   // A very short grace absorbs the browser's own fullscreen transition without
@@ -283,7 +284,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
       if (
         readNativeFocusState()?.state !== 'active' ||
         document.hidden ||
-        confirmEnd ||
+        confirmEndRef.current ||
         completedRef.current
       ) return;
       resumeCountdown();
@@ -313,7 +314,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
       window.removeEventListener(NATIVE_FOCUS_ACTIVE_EVENT, onNativeActive);
       window.removeEventListener(NATIVE_FOCUS_LOST_EVENT, onNativeLost);
     };
-  }, [confirmEnd, markNativeLockLost, nativeHost, resumeCountdown]);
+  }, [markNativeLockLost, nativeHost, resumeCountdown]);
 
   useEffect(() => {
     if (!running) return;
@@ -377,6 +378,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
   useEffect(() => {
     if (session.remainingSeconds > 0 || completedRef.current) return;
     completedRef.current = true;
+    confirmEndRef.current = false;
     setCompleted(true);
     setConfirmEnd(false);
     clearFocusSession();
@@ -397,6 +399,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
   }, [completed, lang, session.remainingSeconds]);
 
   const resume = () => {
+    confirmEndRef.current = false;
     setConfirmEnd(false);
 
     if (nativeHost) {
@@ -425,6 +428,7 @@ export const StudyFocusSession: React.FC<StudyFocusSessionProps> = ({
   };
 
   const askToEnd = () => {
+    confirmEndRef.current = true;
     pause('emergency');
     setConfirmEnd(true);
   };

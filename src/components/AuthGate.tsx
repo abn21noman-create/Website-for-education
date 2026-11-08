@@ -6,6 +6,7 @@ import { startCloudVault } from '../lib/cloudVault';
 import { setSyncUser, withUserSyncWriteLock } from '../lib/sync';
 import { finishGuestMigration, selectAccountSpace } from '../lib/accountSpace';
 import { refreshAccessibilityPreferences } from '../lib/accessibility';
+import { isNativeAndroidHost } from '../lib/nativeFocus';
 import { AccessibilityMenu } from './AccessibilityMenu';
 import App from '../App';
 
@@ -17,6 +18,17 @@ const LazyAdminPortal = lazy(async () => {
 type Lang = 'bn' | 'en';
 type Mode = 'login' | 'signup' | 'forgot' | 'recovery';
 type AccountRole = 'student' | 'admin';
+
+const PRODUCTION_AUTH_REDIRECT = 'https://nokkhotro-hsc-2028.vercel.app/';
+
+function authRedirectUrl(): string {
+  // appassets.androidplatform.net is intentionally not a public website. Native
+  // account links therefore complete in the audited production web app; the
+  // student can then return and sign in with the verified/updated credentials.
+  return isNativeAndroidHost()
+    ? PRODUCTION_AUTH_REDIRECT
+    : window.location.origin + window.location.pathname;
+}
 
 function message(error: unknown, bn: boolean): string {
   const text = error instanceof Error ? error.message : String(error);
@@ -162,7 +174,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
       const client = await clientFactory();
       const clean = email.trim().toLowerCase();
       if (mode === 'forgot') {
-        const { error } = await client.auth.resetPasswordForEmail(clean, { redirectTo: window.location.origin + window.location.pathname });
+        const { error } = await client.auth.resetPasswordForEmail(clean, { redirectTo: authRedirectUrl() });
         if (error) throw error;
         setNotice(bn ? 'এই ইমেইলে অ্যাকাউন্ট থাকলে পাসওয়ার্ড রিসেটের লিংক পাঠানো হবে।' : 'If an account exists, a reset link will be sent.');
       } else if (mode === 'recovery') {
@@ -171,7 +183,7 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
         const { data } = await client.auth.getSession(); if (data.session) await prepare(data.session);
       } else if (mode === 'signup') {
         if (!name.trim()) throw new Error(bn ? 'আপনার নাম লিখুন।' : 'Enter your name.');
-        const { data, error } = await client.auth.signUp({ email: clean, password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.origin + window.location.pathname } });
+        const { data, error } = await client.auth.signUp({ email: clean, password, options: { data: { full_name: name.trim() }, emailRedirectTo: authRedirectUrl() } });
         if (error) throw error;
         if (!data.session) setNotice(bn ? 'ইমেইলে পাঠানো লিংক দিয়ে অ্যাকাউন্ট যাচাই করে লগইন করুন।' : 'Verify your email using the link, then sign in.');
       } else {
