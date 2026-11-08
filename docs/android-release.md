@@ -26,7 +26,7 @@ There is no Accessibility Service, overlay permission, package enumeration, stor
 - Node.js 22 and npm 10+
 - JDK 17
 - Android SDK platform 36 and Build Tools 36.0.0
-- Gradle 8.11.1 through the committed, validated wrapper
+- Gradle 9.8.2 through the committed, checksum-validated wrapper
 - Minimum Android API 26; target/compile API 36
 
 Install web dependencies first:

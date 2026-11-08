@@ -109,16 +109,16 @@ check(
 );
 
 check(
-  wrapperProperties.includes('downloads.gradle.org/distributions/gradle-8.11.1-bin.zip') &&
-    wrapperProperties.includes('distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6') &&
+  wrapperProperties.includes('downloads.gradle.org/distributions/gradle-9.8.2-bin.zip') &&
+    wrapperProperties.includes('distributionSha256Sum=21bd5da2de49b642904077f38c0efdc7778e92b3ed0889392dca61b97e389607') &&
     wrapperProperties.includes('validateDistributionUrl=true'),
-  'Gradle wrapper pins 8.11.1 and verifies the official distribution checksum'
+  'Gradle wrapper pins 9.8.2 and verifies the official distribution checksum'
 );
 const wrapperJar = await readFile(new URL('../android/gradle/wrapper/gradle-wrapper.jar', import.meta.url));
 const wrapperSha = createHash('sha256').update(wrapperJar).digest('hex');
 check(
-  wrapperSha === '2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046',
-  'Gradle wrapper JAR matches the recorded official 8.11.1 checksum'
+  wrapperSha === '3b8a25775a69158b5ad2b1d17a80a88dc7b40a352a73eb27d06c612a7ce68e98',
+  'Gradle wrapper JAR matches the recorded official 9.8.2 checksum'
 );
 check(
   releaseWorkflow.includes('REQUIRE_RELEASE_SIGNING: \'true\'') &&

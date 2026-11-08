@@ -55,7 +55,11 @@ jobs:
       - name: Run native unit tests, Android lint and build debug APK
         run: |
           set +e
-          gradle --version
+          gradle_version=$(gradle --version | awk '/^Gradle / { print $2 }')
+          if [[ "$gradle_version" != "9.8.2" ]]; then
+            echo "::error::Runner Gradle is $gradle_version; expected the repository-pinned 9.8.2"
+            exit 1
+          fi
           gradle -p android --no-daemon testDebugUnitTest lintDebug assembleDebug 2>&1 | tee "$RUNNER_TEMP/gradle-build.log"
           status=${PIPESTATUS[0]}
           set -e
