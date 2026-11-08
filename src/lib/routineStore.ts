@@ -14,6 +14,7 @@ import type { TrackKey } from './trackProgress';
  */
 
 export const ROUTINE_KEY = 'hsc28_master_routine_v1';
+export const ROUTINE_CHANGED_EVENT = 'hsc28:routine-changed';
 
 export interface RoutineState {
   /** Calendar date that counts as Day 1 of the 391-day plan. */
@@ -69,6 +70,7 @@ export function loadRoutineState(): RoutineState {
 export function saveRoutineState(state: RoutineState): RoutineState {
   try {
     localStorage.setItem(ROUTINE_KEY, JSON.stringify(state));
+    window.dispatchEvent(new CustomEvent(ROUTINE_CHANGED_EVENT));
   } catch {
     /* private mode or a full quota — the screen still works for this session */
   }
@@ -96,6 +98,27 @@ export function logStudyMinutes(state: RoutineState, dateKey: string, delta: num
   if (next === 0) delete minutes[dateKey];
   else minutes[dateKey] = next;
   return saveRoutineState({ ...state, minutes });
+}
+
+/**
+ * A completed dashboard focus block records real minutes and closes only the
+ * textbook-reading step. Notes, lecture sheet and MCQ/CQ work remain explicit.
+ */
+export function completeRoutineReading(
+  state: RoutineState,
+  dateKey: string,
+  slotIndex: number,
+  durationMinutes: number
+): RoutineState {
+  const readingKey = taskKey(dateKey, slotIndex, 2);
+  if (state.tasks[readingKey]) return state;
+  const tasks = { ...state.tasks, [readingKey]: true };
+  const minutes = { ...state.minutes };
+  minutes[dateKey] = Math.max(
+    0,
+    Math.min(900, (minutes[dateKey] || 0) + Math.max(0, Math.round(durationMinutes)))
+  );
+  return saveRoutineState({ ...state, tasks, minutes });
 }
 
 export function setStartDate(state: RoutineState, startDate: string): RoutineState {

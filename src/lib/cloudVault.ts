@@ -15,9 +15,10 @@ import { ACCESSIBILITY_STORAGE_KEY } from './accessibility';
  * খাতা, সাপ্তাহিক টার্গেট) শুধু `localStorage`-এ থাকত — ফোন বদলালে বা
  * ব্রাউজার ডেটা মুছলে সব হারিয়ে যেত।
  *
- * এই মডিউল `hsc28_*` দিয়ে শুরু হওয়া **প্রতিটি** কি-কে `public.hsc28_kv`
- * টেবিলে (user_id, key, value, updated_at) আপসert করে, এবং লগইন করার সময়
- * ফিরিয়ে আনে। ফলে এক ফোনে পড়ে অন্য ফোনে লগইন করলেই পুরো অগ্রগতি ফিরে আসে।
+ * এই মডিউল `hsc28_*` দিয়ে শুরু হওয়া app-owned study-state কি-গুলোকে
+ * `public.hsc28_kv` টেবিলে (user_id, key, value, updated_at) আপসert করে এবং
+ * লগইন করার সময় ফিরিয়ে আনে। Internal metadata ও চলমান device-local timer
+ * ইচ্ছাকৃতভাবে বাদ থাকে; বাকি অগ্রগতি ফোন বদলালেও ফিরে আসে।
  *
  * নকশার সিদ্ধান্ত:
  *  - `Storage.prototype.setItem` একবার হুক করা হয়, তাই ৩৩টি কি-এর কোনোটাই
@@ -43,12 +44,16 @@ const RESET_PENDING_PREFIX = 'nokkhotro_cloud_reset_pending_v1_';
 const LOCAL_SPACE_PREFIX = 'nokkhotro_local_space_v1_';
 const GUEST_PENDING_PREFIX = 'nokkhotro_guest_pending_v1_';
 const SYNC_QUEUE_KEY = 'hsc28_sync_queue';
+// A live countdown belongs only to the screen currently in focus. Syncing it
+// could let a background phone overwrite the active device's remaining time.
+const FOCUS_SESSION_KEY = 'hsc28_focus_session_v1';
 const SKIPPED = new Set([
   META_KEY,
   NOTICE_KEY,
   RELOAD_KEY,
   RESET_MARKER_KEY,
   SYNC_QUEUE_KEY,
+  FOCUS_SESSION_KEY,
 ]);
 // "Delete study data" should not make the interface unreadable again. This
 // preference remains cloud-synced in normal use, but survives a study reset and
