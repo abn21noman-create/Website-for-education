@@ -19,6 +19,10 @@ export const ROUTINE_CHANGED_EVENT = 'hsc28:routine-changed';
 export interface RoutineState {
   /** Calendar date that counts as Day 1 of the 391-day plan. */
   startDate: string;
+  /** Whether the student has explicitly launched Day 1 of their journey. */
+  journeyStarted?: boolean;
+  /** Daily intensity pace selected for the routine. */
+  paceMode?: 'light' | 'steady' | 'intense';
   /** When this student's attention is sharpest — shifts the timetable order. */
   chronotype: Chronotype;
   /** The track that gets the most time — Medical unless the student changes it. */
@@ -33,6 +37,8 @@ export interface RoutineState {
 export function emptyRoutineState(startDate = toDateKey(new Date())): RoutineState {
   return {
     startDate,
+    journeyStarted: false,
+    paceMode: 'steady',
     chronotype: 'neutral',
     primaryTrack: DEFAULT_PRIMARY_TRACK,
     tasks: {},
@@ -46,8 +52,26 @@ export function loadRoutineState(): RoutineState {
     const raw = localStorage.getItem(ROUTINE_KEY);
     if (!raw) return emptyRoutineState();
     const parsed = JSON.parse(raw) as Partial<RoutineState>;
+    const tasks = parsed.tasks && typeof parsed.tasks === 'object' ? parsed.tasks : {};
+    const minutes = parsed.minutes && typeof parsed.minutes === 'object' ? parsed.minutes : {};
+    const hasActivity =
+      Object.values(tasks).some(Boolean) ||
+      Object.values(minutes).some((val) => Number(val) > 0);
+    // Keep Day 1 anchored to today until the student explicitly launches or logs
+    // real study progress — prevents returning to Day 15 with 0 chapters done.
+    const effectiveStartDate =
+      parsed.journeyStarted === true || hasActivity
+        ? typeof parsed.startDate === 'string'
+          ? parsed.startDate
+          : toDateKey(new Date())
+        : toDateKey(new Date());
     return {
-      startDate: typeof parsed.startDate === 'string' ? parsed.startDate : toDateKey(new Date()),
+      startDate: effectiveStartDate,
+      journeyStarted: parsed.journeyStarted === true || hasActivity,
+      paceMode:
+        parsed.paceMode === 'light' || parsed.paceMode === 'steady' || parsed.paceMode === 'intense'
+          ? parsed.paceMode
+          : 'steady',
       chronotype:
         parsed.chronotype === 'morning' || parsed.chronotype === 'evening'
           ? parsed.chronotype
@@ -58,8 +82,8 @@ export function loadRoutineState(): RoutineState {
         parsed.primaryTrack === 'varsity'
           ? parsed.primaryTrack
           : DEFAULT_PRIMARY_TRACK,
-      tasks: parsed.tasks && typeof parsed.tasks === 'object' ? parsed.tasks : {},
-      minutes: parsed.minutes && typeof parsed.minutes === 'object' ? parsed.minutes : {},
+      tasks,
+      minutes,
       settings: { ...DEFAULT_TIME_SETTINGS, ...(parsed.settings || {}) },
     };
   } catch {
@@ -89,7 +113,7 @@ export function toggleRoutineTask(state: RoutineState, key: string): RoutineStat
   const tasks = { ...state.tasks };
   if (tasks[key]) delete tasks[key];
   else tasks[key] = true;
-  return saveRoutineState({ ...state, tasks });
+  return saveRoutineState({ ...state, journeyStarted: true, tasks });
 }
 
 export function logStudyMinutes(state: RoutineState, dateKey: string, delta: number): RoutineState {
@@ -97,7 +121,11 @@ export function logStudyMinutes(state: RoutineState, dateKey: string, delta: num
   const next = Math.max(0, Math.min(900, (minutes[dateKey] || 0) + delta));
   if (next === 0) delete minutes[dateKey];
   else minutes[dateKey] = next;
-  return saveRoutineState({ ...state, minutes });
+  return saveRoutineState({
+    ...state,
+    journeyStarted: state.journeyStarted || next > 0,
+    minutes,
+  });
 }
 
 /**
@@ -118,11 +146,34 @@ export function completeRoutineReading(
     0,
     Math.min(900, (minutes[dateKey] || 0) + Math.max(0, Math.round(durationMinutes)))
   );
-  return saveRoutineState({ ...state, tasks, minutes });
+  return saveRoutineState({ ...state, journeyStarted: true, tasks, minutes });
 }
 
 export function setStartDate(state: RoutineState, startDate: string): RoutineState {
-  return saveRoutineState({ ...state, startDate });
+  return saveRoutineState({ ...state, startDate, journeyStarted: true });
+}
+
+/** Launch or restart the entire 391-day routine cleanly from Day 1 on `startDate`. */
+export function startFreshRoutine(
+  state: RoutineState,
+  startDate = toDateKey(new Date()),
+  paceMode: 'light' | 'steady' | 'intense' = state.paceMode || 'steady'
+): RoutineState {
+  return saveRoutineState({
+    ...state,
+    startDate,
+    journeyStarted: true,
+    paceMode,
+    tasks: {},
+    minutes: {},
+  });
+}
+
+export function setPaceMode(
+  state: RoutineState,
+  paceMode: 'light' | 'steady' | 'intense'
+): RoutineState {
+  return saveRoutineState({ ...state, paceMode });
 }
 
 export function setTimeSettings(state: RoutineState, settings: TimeSettings): RoutineState {

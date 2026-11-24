@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  CheckCircle2,
   FileCheck2,
-  Clock,
-  Trophy,
   ArrowRight,
   ArrowUpRight,
   BookMarked,
@@ -11,10 +8,7 @@ import {
   Target,
   Zap,
   BarChart3,
-  FileSpreadsheet,
-  Calculator,
   FlaskConical,
-  MessageSquareText,
   HeartPulse,
   CalendarClock,
   BookOpen,
@@ -29,35 +23,41 @@ import {
   StudyTask,
   Theme,
 } from '../types';
-import { CHAPTERS, SUBJECTS, getSubjectByKey } from '../data/syllabusData';
+import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { confidenceSummary, loadConfidence, loadPredictions, predictionSummary } from '../lib/calibration';
 import { requestChapterDrill } from '../lib/chapterDrill';
 import { focusPlanForSlot, type StudyFocusPlan } from '../lib/focusSession';
 import { classSlotsForDay, dayNumberForDate, toDateKey } from '../lib/masterRoutine';
-import { loadRoutineState, taskKey } from '../lib/routineStore';
+import { loadRoutineState, startFreshRoutine, taskKey } from '../lib/routineStore';
 import { formatNum } from '../lib/i18n';
 import { SubjectIcon } from './SubjectIcon';
 import { DashboardTodayFocus } from './DashboardTodayFocus';
 
 const LazyDashboardWeeklyGoals = React.lazy(async () => {
-  const module = await import('./DashboardWeeklyGoals');
-  return { default: module.DashboardWeeklyGoals };
+  const mod = await import('./DashboardWeeklyGoals');
+  return { default: mod.DashboardWeeklyGoals };
 });
-// Keep this tiny existence check in the dashboard chunk; the full goal engine
-// is fetched only after a plan exists or the student opens Analytics.
-const WEEKLY_GOALS_KEY = 'hsc28_weekly_goals_v1';
+
+const WEEKLY_GOALS_STORAGE_KEY = 'hsc28_weekly_goals_v1';
 const WEEKLY_GOALS_EVENT_NAME = 'hsc28:weekly-goals-changed';
+const hasSavedWeeklyGoalPlan = (): boolean => {
+  try {
+    return localStorage.getItem(WEEKLY_GOALS_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
 
 interface DashboardViewProps {
   lang: Lang;
   theme: Theme;
   profile: StudentProfile;
-  isAuthenticated: boolean;
   progressMap: Record<string, ChapterProgressState>;
   quizHistory: QuizAttemptRecord[];
   tasks: StudyTask[];
-  onNavigate: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
+  onNavigate: (tab: ActiveTab, filterSubject?: SubjectKey) => void;
   onStartFocus: (plan: StudyFocusPlan) => void;
+  isAuthenticated: boolean;
   onOpenAuth: () => void;
 }
 
@@ -67,45 +67,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   lang,
   theme,
   profile,
-  isAuthenticated,
   progressMap,
   quizHistory,
-  tasks,
   onNavigate,
   onStartFocus,
+  isAuthenticated,
   onOpenAuth,
 }) => {
   const isDark = theme === 'dark';
-  const [now, setNow] = useState(() => Date.now());
-  const [hasWeeklyGoalPlan, setHasWeeklyGoalPlan] = useState(() => {
-    try {
-      return localStorage.getItem(WEEKLY_GOALS_KEY) !== null;
-    } catch {
-      return false;
-    }
-  });
-  // Metacognition lives on the dashboard: does confidence match results?
-  const [calibration] = useState(() => {
-    const prediction = predictionSummary(loadPredictions());
-    const confidence = confidenceSummary(loadConfidence());
-    return { prediction, confidence };
-  });
+  const [now, setNow] = useState(Date.now());
+  const [hasWeeklyGoalPlan, setHasWeeklyGoalPlan] = useState<boolean>(() =>
+    hasSavedWeeklyGoalPlan()
+  );
+
+  const calibration = React.useMemo(
+    () => ({
+      prediction: predictionSummary(loadPredictions()),
+      confidence: confidenceSummary(loadConfidence()),
+    }),
+    [quizHistory.length]
+  );
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
+    const t = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
-    const readPlan = () => {
-      try {
-        setHasWeeklyGoalPlan(localStorage.getItem(WEEKLY_GOALS_KEY) !== null);
-      } catch {
-        setHasWeeklyGoalPlan(false);
-      }
-    };
+    const readPlan = () => setHasWeeklyGoalPlan(hasSavedWeeklyGoalPlan());
     const onStorage = (event: StorageEvent) => {
-      if (event.key === WEEKLY_GOALS_KEY || event.key === null) readPlan();
+      if (event.key === null || event.key === WEEKLY_GOALS_STORAGE_KEY) {
+        readPlan();
+      }
     };
     window.addEventListener(WEEKLY_GOALS_EVENT_NAME, readPlan);
     window.addEventListener('storage', onStorage);
@@ -136,17 +129,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   });
 
   const overallPercent = Math.round((checkedCount / totalCheckboxes) * 100);
-  const pendingTasks = tasks.filter((t) => !t.completed);
-  const avgAccuracy =
-    quizHistory.length > 0
-      ? Math.round(
-          quizHistory.reduce((acc, q) => acc + q.accuracy, 0) / quizHistory.length
-        )
-      : Math.round(profile.bestAccuracy);
 
   const startTodayFocus = () => {
-    const routine = loadRoutineState();
+    let routine = loadRoutineState();
     const todayKey = toDateKey(new Date());
+    if (!routine.journeyStarted) {
+      routine = startFreshRoutine(routine, todayKey, routine.paceMode || 'steady');
+    }
     const dayNumber = dayNumberForDate(routine.startDate, todayKey);
     if (dayNumber) {
       const slots = classSlotsForDay(dayNumber);
@@ -162,15 +151,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
+      {/* Minimal Calm Header */}
       <div className="dashboard-welcome">
-        <div><div className="dashboard-eyebrow"><span /> {lang === 'bn' ? 'তোমার ব্যক্তিগত স্টাডি স্পেস' : 'YOUR PERSONAL STUDY SPACE'}</div>
-          <h1>{lang === 'bn' ? `স্বাগতম, ${profile.fullName.split(' ')[0]}!` : `Welcome back, ${profile.fullName.split(' ')[0]}!`} <span>✦</span></h1>
-          <p>{lang === 'bn' ? 'বড় স্বপ্নের শুরু হোক আজকের ছোট্ট পদক্ষেপে।' : 'Big dreams begin with the small steps you take today.'}</p>
+        <div>
+          <div className="dashboard-eyebrow">
+            <span /> {lang === 'bn' ? 'নক্ষত্র স্টাডি স্পেস · HSC ২০২৮' : 'NOKKHOTRO STUDY SPACE · HSC 2028'}
+          </div>
+          <h1>
+            {lang === 'bn'
+              ? `স্বাগতম, ${profile.fullName.split(' ')[0]}`
+              : `Welcome, ${profile.fullName.split(' ')[0]}`}{' '}
+            <span>✦</span>
+          </h1>
+          <p>
+            {lang === 'bn'
+              ? 'শান্ত মনে আজকের ছোট্ট লক্ষ্যটুকু শেষ করো—বাকিটা নিজেই গুছিয়ে যাবে।'
+              : 'Focus calmly on today’s two chapters—consistency builds everything else.'}
+          </p>
         </div>
-        <div className="dashboard-date"><Calendar size={16} /><span>{new Intl.DateTimeFormat(lang === 'bn' ? 'bn-BD' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(now))}</span></div>
+        <div className="dashboard-date">
+          <Calendar size={15} />
+          <span>
+            {new Intl.DateTimeFormat(lang === 'bn' ? 'bn-BD' : 'en-GB', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            }).format(new Date(now))}
+          </span>
+        </div>
       </div>
 
+      {/* Primary Priority: Today's Routine & Immediate Focus */}
       <DashboardTodayFocus
         lang={lang}
         theme={theme}
@@ -179,537 +191,202 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         onStartFocus={onStartFocus}
       />
 
+      {/* Minimal Orbit Banner + Syllabus Ring */}
       <div className="dashboard-hero-grid">
         <section className="dashboard-hero">
           <div className="dashboard-hero-content">
-            <span className="hero-kicker"><span>✦</span> {lang === 'bn' ? 'HSC ২০২৮ · বিজ্ঞান বিভাগ' : 'HSC 2028 · SCIENCE'}</span>
-            <h2>{lang === 'bn' ? <>তোমার লক্ষ্য,<br /><em>তোমার আগামী।</em></> : <>Your goal.<br /><em>Your tomorrow.</em></>}</h2>
-            <p>{lang === 'bn' ? 'পরিকল্পনা থেকে অনুশীলন—প্রস্তুতির প্রতিটি ধাপে নক্ষত্র আছে তোমার পাশে।' : 'From planning to practice, Nokkhotro is with you at every step.'}</p>
-            <div className="hero-actions"><button onClick={startTodayFocus} className="hero-primary">{lang === 'bn' ? 'আজকের পড়া শুরু করো' : 'Start studying'} <ArrowRight size={16} /></button><button onClick={() => onNavigate('mcq')} className="hero-secondary">{lang === 'bn' ? 'মডেল টেস্ট' : 'Take a test'} <ArrowUpRight size={15} /></button></div>
-            {!isAuthenticated && <button className="hero-login" onClick={onOpenAuth}>{lang === 'bn' ? 'অগ্রগতি সেভ করতে লগইন করো' : 'Sign in to save your progress'} →</button>}
+            <span className="hero-kicker">
+              <span>✦</span> {lang === 'bn' ? 'নতুন করে শুরু · বিজ্ঞান বিভাগ' : 'FRESH START · SCIENCE'}
+            </span>
+            <h2>
+              {lang === 'bn' ? (
+                <>
+                  নিজের গতিতে শুরু করো,<br />
+                  <em>প্রতিদিন একটু এগিয়ে যাও।</em>
+                </>
+              ) : (
+                <>
+                  Start at your own pace,<br />
+                  <em>grow one day at a time.</em>
+                </>
+              )}
+            </h2>
+            <p>
+              {lang === 'bn'
+                ? 'কোনো জটিলতা নেই—রুটিন খুলে Day 1 শুরু করো, বই পড়ো এবং ছোট কুইজে নিজেকে যাচাই করো।'
+                : 'Zero clutter—launch Day 1 when ready, read your chapter, and test your recall.'}
+            </p>
+            <div className="hero-actions">
+              <button onClick={startTodayFocus} className="hero-primary">
+                {lang === 'bn' ? 'আজকের পড়া শুরু করো' : 'Start studying'} <ArrowRight size={16} />
+              </button>
+              <button onClick={() => onNavigate('routine')} className="hero-secondary">
+                {lang === 'bn' ? 'রুটিন সাজাও' : 'Customize routine'} <ArrowUpRight size={15} />
+              </button>
+            </div>
+            {!isAuthenticated && (
+              <button className="hero-login" onClick={onOpenAuth}>
+                {lang === 'bn' ? 'ক্লাউডে অগ্রগতি সেভ করতে লগইন করো' : 'Sign in to sync your progress'} →
+              </button>
+            )}
           </div>
-          <div className="hero-image" aria-hidden="true" />
-          <div className="hero-bottom-label"><span>✦</span> LEARN. GROW. BECOME.</div>
+          <div className="hero-orbit-art" aria-hidden="true">
+            <div className="orbit-ring orbit-ring-outer" />
+            <div className="orbit-ring orbit-ring-inner" />
+            <div className="orbit-star">✦</div>
+          </div>
         </section>
-        <section className={`dashboard-progress-card ${isDark ? 'is-dark' : ''}`}>
-          <div className="progress-card-heading"><div><span className="card-kicker">{lang === 'bn' ? 'তোমার অগ্রগতি' : 'YOUR PROGRESS'}</span><h2>{lang === 'bn' ? 'প্রস্তুতির এক নজর' : 'Your preparation'}</h2></div><span className="progress-icon"><Target size={19} /></span></div>
-          <div className="progress-ring-wrap"><div className="progress-ring" style={{ background: `conic-gradient(#7165e8 ${overallPercent}%, ${isDark ? '#344053' : '#eeedf9'} 0)` }}><div><strong>{formatNum(overallPercent, lang)}<small>%</small></strong><span>{lang === 'bn' ? 'সম্পন্ন' : 'complete'}</span></div></div><div className="progress-side"><span className="progress-side-dot" /><p>{lang === 'bn' ? 'সিলেবাসের অগ্রগতি' : 'Syllabus progress'}<strong>{formatNum(checkedCount, lang)} / {formatNum(totalCheckboxes, lang)}</strong></p></div></div>
-          <div className="progress-card-footer"><span>{lang === 'bn' ? `${formatNum(fullyMasteredChapters, lang)}টি অধ্যায় সম্পূর্ণ` : `${fullyMasteredChapters} chapters mastered`}</span><button onClick={() => onNavigate('syllabus')}>{lang === 'bn' ? 'বিস্তারিত' : 'Details'} <ArrowRight size={14} /></button></div>
-        </section>
-      </div>
-      <div className="dashboard-glance">
-        <div><span className="glance-icon lavender"><Zap size={18} /></span><span><small>{lang === 'bn' ? 'মোট পয়েন্ট' : 'TOTAL POINTS'}</small><strong>{formatNum(profile.xp, lang)} <em>XP</em></strong></span></div>
-        <div><span className="glance-icon mint"><BookOpen size={18} /></span><span><small>{lang === 'bn' ? 'সম্পন্ন অধ্যায়' : 'CHAPTERS MASTERED'}</small><strong>{formatNum(fullyMasteredChapters, lang)} <em>/ {formatNum(CHAPTERS.length, lang)}</em></strong></span></div>
-        <div><span className="glance-icon peach"><FileCheck2 size={18} /></span><span><small>{lang === 'bn' ? 'মডেল টেস্ট' : 'TESTS TAKEN'}</small><strong>{formatNum(quizHistory.length, lang)} <em>{lang === 'bn' ? 'টি পরীক্ষা' : 'tests'}</em></strong></span></div>
-        <div><span className="glance-icon blue"><CalendarClock size={18} /></span><span><small>{lang === 'bn' ? 'আনুমানিক লক্ষ্য: ১০ মে ২০২৮' : 'PLANNING TARGET: 10 MAY 2028'}</small><strong>{formatNum(daysLeft, lang)} <em>{lang === 'bn' ? 'দিন বাকি' : 'days left'}</em></strong></span></div>
-      </div>
-      <section className="dashboard-sectors" aria-label={lang === 'bn' ? 'পড়াশোনার সেকশন' : 'Study sections'}>
-        <div className="dashboard-section-heading"><div><span>{lang === 'bn' ? 'সবকিছু এক জায়গায়' : 'YOUR STUDY TOOLKIT'}</span><h2>{lang === 'bn' ? 'তোমার সেকশনগুলো' : 'Your study sections'}</h2></div><span className="sector-hint">{lang === 'bn' ? 'একটি বেছে শুরু করো' : 'Choose where to begin'}</span></div>
-        <div className="sector-grid">
-          {[
-            { tab: 'syllabus' as const, icon: BookOpen, bn: 'সিলেবাস', en: 'Syllabus', subBn: 'অধ্যায় ও অগ্রগতি', subEn: 'Chapters & progress', tone: 'purple' },
-            { tab: 'routine' as const, icon: CalendarClock, bn: 'মাস্টার রুটিন', en: 'Master routine', subBn: 'প্রতিদিনের পরিকল্পনা', subEn: 'Your daily roadmap', tone: 'blue' },
-            { tab: 'mcq' as const, icon: FileCheck2, bn: 'পরীক্ষা কেন্দ্র', en: 'Exam centre', subBn: 'MCQ ও মডেল টেস্ট', subEn: 'MCQs & mock tests', tone: 'peach' },
-            { tab: 'formulas' as const, icon: BookMarked, bn: 'সূত্র ভল্ট', en: 'Formula vault', subBn: 'সূত্র ও রিভিশন', subEn: 'Formulas & revision', tone: 'mint' },
-            { tab: 'analytics' as const, icon: BarChart3, bn: 'আমার অগ্রগতি', en: 'My progress', subBn: 'বিশ্লেষণ ও দুর্বলতা', subEn: 'Insights & strengths', tone: 'rose' },
-            { tab: 'admission' as const, icon: Target, bn: 'অ্যাডমিশন', en: 'Admission', subBn: 'স্বপ্নের পথে প্রস্তুতি', subEn: 'Prepare for your goals', tone: 'gold' },
-          ].map((item) => <button key={item.tab} className="sector-card" onClick={() => onNavigate(item.tab)}>
-            <span className={`sector-card-icon ${item.tone}`}><item.icon size={19} strokeWidth={1.8}/></span><span className="sector-card-copy"><strong>{lang === 'bn' ? item.bn : item.en}</strong><small>{lang === 'bn' ? item.subBn : item.subEn}</small></span><ArrowUpRight className="sector-card-arrow" size={15}/>
-          </button>)}
-        </div>
-      </section>
-      {hasWeeklyGoalPlan && (
-        <React.Suspense
-          fallback={
-            <section
-              className={`min-h-28 rounded-2xl border animate-pulse ${
-                isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
-              }`}
-              aria-label={lang === 'bn' ? 'সাপ্তাহিক লক্ষ্য লোড হচ্ছে' : 'Loading weekly goals'}
-            />
-          }
-        >
-          <LazyDashboardWeeklyGoals lang={lang} theme={theme} onNavigate={onNavigate} />
-        </React.Suspense>
-      )}
 
-      {/* Calibration: prediction vs reality, confident-but-wrong */}
-      <section
-        className={`rounded-2xl border p-4 sm:p-5 ${
-          isDark ? 'bg-slate-800/65 border-slate-700/65' : 'bg-white/95 border-slate-200/80'
-        }`}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-extrabold flex items-center gap-2">
-            <span>🎯</span>
-            {lang === 'bn' ? 'নিশ্চয়তা বনাম বাস্তবতা' : 'Confidence vs reality'}
-          </h2>
-          <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isDark ? 'bg-slate-700/70 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
-            {lang === 'bn'
-              ? `${formatNum(calibration.prediction.attempts, lang)}টি অনুমান · ${formatNum(calibration.confidence.total, lang)}টি ট্যাগ`
-              : `${calibration.prediction.attempts} predictions · ${calibration.confidence.total} tags`}
+        <section className={`dashboard-progress-card ${isDark ? 'is-dark' : ''}`}>
+          <div className="progress-card-heading">
+            <div>
+              <span className="card-kicker">{lang === 'bn' ? 'সামগ্রিক সিলেবাস' : 'OVERALL SYLLABUS'}</span>
+              <h2>{lang === 'bn' ? 'প্রস্তুতির এক নজর' : 'Your preparation'}</h2>
+            </div>
+            <span className="progress-icon">
+              <Target size={18} />
+            </span>
+          </div>
+          <div className="progress-ring-wrap">
+            <div
+              className="progress-ring"
+              style={{
+                background: `conic-gradient(#0d9488 ${overallPercent}%, ${
+                  isDark ? '#1e293b' : '#e2e8f0'
+                } 0)`,
+              }}
+            >
+              <div>
+                <strong>
+                  {formatNum(overallPercent, lang)}
+                  <small>%</small>
+                </strong>
+                <span>{lang === 'bn' ? 'সম্পন্ন' : 'complete'}</span>
+              </div>
+            </div>
+            <div className="progress-side">
+              <span className="progress-side-dot" />
+              <p>
+                {lang === 'bn' ? 'অধ্যায় ধাপ সম্পন্ন' : 'Completed steps'}
+                <strong>
+                  {formatNum(checkedCount, lang)} / {formatNum(totalCheckboxes, lang)}
+                </strong>
+              </p>
+            </div>
+          </div>
+          <div className="progress-card-footer">
+            <span>
+              {lang === 'bn'
+                ? `${formatNum(fullyMasteredChapters, lang)}টি অধ্যায় সম্পূর্ণ`
+                : `${fullyMasteredChapters} chapters mastered`}
+            </span>
+            <button onClick={() => onNavigate('syllabus')}>
+              {lang === 'bn' ? 'সিলেবাস খুলুন' : 'Open syllabus'} <ArrowRight size={14} />
+            </button>
+          </div>
+        </section>
+      </div>
+
+      {/* Compact 4-Stat Strip */}
+      <div className="dashboard-glance">
+        <div>
+          <span className="glance-icon lavender">
+            <Zap size={17} />
+          </span>
+          <span>
+            <small>{lang === 'bn' ? 'মোট পয়েন্ট' : 'TOTAL POINTS'}</small>
+            <strong>
+              {formatNum(profile.xp, lang)} <em>XP</em>
+            </strong>
           </span>
         </div>
-
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
-            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
-              {lang === 'bn' ? 'গড় অনুমান' : 'avg predicted'}
-            </p>
-            <p className="text-lg font-extrabold font-mono tabular-nums">
-              {formatNum(calibration.prediction.averagePredicted, lang)}%
-            </p>
-          </div>
-          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
-            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
-              {lang === 'bn' ? 'গড় ফল' : 'avg actual'}
-            </p>
-            <p className="text-lg font-extrabold font-mono tabular-nums">
-              {formatNum(calibration.prediction.averageActual, lang)}%
-            </p>
-          </div>
-          <div className={`rounded-xl border p-3 ${isDark ? 'border-slate-700/80 bg-slate-900/50' : 'border-slate-200/90 bg-slate-50/80'}`}>
-            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
-              {lang === 'bn' ? 'নিশ্চিত হয়ে ভুল' : 'sure & wrong'}
-            </p>
-            <p className={`text-lg font-extrabold font-mono tabular-nums ${calibration.confidence.blindSpots > 0 ? 'text-rose-600 dark:text-rose-400' : ''}`}>
-              {formatNum(calibration.confidence.blindSpots, lang)}
-            </p>
-          </div>
+        <div>
+          <span className="glance-icon mint">
+            <BookOpen size={17} />
+          </span>
+          <span>
+            <small>{lang === 'bn' ? 'সম্পন্ন অধ্যায়' : 'CHAPTERS MASTERED'}</small>
+            <strong>
+              {formatNum(fullyMasteredChapters, lang)} <em>/ {formatNum(CHAPTERS.length, lang)}</em>
+            </strong>
+          </span>
         </div>
-
-        <div className={`mt-2 space-y-1.5 text-[11px] leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-          <p>
-            <span className="font-extrabold">{lang === 'bn' ? 'স্কোর অনুমান: ' : 'Score prediction: '}</span>
-            {lang === 'bn' ? calibration.prediction.messageBn : calibration.prediction.messageEn}
-          </p>
-          {calibration.confidence.total > 0 && (
-            <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>
-              <span className="font-extrabold">{lang === 'bn' ? 'উত্তরের নিশ্চয়তা: ' : 'Answer confidence: '}</span>
-              {lang === 'bn' ? calibration.confidence.messageBn : calibration.confidence.messageEn}
-            </p>
-          )}
+        <div>
+          <span className="glance-icon peach">
+            <FileCheck2 size={17} />
+          </span>
+          <span>
+            <small>{lang === 'bn' ? 'মডেল টেস্ট' : 'TESTS TAKEN'}</small>
+            <strong>
+              {formatNum(quizHistory.length, lang)} <em>{lang === 'bn' ? 'টি পরীক্ষা' : 'tests'}</em>
+            </strong>
+          </span>
         </div>
-
-        {calibration.confidence.blindSpotIds.length > 0 && (
-          <button
-            onClick={() => {
-              requestChapterDrill({
-                chapterBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
-                chapterEn: 'Confidently wrong',
-                titleBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
-                titleEn: 'Confidently wrong',
-                count: Math.min(20, calibration.confidence.blindSpotIds.length),
-                questionIds: calibration.confidence.blindSpotIds,
-              });
-              onNavigate('mcq');
-            }}
-            className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-500"
-          >
-            {lang === 'bn'
-              ? `নিশ্চিত-ভুল ${formatNum(calibration.confidence.blindSpots, lang)}টি ড্রিল করো`
-              : `Drill the ${calibration.confidence.blindSpots} confidently wrong`}
-          </button>
-        )}
-      </section>
-
-      {/* 4 Soft Pastel KPI Metrics */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div
-          className={`p-5 rounded-2xl border transition-all ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold opacity-65">
-              {lang === 'bn' ? 'মোট একাডেমিক পয়েন্ট' : 'Academic Score (XP)'}
-            </span>
-            <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isDark
-                  ? 'bg-amber-500/15 text-amber-300'
-                  : 'bg-amber-50 text-amber-600'
-              }`}
-            >
-              <Zap className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold tabular-nums">
-            {formatNum(profile.xp, lang)}{' '}
-            <span className="text-xs font-mono uppercase text-amber-600 dark:text-amber-300">
-              XP
-            </span>
-          </div>
-          <div className="text-xs mt-1.5 opacity-60">
-            {lang === 'bn'
-              ? `ধারাবাহিকতা: ${formatNum(profile.streakDays, lang)} দিন`
-              : `Active streak: ${profile.streakDays} day(s)`}
-          </div>
+        <div>
+          <span className="glance-icon blue">
+            <CalendarClock size={17} />
+          </span>
+          <span>
+            <small>{lang === 'bn' ? 'HSC ২০২৮ লক্ষ্য' : 'HSC 2028 TARGET'}</small>
+            <strong>
+              {formatNum(daysLeft, lang)} <em>{lang === 'bn' ? 'দিন বাকি' : 'days left'}</em>
+            </strong>
+          </span>
         </div>
+      </div>
 
-        <div
-          className={`p-5 rounded-2xl border transition-all ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold opacity-65">
-              {lang === 'bn' ? 'সম্পন্ন অধ্যয়ন ধাপ' : 'Completed Stages'}
-            </span>
-            <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isDark
-                  ? 'bg-emerald-500/15 text-emerald-300'
-                  : 'bg-emerald-50 text-emerald-600'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold tabular-nums">
-            {formatNum(checkedCount, lang)}{' '}
-            <span className="text-sm font-normal opacity-50">
-              / {formatNum(totalCheckboxes, lang)}
-            </span>
-          </div>
-          <div className="text-xs mt-1.5 opacity-60">
-            {lang === 'bn'
-              ? `${formatNum(fullyMasteredChapters, lang)}টি অধ্যায় ৪-ধাপে সম্পন্ন`
-              : `${fullyMasteredChapters} chapters fully completed`}
-          </div>
-        </div>
-
-        <div
-          className={`p-5 rounded-2xl border transition-all ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold opacity-65">
-              {lang === 'bn' ? 'গড় MCQ নির্ভুলতা' : 'MCQ Accuracy'}
-            </span>
-            <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isDark
-                  ? 'bg-indigo-500/15 text-indigo-300'
-                  : 'bg-indigo-50 text-indigo-600'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold tabular-nums">
-            {formatNum(avgAccuracy, lang)}%
-          </div>
-          <div className="text-xs mt-1.5 opacity-60">
-            {lang === 'bn'
-              ? `${formatNum(
-                  Math.max(quizHistory.length, profile.quizzesTaken),
-                  lang
-                )}টি পরীক্ষা সম্পন্ন`
-              : `${Math.max(quizHistory.length, profile.quizzesTaken)} exams evaluated`}
-          </div>
-        </div>
-
-        <div
-          className={`p-5 rounded-2xl border transition-all ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold opacity-65">
-              {lang === 'bn' ? 'মোট ফোকাস অধ্যয়ন' : 'Logged Study Hours'}
-            </span>
-            <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isDark
-                  ? 'bg-sky-500/15 text-sky-300'
-                  : 'bg-sky-50 text-sky-600'
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold tabular-nums">
-            {formatNum((profile.studyMinutes / 60).toFixed(1), lang)}{' '}
-            <span className="text-xs font-semibold opacity-60">
-              {lang === 'bn' ? 'ঘণ্টা' : 'hrs'}
-            </span>
-          </div>
-          <div className="text-xs mt-1.5 opacity-60">
-            {lang === 'bn'
-              ? `মোট ${formatNum(profile.studyMinutes, lang)} মিনিট রেকর্ডকৃত`
-              : `${profile.studyMinutes} total minutes logged`}
-          </div>
-        </div>
-      </section>
-
-      {/* Specialized Academic Modules Strip (6 Student Modules) */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <button
-          onClick={() => onNavigate('lab')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-cyan-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-cyan-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-400/20'
-                  : 'bg-cyan-50 text-cyan-600 border-cyan-100'
-              }`}
-            >
-              <FlaskConical className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-cyan-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'বিজ্ঞান ও ICT ভার্চুয়াল ল্যাব'
-              : 'Science & ICT Virtual Lab'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? '২-এর পরিপূরক, লজিক গেইট ট্রুথ টেবিল, ভেক্টর ও প্রাসের গতিপথ এবং বাফার pH সিমুলেটর।'
-              : '2’s Complement, Logic Gate Truth Table, Vector/Projectile & Buffer pH simulator.'}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('analytics')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-violet-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-violet-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-violet-500/15 text-violet-300 border-violet-400/20'
-                  : 'bg-violet-50 text-violet-600 border-violet-100'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-violet-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'ডায়াগনস্টিক বিশ্লেষণ ও দুর্বলতা রাডার'
-              : 'Diagnostic Analytics & Weakness Radar'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? `MCQ গতি, মিস্টেক ব্যাংক (${formatNum(profile.mistakeIds?.length ?? 0, lang)}), ১১ পত্রের দুর্বলতা ও ৫-প্রশ্নের মতামত।`
-              : `MCQ speed, Mistake Bank (${profile.mistakeIds?.length ?? 0}), 11-paper diagnosis, and a five-question pulse.`}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('hub')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-emerald-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-emerald-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/20'
-                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-              }`}
-            >
-              <MessageSquareText className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-emerald-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'HSC ’28 স্টুডেন্ট হাব ও সহপাঠী ফোরাম'
-              : 'HSC ’28 Student Hub & Peer Forum'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? 'কনসেপ্ট এক্সপ্লেইনার, ব্যাচমেট প্রশ্নোত্তর (Q&A) এবং ২০২৬–২০২৮ একাডেমিক রোডম্যাপ।'
-              : 'Instant concept solver, Batch ’28 peer Q&A forum, and 2-year academic roadmap.'}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('cq')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-indigo-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-indigo-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-indigo-500/15 text-indigo-300 border-indigo-400/20'
-                  : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-              }`}
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-indigo-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'বোর্ড সৃজনশীল প্রশ্নব্যাংক (CQ)'
-              : 'Board Creative Question (CQ) Bank'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? 'উদ্দীপক ও ক, খ, গ, ঘ (১০ নম্বর) আদর্শ সমাধানসহ বোর্ড স্ট্যান্ডার্ড সৃজনশীল অনুশীলন।'
-              : 'Full stems with structured ক, খ, গ, ঘ (10-mark) step-by-step model solutions.'}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('gpa')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-teal-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-teal-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-teal-500/15 text-teal-300 border-teal-400/20'
-                  : 'bg-teal-50 text-teal-600 border-teal-100'
-              }`}
-            >
-              <Calculator className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-teal-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'GPA ও ভর্তি যোগ্যতা ক্যালকুলেটর'
-              : 'GPA & Admission Eligibility Tool'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? '৪র্থ বিষয়ের বোনাস পয়েন্টসহ NCTB GPA এবং BUET, মেডিকেল ও ঢাবি ভর্তি যোগ্যতা বিশ্লেষণ।'
-              : 'Official NCTB 4th-subject bonus calculation + BUET, Medical & DU eligibility check.'}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('formulas')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-amber-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-amber-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-amber-500/15 text-amber-300 border-amber-400/20'
-                  : 'bg-amber-50 text-amber-600 border-amber-100'
-              }`}
-            >
-              <BookMarked className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-amber-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'সূত্র ভল্ট ও অ্যাক্টিভ ফ্ল্যাশকার্ড'
-              : 'Formula Vault & Active Flashcards'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? 'পদার্থ, রসায়ন, গণিত ও ICT-এর মূল সমীকরণ এবং ব্যক্তিগত রিভিশন নোট সংরক্ষণ।'
-              : 'Key equations, flip-card active recall, and personal cloud-synced study notes.'}
-          </p>
-        </button>
-
-        <button
-          onClick={() => onNavigate('life')}
-          className={`p-5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${
-            isDark
-              ? 'bg-slate-800/60 border-slate-700/65 hover:border-rose-400/40 hover:bg-slate-800/90 card-soft-dark'
-              : 'bg-white/90 border-slate-200/80 hover:border-rose-300 hover:bg-white card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-colors ${
-                isDark
-                  ? 'bg-rose-500/15 text-rose-300 border-rose-400/20'
-                  : 'bg-rose-50 text-rose-600 border-rose-100'
-              }`}
-            >
-              <HeartPulse className="w-4 h-4" />
-            </div>
-            <ArrowUpRight className="w-4 h-4 opacity-45 group-hover:opacity-100 group-hover:text-rose-500 transition-all" />
-          </div>
-          <h3 className="font-bold text-sm">
-            {lang === 'bn'
-              ? 'লাইফ হাব — অভ্যাস, ডেডলাইন ও ক্যারিয়ার'
-              : 'Life Hub — Habits, Deadlines & Careers'}
-          </h3>
-          <p className="text-xs opacity-65 mt-1 leading-relaxed">
-            {lang === 'bn'
-              ? 'দৈনিক অভ্যাস স্ট্রিক, ভর্তি-বৃত্তির ডেডলাইন কাউন্টডাউন, পরীক্ষার রুটিন ও ক্যারিয়ার রোডম্যাপ।'
-              : 'Daily habit streaks, admission/scholarship countdowns, exam routine and career roadmaps.'}
-          </p>
-        </button>
-      </section>
-
-      {/* All 11 Subject Papers Soft Pastel Grid */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
+      {/* Clean Unified Workspace Launcher */}
+      <section className="dashboard-sectors" aria-label={lang === 'bn' ? 'পড়াশোনার সেকশন' : 'Study sections'}>
+        <div className="dashboard-section-heading">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold tracking-tight">
-              {lang === 'bn'
-                ? 'পত্রভিত্তিক পাঠ্যক্রম ও অগ্রগতি (NCTB বিজ্ঞান ও আবশ্যিক)'
-                : 'Curriculum Overview (All 11 Science & Compulsory Papers)'}
-            </h2>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              {lang === 'bn'
-                ? 'যেকোনো পত্রে ক্লিক করে অধ্যায়ভিত্তিক চেকলিস্ট ও টপিকসমূহ দেখুন'
-                : 'Select any paper to inspect chapter-level milestones and topics'}
-            </p>
+            <span>{lang === 'bn' ? 'সহজ নেভিগেশন' : 'QUICK WORKSPACE'}</span>
+            <h2>{lang === 'bn' ? 'প্রয়োজনীয় টুলস' : 'Essential study tools'}</h2>
           </div>
+          <span className="sector-hint">{lang === 'bn' ? 'যেকোনো একটি বেছে নাও' : 'Pick one to dive in'}</span>
+        </div>
+        <div className="sector-grid">
+          {[
+            { tab: 'routine' as const, icon: CalendarClock, bn: 'দৈনিক রুটিন', en: 'Daily routine', subBn: 'নিজের দিন থেকে শুরু', subEn: 'Start on your schedule', tone: 'blue' },
+            { tab: 'syllabus' as const, icon: BookOpen, bn: 'সিলেবাস ট্র্যাকার', en: 'Syllabus tracker', subBn: '১১ পত্রের অগ্রগতি', subEn: 'All 11 papers', tone: 'purple' },
+            { tab: 'mcq' as const, icon: FileCheck2, bn: 'পরীক্ষা কেন্দ্র', en: 'Exam centre', subBn: 'MCQ ও মডেল টেস্ট', subEn: 'MCQs & mock tests', tone: 'peach' },
+            { tab: 'formulas' as const, icon: BookMarked, bn: 'সূত্র ও নোটস', en: 'Formula vault', subBn: 'দ্রুত রিভিশন শিট', subEn: 'Quick revision sheets', tone: 'mint' },
+            { tab: 'lab' as const, icon: FlaskConical, bn: 'ভার্চুয়াল ল্যাব', en: 'Virtual lab', subBn: 'বিজ্ঞান ও ICT সিমুলেটর', subEn: 'Interactive science lab', tone: 'gold' },
+            { tab: 'life' as const, icon: HeartPulse, bn: 'লাইফ হাব ও অভ্যাস', en: 'Life & habits', subBn: 'অভ্যাস ও ডেডলাইন', subEn: 'Habits & deadlines', tone: 'rose' },
+          ].map((item) => (
+            <button key={item.tab} className="sector-card" onClick={() => onNavigate(item.tab)}>
+              <span className={`sector-card-icon ${item.tone}`}>
+                <item.icon size={18} strokeWidth={1.8} />
+              </span>
+              <span className="sector-card-copy">
+                <strong>{lang === 'bn' ? item.bn : item.en}</strong>
+                <small>{lang === 'bn' ? item.subBn : item.subEn}</small>
+              </span>
+              <ArrowUpRight className="sector-card-arrow" size={15} />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Compact 11-Paper Strip */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm sm:text-base font-extrabold tracking-tight">
+            {lang === 'bn' ? '১১টি পত্র এক নজরে' : 'All 11 Papers at a Glance'}
+          </h2>
           <button
-            onClick={() => onNavigate('formulas')}
-            className={`text-xs font-semibold inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border transition-colors cursor-pointer ${
+            onClick={() => onNavigate('analytics')}
+            className={`text-xs font-semibold inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border cursor-pointer transition-colors ${
               isDark
-                ? 'border-slate-700 bg-slate-800/60 hover:border-indigo-400/40 text-slate-200'
-                : 'border-slate-200 bg-white hover:border-indigo-300 text-slate-700 shadow-2xs'
+                ? 'border-slate-800 bg-slate-900/70 text-slate-300 hover:border-slate-600'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-teal-300'
             }`}
           >
-            <BookMarked className="w-3.5 h-3.5 text-indigo-500" />
-            <span>
-              {lang === 'bn' ? 'সূত্র সংকলন দেখুন' : 'Open Formula Reference'}
-            </span>
+            <BarChart3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            <span>{lang === 'bn' ? 'বিশ্লেষণ' : 'Analytics'}</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
           {SUBJECTS.map((subj) => {
             const subChapters = CHAPTERS.filter((c) => c.subjectKey === subj.key);
             const subTotal = subChapters.length * 4;
@@ -727,231 +404,148 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             const pct = subTotal > 0 ? Math.round((subDone / subTotal) * 100) : 0;
 
             return (
-              <div
+              <button
                 key={subj.key}
+                type="button"
                 onClick={() => onNavigate('syllabus', subj.key)}
-                className={`group p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                className={`group p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                   isDark
-                    ? 'bg-slate-800/65 border-slate-700/65 hover:border-slate-500 hover:bg-slate-800/95 card-soft-dark'
-                    : 'bg-white/95 border-slate-200/80 hover:border-indigo-200 hover:shadow-md card-soft-light'
+                    ? 'bg-slate-900/65 border-slate-800 hover:border-slate-600'
+                    : 'bg-white border-slate-200/80 hover:border-teal-300 shadow-2xs'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${
+                      className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
                         isDark ? subj.bgDark : subj.bgLight
                       }`}
                     >
                       <SubjectIcon name={subj.iconName} className="w-4 h-4" />
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-sm truncate">
-                        {subj.name[lang]}
-                      </h3>
-                      <p className="text-[11px] font-mono opacity-55 mt-0.5">
-                        CODE {formatNum(subj.code, lang)} •{' '}
-                        {formatNum(subChapters.length, lang)}{' '}
-                        {lang === 'bn' ? 'অধ্যায়' : 'CH'}
-                      </p>
-                    </div>
+                    <span className="font-bold text-xs truncate">{subj.shortName[lang]}</span>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs font-mono font-bold tabular-nums opacity-85">
-                      {formatNum(pct, lang)}%
-                    </span>
-                    <ArrowUpRight className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 transition-opacity" />
-                  </div>
+                  <span className="text-[11px] font-mono font-bold tabular-nums opacity-75">
+                    {formatNum(pct, lang)}%
+                  </span>
                 </div>
-
-                <div
-                  className={`h-1.5 w-full rounded-full overflow-hidden ${
-                    isDark ? 'bg-slate-700/60' : 'bg-slate-100'
-                  }`}
-                >
+                <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
                   <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: subj.color,
-                    }}
+                    style={{ width: `${pct}%`, backgroundColor: subj.color }}
                   />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       </section>
 
-      {/* Bottom Split: Daily Study Plan + Recent Exam Records */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div
-          className={`p-5 sm:p-6 rounded-2xl border ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
+      {hasWeeklyGoalPlan && (
+        <React.Suspense
+          fallback={
+            <section
+              className={`min-h-24 rounded-2xl border animate-pulse ${
+                isDark ? 'bg-slate-900/65 border-slate-800' : 'bg-white border-slate-200/80'
+              }`}
+              aria-label={lang === 'bn' ? 'সাপ্তাহিক লক্ষ্য লোড হচ্ছে' : 'Loading weekly goals'}
+            />
+          }
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-base flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-500" />
-              <span>
-                {lang === 'bn' ? 'দৈনিক অধ্যয়ন কার্যসূচি' : 'Active Study Schedule'}
-              </span>
-            </h3>
-            <button
-              onClick={() => onNavigate('planner')}
-              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-            >
-              {lang === 'bn' ? 'প্ল্যানার খুলুন' : 'Manage Schedule'}
-            </button>
-          </div>
+          <LazyDashboardWeeklyGoals lang={lang} theme={theme} onNavigate={onNavigate} />
+        </React.Suspense>
+      )}
 
-          {pendingTasks.length === 0 ? (
-            <div
-              className={`p-6 rounded-xl border border-dashed text-center ${
-                isDark
-                  ? 'border-slate-700 text-slate-400'
-                  : 'border-slate-200 text-slate-500 bg-slate-50/50'
-              }`}
-            >
-              <p className="text-xs sm:text-sm mb-3">
-                {lang === 'bn'
-                  ? 'আজকের নির্ধারিত সকল টাস্ক সম্পন্ন হয়েছে।'
-                  : 'All scheduled tasks are complete.'}
-              </p>
-              <button
-                onClick={() => onNavigate('planner')}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
-              >
-                {lang === 'bn'
-                  ? 'নতুন টার্গেট যুক্ত করুন'
-                  : 'Add New Study Target'}
-              </button>
-            </div>
-          ) : (
-            <div
-              className={`divide-y ${
-                isDark ? 'divide-slate-700/50' : 'divide-slate-100'
-              }`}
-            >
-              {pendingTasks.slice(0, 4).map((t) => {
-                const s = getSubjectByKey(t.subjectKey);
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => onNavigate('planner')}
-                    className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">
-                        {t.title}
-                      </p>
-                      <span className="text-[11px] opacity-60">
-                        {s.shortName[lang]}
-                      </span>
-                    </div>
-                    <span
-                      className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${
-                        t.priority === 'high'
-                          ? isDark
-                            ? 'bg-amber-500/12 text-amber-300 border-amber-400/25'
-                            : 'bg-amber-50 text-amber-700 border-amber-200/80'
-                          : isDark
-                          ? 'border-slate-700 bg-slate-800 text-slate-400'
-                          : 'border-slate-200 bg-slate-50 text-slate-600'
-                      }`}
-                    >
-                      {t.priority === 'high'
-                        ? lang === 'bn'
-                          ? 'অগ্রাধিকার'
-                          : 'PRIORITY'
-                        : lang === 'bn'
-                        ? 'নিয়মিত'
-                        : 'STANDARD'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Compact Self-Calibration Check */}
+      <section
+        className={`rounded-2xl border p-4 sm:p-5 ${
+          isDark ? 'bg-slate-900/65 border-slate-800' : 'bg-white border-slate-200/80'
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-extrabold flex items-center gap-2">
+            <span>🎯</span>
+            {lang === 'bn' ? 'নিশ্চয়তা বনাম বাস্তবতা' : 'Confidence vs reality'}
+          </h2>
+          <span
+            className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+              isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {lang === 'bn'
+              ? `${formatNum(calibration.prediction.attempts, lang)}টি অনুমান · ${formatNum(calibration.confidence.total, lang)}টি ট্যাগ`
+              : `${calibration.prediction.attempts} predictions · ${calibration.confidence.total} tags`}
+          </span>
         </div>
 
-        {/* Recent Exam Attempts */}
-        <div
-          className={`p-5 sm:p-6 rounded-2xl border ${
-            isDark
-              ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
-              : 'bg-white/95 border-slate-200/80 card-soft-light'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-base flex items-center gap-2">
-              <FileCheck2 className="w-4 h-4 text-teal-500" />
-              <span>
-                {lang === 'bn' ? 'সাম্প্রতিক মূল্যায়ন রেকর্ড' : 'Recent Assessment Log'}
-              </span>
-            </h3>
-            <button
-              onClick={() => onNavigate('mcq')}
-              className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
-            >
-              {lang === 'bn' ? 'নতুন পরীক্ষা' : 'New Exam'}
-            </button>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div
+            className={`rounded-xl border p-2.5 ${
+              isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200/80 bg-slate-50/70'
+            }`}
+          >
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'গড় অনুমান' : 'avg predicted'}
+            </p>
+            <p className="text-base sm:text-lg font-extrabold font-mono tabular-nums">
+              {formatNum(calibration.prediction.averagePredicted, lang)}%
+            </p>
           </div>
-
-          {quizHistory.length === 0 ? (
-            <div
-              className={`p-6 rounded-xl border border-dashed text-center ${
-                isDark
-                  ? 'border-slate-700 text-slate-400'
-                  : 'border-slate-200 text-slate-500 bg-slate-50/50'
+          <div
+            className={`rounded-xl border p-2.5 ${
+              isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200/80 bg-slate-50/70'
+            }`}
+          >
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'গড় ফল' : 'avg actual'}
+            </p>
+            <p className="text-base sm:text-lg font-extrabold font-mono tabular-nums">
+              {formatNum(calibration.prediction.averageActual, lang)}%
+            </p>
+          </div>
+          <div
+            className={`rounded-xl border p-2.5 ${
+              isDark ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200/80 bg-slate-50/70'
+            }`}
+          >
+            <p className="text-[10px] font-mono uppercase tracking-wide opacity-60">
+              {lang === 'bn' ? 'নিশ্চিত হয়ে ভুল' : 'sure & wrong'}
+            </p>
+            <p
+              className={`text-base sm:text-lg font-extrabold font-mono tabular-nums ${
+                calibration.confidence.blindSpots > 0 ? 'text-rose-600 dark:text-rose-400' : ''
               }`}
             >
-              <p className="text-xs sm:text-sm mb-3">
-                {lang === 'bn'
-                  ? 'এখনো কোনো মডেল টেস্ট প্রদান করা হয়নি।'
-                  : 'No assessment records found yet.'}
-              </p>
-              <button
-                onClick={() => onNavigate('mcq')}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 text-white hover:bg-teal-500 cursor-pointer"
-              >
-                {lang === 'bn' ? 'প্রথম মডেল টেস্ট দিন' : 'Take First Assessment'}
-              </button>
-            </div>
-          ) : (
-            <div
-              className={`divide-y ${
-                isDark ? 'divide-slate-700/50' : 'divide-slate-100'
-              }`}
-            >
-              {quizHistory.slice(0, 4).map((q) => (
-                <div
-                  key={q.id}
-                  className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{q.examTitle}</p>
-                    <p className="text-[11px] opacity-60">
-                      {lang === 'bn' ? 'সঠিক:' : 'Correct:'}{' '}
-                      {formatNum(q.correctAnswers, lang)}/
-                      {formatNum(q.totalQuestions, lang)}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 tabular-nums">
-                    <div className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                      {formatNum(Math.round(q.accuracy), lang)}%
-                    </div>
-                    <div className="text-[11px] font-mono opacity-60">
-                      {formatNum(q.score, lang)} pts
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+              {formatNum(calibration.confidence.blindSpots, lang)}
+            </p>
+          </div>
         </div>
+
+        <p className={`mt-2.5 text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <span className="font-bold">{lang === 'bn' ? 'স্কোর অনুমান: ' : 'Score prediction: '}</span>
+          {lang === 'bn' ? calibration.prediction.messageBn : calibration.prediction.messageEn}
+        </p>
+
+        {calibration.confidence.blindSpotIds.length > 0 && (
+          <button
+            onClick={() => {
+              requestChapterDrill({
+                chapterBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
+                chapterEn: 'Confidently wrong',
+                titleBn: lang === 'bn' ? 'নিশ্চিত-ভুল' : 'Confidently wrong',
+                titleEn: 'Confidently wrong',
+                count: Math.min(20, calibration.confidence.blindSpotIds.length),
+                questionIds: calibration.confidence.blindSpotIds,
+              });
+              onNavigate('mcq');
+            }}
+            className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 cursor-pointer"
+          >
+            {lang === 'bn'
+              ? `নিশ্চিত-ভুল ${formatNum(calibration.confidence.blindSpots, lang)}টি ড্রিল করো`
+              : `Drill the ${calibration.confidence.blindSpots} confidently wrong`}
+          </button>
+        )}
       </section>
     </div>
   );
