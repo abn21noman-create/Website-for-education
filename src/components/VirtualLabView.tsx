@@ -65,20 +65,23 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
   const [inA, setInA] = useState<0 | 1>(1);
   const [inB, setInB] = useState<0 | 1>(0);
 
-  // 3. Physics Vector & Projectile State
+  // 3. Physics Vector, Projectile & Pendulum State
   const [vecP, setVecP] = useState<number>(10);
   const [vecQ, setVecQ] = useState<number>(8);
   const [vecAlpha, setVecAlpha] = useState<number>(60);
   const [projV0, setProjV0] = useState<number>(30);
   const [projAngle, setProjAngle] = useState<number>(45);
+  const [pendLengthCm, setPendLengthCm] = useState<number>(100);
+  const [pendGravKey, setPendGravKey] = useState<'earth' | 'dhaka' | 'moon' | 'mars'>('dhaka');
 
-  // 4. Chemistry Periodic & Buffer State
+  // 4. Chemistry Periodic, Buffer & Titration State
   const [selectedEl, setSelectedEl] = useState<PeriodicElementItem>(
     LAB_ELEMENTS.find((e) => e.z === 24) || LAB_ELEMENTS[0]
   );
   const [pKa, setPKa] = useState<number>(4.74);
   const [saltConc, setSaltConc] = useState<number>(0.15);
   const [acidConc, setAcidConc] = useState<number>(0.1);
+  const [titrantVolMl, setTitrantVolMl] = useState<number>(22);
 
   // 5. ICT Ch 4 HTML & Ch 5 C-Programming State
   const [htmlCode, setHtmlCode] = useState<string>(
@@ -149,6 +152,36 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
   const safeAcid = Math.max(0.001, acidConc);
   const safeSalt = Math.max(0.001, saltConc);
   const bufferPh = pKa + Math.log10(safeSalt / safeAcid);
+
+  // Computed Simple Pendulum (Physics 1st • Ch 8)
+  const gravMap: Record<'earth' | 'dhaka' | 'moon' | 'mars', { g: number; bn: string; en: string }> = {
+    dhaka: { g: 9.78, bn: 'বাংলাদেশ সমতল (9.78 m/s²)', en: 'Bangladesh Plain (9.78 m/s²)' },
+    earth: { g: 9.81, bn: 'প্রমাণ অভিকর্ষজ (9.81 m/s²)', en: 'Standard Earth (9.81 m/s²)' },
+    mars: { g: 3.71, bn: 'মঙ্গল গ্রহ (3.71 m/s²)', en: 'Mars (3.71 m/s²)' },
+    moon: { g: 1.62, bn: 'চাঁদ (1.62 m/s²)', en: 'Moon (1.62 m/s²)' },
+  };
+  const pendG = gravMap[pendGravKey].g;
+  const pendLengthM = Math.max(0.1, pendLengthCm / 100);
+  const pendPeriodT = 2 * Math.PI * Math.sqrt(pendLengthM / pendG);
+  const pendFreq = 1 / pendPeriodT;
+  const secondPendulumCm = (pendG / (Math.PI * Math.PI)) * 100;
+
+  // Computed Strong Acid–Strong Base Titration Curve: 25 mL of 0.10 M HCl + V mL of 0.10 M NaOH
+  const calcTitrationPh = (volNaohMl: number): number => {
+    const acidMmol = 25 * 0.1; // 2.5 mmol HCl
+    const baseMmol = volNaohMl * 0.1;
+    const totalVolMl = 25 + volNaohMl;
+    const diff = acidMmol - baseMmol;
+    if (Math.abs(diff) < 1e-6) return 7.0;
+    if (diff > 0) {
+      const hConc = diff / totalVolMl;
+      return Math.max(0, -Math.log10(hConc));
+    }
+    const ohConc = Math.abs(diff) / totalVolMl;
+    const pOH = -Math.log10(ohConc);
+    return Math.min(14, 14 - pOH);
+  };
+  const liveTitrationPh = calcTitrationPh(titrantVolMl);
 
   const cardClass = `p-5 sm:p-6 rounded-2xl border transition-all ${
     isDark
@@ -802,6 +835,108 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Simple Pendulum & Second's Pendulum Simulator (Physics 1st • Ch 8) */}
+          <div className={`lg:col-span-2 ${cardClass} space-y-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-[11px] font-mono uppercase text-indigo-500 font-bold">
+                  PHYSICS 1ST • CH 8 PERIODIC MOTION
+                </span>
+                <h2 className="font-bold text-base mt-0.5">
+                  {lang === 'bn'
+                    ? 'সরল দোলক ও সেকেন্ড দোলক সিমুলেটর (T = 2π√(L/g))'
+                    : "Simple & Second's Pendulum Simulator (T = 2π√(L/g))"}
+                </h2>
+              </div>
+              <span className="text-xs font-mono opacity-75">
+                {lang === 'bn'
+                  ? `সেকেন্ড দোলকের কার্যকরী দৈর্ঘ্য (T=2s): ${formatNum(secondPendulumCm.toFixed(1), lang)} cm`
+                  : `Second's pendulum length (T=2s): ${secondPendulumCm.toFixed(1)} cm`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <div className="md:col-span-7 space-y-3 text-xs">
+                <div>
+                  <label className="font-mono font-bold block mb-1">
+                    {lang === 'bn'
+                      ? `কার্যকরী দৈর্ঘ্য L = ${formatNum(pendLengthCm, lang)} cm (${formatNum(pendLengthM.toFixed(2), lang)} m)`
+                      : `Effective Length L = ${pendLengthCm} cm (${pendLengthM.toFixed(2)} m)`}
+                  </label>
+                  <input
+                    type="range"
+                    aria-label="Pendulum effective length in cm"
+                    min={20}
+                    max={200}
+                    step={1}
+                    value={pendLengthCm}
+                    onChange={(e) => setPendLengthCm(Number(e.target.value))}
+                    className="w-full accent-indigo-600"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(Object.keys(gravMap) as Array<keyof typeof gravMap>).map((gKey) => (
+                    <button
+                      key={gKey}
+                      type="button"
+                      onClick={() => setPendGravKey(gKey)}
+                      aria-pressed={pendGravKey === gKey}
+                      className={`p-2 rounded-xl border text-[11px] font-bold cursor-pointer transition-colors ${
+                        pendGravKey === gKey
+                          ? isDark
+                            ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40'
+                            : 'bg-indigo-50 text-indigo-900 border-indigo-300'
+                          : isDark
+                          ? 'bg-slate-900/50 border-slate-700 text-slate-300'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {gravMap[gKey][lang]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="md:col-span-5 grid grid-cols-3 gap-2 font-mono text-xs text-center">
+                <div
+                  className={`p-3 rounded-xl border ${
+                    isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-indigo-50/60 border-indigo-200'
+                  }`}
+                >
+                  <span className="opacity-65 block text-[10px]">
+                    {lang === 'bn' ? 'দোলনকাল (T)' : 'Period (T)'}
+                  </span>
+                  <span className="text-base font-extrabold">
+                    {formatNum(pendPeriodT.toFixed(2), lang)}s
+                  </span>
+                </div>
+                <div
+                  className={`p-3 rounded-xl border ${
+                    isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-teal-50/60 border-teal-200'
+                  }`}
+                >
+                  <span className="opacity-65 block text-[10px]">
+                    {lang === 'bn' ? 'কম্পাঙ্ক (f)' : 'Frequency (f)'}
+                  </span>
+                  <span className="text-base font-extrabold">
+                    {formatNum(pendFreq.toFixed(2), lang)} Hz
+                  </span>
+                </div>
+                <div
+                  className={`p-3 rounded-xl border ${
+                    isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-emerald-50/60 border-emerald-200'
+                  }`}
+                >
+                  <span className="opacity-65 block text-[10px]">g</span>
+                  <span className="text-base font-extrabold">
+                    {formatNum(pendG.toFixed(2), lang)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -941,6 +1076,111 @@ export const VirtualLabView: React.FC<VirtualLabViewProps> = ({
               </div>
               <div className="text-[11px] font-mono opacity-70">
                 pOH = {formatNum((14 - bufferPh).toFixed(2), lang)}
+              </div>
+            </div>
+          </div>
+
+          {/* Acid-Base Titration Curve & Indicator Simulator (Chem 2nd • Ch 3) */}
+          <div className={`lg:col-span-12 ${cardClass} space-y-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-[11px] font-mono uppercase text-teal-600 dark:text-teal-400 font-bold">
+                  CHEMISTRY 2ND • CH 3 QUANTITATIVE TITRATION
+                </span>
+                <h2 className="font-bold text-base mt-0.5">
+                  {lang === 'bn'
+                    ? 'অম্ল-ক্ষারক টাইট্রেশন লেখচিত্র ও নির্দেশক নির্বাচন (25 mL 0.1M HCl + 0.1M NaOH)'
+                    : 'Acid-Base Titration Curve & Indicator Zone (25 mL 0.1M HCl + 0.1M NaOH)'}
+                </h2>
+              </div>
+              <span
+                className={`px-3 py-1 rounded-xl border text-xs font-mono font-bold ${
+                  Math.abs(titrantVolMl - 25) < 0.25
+                    ? isDark
+                      ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : liveTitrationPh < 7
+                    ? isDark
+                      ? 'bg-rose-500/15 text-rose-200 border-rose-400/35'
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                    : isDark
+                    ? 'bg-indigo-500/20 text-indigo-200 border-indigo-400/40'
+                    : 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                }`}
+              >
+                {Math.abs(titrantVolMl - 25) < 0.25
+                  ? lang === 'bn'
+                    ? 'তুল্যবিন্দু (Equivalence Point • pH 7.00)'
+                    : 'Equivalence Point (pH 7.00)'
+                  : liveTitrationPh < 7
+                  ? lang === 'bn'
+                    ? `অম্লীয় অঞ্চল • pH ${formatNum(liveTitrationPh.toFixed(2), lang)}`
+                    : `Acidic Region • pH ${liveTitrationPh.toFixed(2)}`
+                  : lang === 'bn'
+                  ? `ক্ষারীয় অঞ্চল • pH ${formatNum(liveTitrationPh.toFixed(2), lang)}`
+                  : `Basic Region • pH ${liveTitrationPh.toFixed(2)}`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <div className="md:col-span-6 space-y-3 text-xs">
+                <div>
+                  <label className="font-mono font-bold block mb-1">
+                    {lang === 'bn'
+                      ? `যোগকৃত 0.1M NaOH আয়তন = ${formatNum(titrantVolMl.toFixed(1), lang)} mL`
+                      : `Added 0.1M NaOH Volume = ${titrantVolMl.toFixed(1)} mL`}
+                  </label>
+                  <input
+                    type="range"
+                    aria-label="Added NaOH volume in mL"
+                    min={0}
+                    max={50}
+                    step={0.5}
+                    value={titrantVolMl}
+                    onChange={(e) => setTitrantVolMl(Number(e.target.value))}
+                    className="w-full accent-teal-600"
+                  />
+                </div>
+                <p className="leading-relaxed opacity-80">
+                  {lang === 'bn'
+                    ? 'সবল অম্ল (HCl) ও সবল ক্ষারকের (NaOH) তুল্যবিন্দুতে pH হঠাৎ ৩.০ থেকে ১০.০-এ লাফ দেয়, তাই মিথাইল অরেঞ্জ (৩.১–৪.৪) এবং ফেনলফথ্যালিন (৮.২–১০.০) উভয় নির্দেশকই কার্যকর।'
+                    : 'At V = 25 mL, pH jumps steeply across 3.0–10.0, so both Methyl Orange (3.1–4.4) and Phenolphthalein (8.2–10.0) change color sharply.'}
+                </p>
+              </div>
+
+              <div
+                className={`md:col-span-6 rounded-xl border p-3 flex justify-center ${
+                  isDark ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                {(() => {
+                  const pts: string[] = [];
+                  for (let v = 0; v <= 50; v += 0.5) {
+                    const ph = calcTitrationPh(v);
+                    const sx = 28 + (v / 50) * 224;
+                    const sy = 148 - (ph / 14) * 130;
+                    pts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
+                  }
+                  const curX = 28 + (titrantVolMl / 50) * 224;
+                  const curY = 148 - (liveTitrationPh / 14) * 130;
+                  const eqX = 28 + (25 / 50) * 224;
+                  const eqY = 148 - (7 / 14) * 130;
+                  return (
+                    <svg viewBox="0 0 270 165" className="w-full max-w-sm h-40">
+                      <line x1="28" y1="148" x2="256" y2="148" stroke="#94a3b8" strokeWidth="1.2" />
+                      <line x1="28" y1="14" x2="28" y2="148" stroke="#94a3b8" strokeWidth="1.2" />
+                      <line x1="28" y1={eqY} x2="256" y2={eqY} stroke="#64748b" strokeDasharray="3 3" strokeWidth="0.8" />
+                      <line x1={eqX} y1="14" x2={eqX} y2="148" stroke="#64748b" strokeDasharray="3 3" strokeWidth="0.8" />
+                      <polyline
+                        fill="none"
+                        stroke="#0d9488"
+                        strokeWidth="2.5"
+                        points={pts.join(' ')}
+                      />
+                      <circle cx={curX} cy={curY} r="4.5" fill="#4f46e5" />
+                    </svg>
+                  );
+                })()}
               </div>
             </div>
           </div>

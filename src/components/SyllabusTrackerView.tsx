@@ -10,8 +10,10 @@ import {
   CheckCircle2,
   CircleDot,
   Layers,
+  Play,
 } from 'lucide-react';
 import {
+  ActiveTab,
   ChapterProgressState,
   Lang,
   SubjectKey,
@@ -20,6 +22,7 @@ import {
 import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { PREREQUISITE_CHAINS } from '../data/hsc28EcosystemData';
 import { formatNum } from '../lib/i18n';
+import { requestChapterDrill } from '../lib/chapterDrill';
 import { SubjectIcon } from './SubjectIcon';
 import { SectorStats } from './SectorStats';
 
@@ -34,6 +37,8 @@ interface SyllabusTrackerViewProps {
   ) => void;
   /** Lets the shell mirror the in-view paper filter into the URL. */
   onSubjectChange?: (subject: SubjectKey | 'all') => void;
+  /** Optional navigation callback for 1-click chapter MCQ drills. */
+  onNavigate?: (tab: ActiveTab, subjectKey?: SubjectKey) => void;
 }
 
 export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
@@ -43,6 +48,7 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
   progressMap,
   onToggleStage,
   onSubjectChange,
+  onNavigate,
 }) => {
   const isDark = theme === 'dark';
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>(
@@ -508,7 +514,7 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
                   </div>
                 </div>
 
-                {/* Progress Strip */}
+                {/* Progress Strip & Chapter Drill Action */}
                 <div className="mt-3.5 flex items-center gap-3">
                   <div
                     className={`flex-1 h-1.5 rounded-full overflow-hidden ${
@@ -523,6 +529,29 @@ export const SyllabusTrackerView: React.FC<SyllabusTrackerViewProps> = ({
                   <span className="text-[11px] font-mono font-bold tabular-nums opacity-70">
                     {formatNum(pct, lang)}%
                   </span>
+                  {onNavigate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        requestChapterDrill({
+                          subjectKey: ch.subjectKey,
+                          chapterBn: ch.title.bn,
+                          chapterEn: ch.title.en,
+                          chapterId: ch.id,
+                          count: 10,
+                        });
+                        onNavigate('mcq');
+                      }}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-bold shrink-0 cursor-pointer transition-colors ${
+                        isDark
+                          ? 'bg-indigo-500/15 text-indigo-200 border-indigo-400/30 hover:bg-indigo-500/25'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                      }`}
+                    >
+                      <Play className="w-2.5 h-2.5 fill-current" />
+                      <span>{lang === 'bn' ? 'অধ্যায় ড্রিল' : 'Chapter Drill'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

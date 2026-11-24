@@ -641,7 +641,167 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-ict-17",
+    "subjectKey": "ict",
+    "chapter": {
+      "bn": "কমিউনিকেশন সিস্টেমস ও নেটওয়ার্কিং",
+      "en": "Communication Systems & Networking"
+    },
+    "question": {
+      "bn": "অপটিক্যাল ফাইবার ক্যাবলে আলোক সংকেত কোন ভৌত নীতির ওপর ভিত্তি করে প্রবাহিত হয়?",
+      "en": "On which optical principle does light propagate through an optical fiber cable?"
+    },
+    "options": [
+      {
+        "bn": "আলোর প্রতিসরণ",
+        "en": "Simple refraction"
+      },
+      {
+        "bn": "পূর্ণ অভ্যন্তরীণ প্রতিফলন (Total Internal Reflection)",
+        "en": "Total internal reflection"
+      },
+      {
+        "bn": "আলোর অপবর্তন",
+        "en": "Diffraction"
+      },
+      {
+        "bn": "আলোর সমাবর্তন",
+        "en": "Polarization"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "অপটিক্যাল ফাইবারের কোর-এর প্রতিসরাঙ্ক ক্ল্যাডিং অপেক্ষা বেশি হওয়ায় পূর্ণ অভ্যন্তরীণ প্রতিফলনের মাধ্যমে আলোক সংকেত প্রায় শূন্য ক্ষয়ে সঞ্চালিত হয়।",
+      "en": "Because the core has a higher refractive index than the cladding, light signals travel via repeated total internal reflection."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-ict-18",
+    "subjectKey": "ict",
+    "chapter": {
+      "bn": "ওয়েব ডিজাইন পরিচিতি এবং HTML",
+      "en": "Web Design & HTML"
+    },
+    "question": {
+      "bn": "HTML-এ ওয়েবপেজে হাইপারলিংক তৈরি করতে <a> ট্যাগের সাথে কোন অ্যাট্রিবিউটটি আবশ্যিক?",
+      "en": "Which attribute is required inside an HTML <a> tag to specify the link destination?"
+    },
+    "options": [
+      {
+        "bn": "src",
+        "en": "src"
+      },
+      {
+        "bn": "href",
+        "en": "href"
+      },
+      {
+        "bn": "alt",
+        "en": "alt"
+      },
+      {
+        "bn": "rel",
+        "en": "rel"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "<a href=\"https://...\"> দ্বারা হাইপারলিংকের গন্তব্য ঠিকানা দেওয়া হয়; আর <img> ট্যাগে ছবির জন্য src ব্যবহৃত হয়।",
+      "en": "Anchor tags use href (Hypertext Reference) for target URLs, whereas <img> uses src."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও যশোর বোর্ড",
+      "en": "Dhaka & Jashore Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-ict-19",
+    "subjectKey": "ict",
+    "chapter": {
+      "bn": "প্রোগ্রামিং ভাষা (C Programming)",
+      "en": "Programming Language (C)"
+    },
+    "question": {
+      "bn": "C প্রোগ্রামিং ভাষায় double ডেটা টাইপের ভেরিয়েবল ইনপুট নেওয়ার জন্য সঠিক ফরম্যাট স্পেসিফায়ার কোনটি?",
+      "en": "Which format specifier is used in scanf() to read a double variable in C?"
+    },
+    "options": [
+      {
+        "bn": "%d",
+        "en": "%d"
+      },
+      {
+        "bn": "%f",
+        "en": "%f"
+      },
+      {
+        "bn": "%lf",
+        "en": "%lf"
+      },
+      {
+        "bn": "%c",
+        "en": "%c"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "C-তে int এর জন্য %d, float এর জন্য %f, char এর জন্য %c এবং double এর জন্য %lf ব্যবহৃত হয়।",
+      "en": "In C, scanf requires %lf (long float) for double, %f for float, %d for int, and %c for char."
+    },
+    "boardTag": {
+      "bn": "রাজশাহী ও চট্টগ্রাম বোর্ড",
+      "en": "Rajshahi & Chattogram Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-ict-20",
+    "subjectKey": "ict",
+    "chapter": {
+      "bn": "ডেটাবেস ম্যানেজমেন্ট সিস্টেম (DBMS)",
+      "en": "Database Management System (DBMS)"
+    },
+    "question": {
+      "bn": "কোনো ডেটাবেস টেবিলের প্রতিটি রেকর্ডকে অদ্বিতীয়ভাবে (Uniquely) শনাক্ত করার জন্য কোন ফিল্ড ব্যবহৃত হয়?",
+      "en": "Which key uniquely identifies every record (row) in a relational database table?"
+    },
+    "options": [
+      {
+        "bn": "ফরেন কি (Foreign Key)",
+        "en": "Foreign Key"
+      },
+      {
+        "bn": "প্রাইমারি কি (Primary Key)",
+        "en": "Primary Key"
+      },
+      {
+        "bn": "ডুপ্লিকেট কি",
+        "en": "Duplicate Key"
+      },
+      {
+        "bn": "ইনডেক্স ভ্যালু",
+        "en": "Null Key"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "প্রাইমারি কি কখনো NULL বা ডুপ্লিকেট হতে পারে না (যেমন রোল বা রেজিস্ট্রেশন নম্বর) এবং এটি প্রতিটি রেকর্ডকে অদ্বিতীয়ভাবে শনাক্ত করে।",
+      "en": "A Primary Key cannot be NULL or duplicated, guaranteeing a unique identifier for each row."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

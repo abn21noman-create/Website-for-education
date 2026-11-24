@@ -61,29 +61,39 @@ async function bootProduction(url) {
   window.addEventListener('unhandledrejection', event => errors.push(event.reason));
   const context = dom.getInternalVMContext();
   const modules = new Map();
-  async function load(path) {
+  const linking = new Map();
+  const evaluating = new Map();
+  function load(path) {
     const file = resolve(path);
     if (relative(dist, file).startsWith('..')) throw new Error(`Module outside dist: ${file}`);
     if (!modules.has(file)) {
-      const source = await readFile(file, 'utf8');
-      modules.set(file, new SourceTextModule(source, {
+      const pending = readFile(file, 'utf8').then(source => new SourceTextModule(source, {
         context, identifier: file,
         initializeImportMeta(meta) { meta.url = `http://localhost/${relative(dist, file)}`; },
         importModuleDynamically: async (specifier, parent) => {
           const mod = await load(resolve(dirname(parent.identifier), specifier));
-          if (mod.status === 'unlinked') await mod.link(linker);
-          if (mod.status === 'linked') await mod.evaluate();
+          await ensureEvaluated(mod);
           return mod;
         },
       }));
+      modules.set(file, pending);
     }
     return modules.get(file);
   }
-  async function linker(specifier, parent) { return load(resolve(dirname(parent.identifier), specifier)); }
+  function linker(specifier, parent) { return load(resolve(dirname(parent.identifier), specifier)); }
+  async function ensureEvaluated(mod) {
+    if (mod.status === 'unlinked') {
+      if (!linking.has(mod)) linking.set(mod, mod.link(linker));
+    }
+    if (linking.has(mod)) await linking.get(mod);
+    if (mod.status === 'linked') {
+      if (!evaluating.has(mod)) evaluating.set(mod, mod.evaluate());
+    }
+    if (evaluating.has(mod)) await evaluating.get(mod);
+  }
 
   const mod = await load(resolve(dist, entry.replace(/^\//, '')));
-  await mod.link(linker);
-  await mod.evaluate();
+  await ensureEvaluated(mod);
   await new Promise(resolve => setTimeout(resolve, 700));
   if (errors.length) throw new AggregateError(errors, `Production boot reported errors at ${url}`);
   if (!window.document.querySelector('#root')?.children.length) throw new Error(`Production boot left #root empty at ${url}`);

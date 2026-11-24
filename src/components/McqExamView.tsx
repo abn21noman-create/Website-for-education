@@ -1266,12 +1266,13 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
       <div className="space-y-6">
         {/* Sticky Exam Top Bar */}
         <div
-          className={`sticky top-16 z-30 p-4 rounded-2xl border backdrop-blur-xl flex flex-wrap items-center justify-between gap-3 ${
+          className={`sticky top-16 z-30 p-4 rounded-2xl border backdrop-blur-xl space-y-3 ${
             isDark
               ? 'bg-slate-800/90 border-slate-700'
               : 'bg-white/95 border-slate-200/90 shadow-sm'
           }`}
         >
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {examMode === 'timed' ? (
               <div
@@ -1348,6 +1349,78 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
               {lang === 'bn' ? 'উত্তরপত্র জমা দিন' : 'Submit Sheet'}
             </button>
           </div>
+          </div>
+
+          {/* Live Completion Bar & Question Navigator */}
+          <div className="space-y-2">
+            <div
+              role="progressbar"
+              aria-label={lang === 'bn' ? 'উত্তর দেওয়ার অগ্রগতি' : 'Exam completion progress'}
+              aria-valuemin={0}
+              aria-valuemax={examQuestions.length}
+              aria-valuenow={answeredCount}
+              className={`h-1.5 rounded-full overflow-hidden ${
+                isDark ? 'bg-slate-700/70' : 'bg-slate-200/80'
+              }`}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-200 bg-gradient-to-r from-indigo-500 to-teal-500"
+                style={{
+                  width: `${
+                    examQuestions.length > 0
+                      ? Math.round((answeredCount / examQuestions.length) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+
+            <div
+              role="navigation"
+              aria-label={lang === 'bn' ? 'প্রশ্ন নেভিগেটর' : 'Question navigator'}
+              className="flex items-center gap-1 overflow-x-auto pb-0.5"
+            >
+              {examQuestions.map((qItem, qIdx) => {
+                const isAns = answers[qItem.id] !== undefined;
+                const isFlg = !!flagged[qItem.id];
+                return (
+                  <button
+                    key={qItem.id}
+                    type="button"
+                    onClick={() => {
+                      document
+                        .getElementById(`mcq-q-${qIdx + 1}`)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
+                    aria-label={
+                      lang === 'bn'
+                        ? `প্রশ্ন ${formatNum(qIdx + 1, lang)}${
+                            isFlg ? ' (চিহ্নিত)' : isAns ? ' (উত্তর দেওয়া হয়েছে)' : ''
+                          }`
+                        : `Question ${qIdx + 1}${
+                            isFlg ? ' (flagged)' : isAns ? ' (answered)' : ''
+                          }`
+                    }
+                    className={`w-6 h-6 rounded-md text-[10px] font-mono font-bold shrink-0 border cursor-pointer transition-colors ${
+                      isFlg
+                        ? isDark
+                          ? 'bg-amber-500/25 text-amber-200 border-amber-400/50'
+                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                        : isAns
+                        ? isDark
+                          ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/45'
+                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : isDark
+                        ? 'bg-slate-900/60 text-slate-400 border-slate-700 hover:border-slate-500'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    {formatNum(qIdx + 1, lang)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Questions List */}
@@ -1372,7 +1445,8 @@ export const McqExamView: React.FC<McqExamViewProps> = ({
             return (
               <div
                 key={q.id}
-                className={`p-5 rounded-2xl border space-y-4 ${
+                id={`mcq-q-${idx + 1}`}
+                className={`p-5 rounded-2xl border space-y-4 scroll-mt-40 ${
                   isDark
                     ? 'bg-slate-800/65 border-slate-700/65 card-soft-dark'
                     : 'bg-white/95 border-slate-200/80 card-soft-light'

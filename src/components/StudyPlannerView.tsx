@@ -79,6 +79,13 @@ export const StudyPlannerView: React.FC<StudyPlannerViewProps> = ({
   const [taskTitle, setTaskTitle] = useState<string>('');
   const [taskSubject, setTaskSubject] = useState<SubjectKey>('physics1');
   const [taskPriority, setTaskPriority] = useState<'high' | 'medium'>('high');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'open' | 'done'>('all');
+
+  const filteredTasks = tasks.filter((t) => {
+    if (taskFilter === 'open') return !t.completed;
+    if (taskFilter === 'done') return t.completed;
+    return true;
+  });
 
   // Ticking effect. Deliberately depends on `isRunning` only: the previous
   // version listed `secondsLeft` and `sessionNote` here, so the interval was
@@ -489,9 +496,62 @@ export const StudyPlannerView: React.FC<StudyPlannerViewProps> = ({
               </div>
             </form>
 
-            {/* Task List */}
+            {/* Task Filter & List */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div
+                role="group"
+                aria-label={lang === 'bn' ? 'অধ্যয়ন লক্ষ্য ফিল্টার' : 'Filter study tasks'}
+                className="inline-flex gap-1.5"
+              >
+                {(
+                  [
+                    { id: 'all', bn: 'সব লক্ষ্য', en: 'All' },
+                    { id: 'open', bn: 'বাকি', en: 'Open' },
+                    { id: 'done', bn: 'সম্পন্ন', en: 'Done' },
+                  ] as const
+                ).map((tab) => {
+                  const active = taskFilter === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setTaskFilter(tab.id)}
+                      className={`px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                        active
+                          ? isDark
+                            ? 'bg-indigo-500/25 border-indigo-400/40 text-indigo-200'
+                            : 'bg-indigo-600 border-indigo-600 text-white'
+                          : isDark
+                          ? 'bg-slate-900/50 border-slate-700 text-slate-400'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {lang === 'bn' ? tab.bn : tab.en}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {tasks.some((t) => t.completed) && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    tasks.filter((t) => t.completed).forEach((t) => onDeleteTask(t.id))
+                  }
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border cursor-pointer transition-colors ${
+                    isDark
+                      ? 'border-slate-700 text-slate-400 hover:text-rose-300 hover:border-rose-500/40'
+                      : 'border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-300'
+                  }`}
+                >
+                  {lang === 'bn' ? 'সম্পন্নগুলো মুছুন' : 'Clear Completed'}
+                </button>
+              )}
+            </div>
+
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {tasks.map((t) => {
+              {filteredTasks.map((t) => {
                 const s = getSubjectByKey(t.subjectKey);
                 return (
                   <div

@@ -681,7 +681,127 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-chem2-18",
+    "subjectKey": "chemistry2",
+    "chapter": {
+      "bn": "অর্থনৈতিক রসায়ন",
+      "en": "Economic Chemistry"
+    },
+    "question": {
+      "bn": "বাংলাদেশের প্রাকৃতিক গ্যাসে মিথেনের (CH₄) শতকরা পরিমাণ সাধারণত কত?",
+      "en": "What is the typical percentage of methane (CH₄) in natural gas found in Bangladesh?"
+    },
+    "options": [
+      {
+        "bn": "65% – 75%",
+        "en": "65% – 75%"
+      },
+      {
+        "bn": "80% – 85%",
+        "en": "80% – 85%"
+      },
+      {
+        "bn": "95% – 99%",
+        "en": "95% – 99%"
+      },
+      {
+        "bn": "50% – 60%",
+        "en": "50% – 60%"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "বাংলাদেশের প্রাকৃতিক গ্যাস অত্যন্ত বিশুদ্ধ ও সালফারমুক্ত; এতে মিথেন থাকে প্রায় 95%–99%।",
+      "en": "Bangladesh's natural gas is exceptionally pure and sweet (virtually sulfur-free), containing 95%–99% methane."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-chem2-19",
+    "subjectKey": "chemistry2",
+    "chapter": {
+      "bn": "অর্থনৈতিক রসায়ন",
+      "en": "Economic Chemistry"
+    },
+    "question": {
+      "bn": "পোর্টল্যান্ড সিমেন্টে দ্রুত জমাট বাঁধা রোধ করার জন্য কোন যৌগটি (২–৩%) যোগ করা হয়?",
+      "en": "Which compound (2–3%) is added to Portland cement to retard rapid setting?"
+    },
+    "options": [
+      {
+        "bn": "চুনাপাথর (CaCO₃)",
+        "en": "Limestone (CaCO₃)"
+      },
+      {
+        "bn": "জিপসাম (CaSO₄·2H₂O)",
+        "en": "Gypsum (CaSO₄·2H₂O)"
+      },
+      {
+        "bn": "সিলিকা (SiO₂)",
+        "en": "Silica (SiO₂)"
+      },
+      {
+        "bn": "অ্যালুমিনা (Al₂O₃)",
+        "en": "Alumina (Al₂O₃)"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ট্রাইক্যালসিয়াম অ্যালুমিনেটের দ্রুত জমাট বাঁধা মন্থর করতে সিমেন্ট ক্লিংকারের সাথে ২–৩% জিপসাম (CaSO₄·2H₂O) মেশানো হয়।",
+      "en": "2–3% gypsum (CaSO₄·2H₂O) is ground with cement clinker to slow down flash setting of tricalcium aluminate."
+    },
+    "boardTag": {
+      "bn": "বুয়েট ও ঢাকা বোর্ড",
+      "en": "BUET & Dhaka Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-chem2-20",
+    "subjectKey": "chemistry2",
+    "chapter": {
+      "bn": "অর্থনৈতিক রসায়ন",
+      "en": "Economic Chemistry"
+    },
+    "question": {
+      "bn": "চামড়া ট্যানিং (Leather tanning) শিল্পে প্রধানত কোন ধাতব লবণটি ব্যবহৃত হয়?",
+      "en": "Which metal salt is predominantly used in chrome leather tanning?"
+    },
+    "options": [
+      {
+        "bn": "ক্ষারকীয় ক্রোমিয়াম সালফেট — Cr(OH)SO₄",
+        "en": "Basic chromium sulfate — Cr(OH)SO₄"
+      },
+      {
+        "bn": "কপার সালফেট — CuSO₄",
+        "en": "Copper sulfate — CuSO₄"
+      },
+      {
+        "bn": "জিংক ক্লোরাইড — ZnCl₂",
+        "en": "Zinc chloride — ZnCl₂"
+      },
+      {
+        "bn": "সিলভার নাইট্রেট — AgNO₃",
+        "en": "Silver nitrate — AgNO₃"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "চামড়ার কোলাজেন প্রোটিনের সাথে স্থায়ী ক্রস-লিংক তৈরি করতে ক্রোম ট্যানিংয়ে ক্ষারকীয় ক্রোমিয়াম সালফেট Cr(OH)SO₄ ব্যবহৃত হয়।",
+      "en": "Chrome tanning cross-links collagen fibers using basic chromium(III) sulfate, Cr(OH)SO₄."
+    },
+    "boardTag": {
+      "bn": "যশোর ও চট্টগ্রাম বোর্ড",
+      "en": "Jashore & Chattogram Board"
+    },
+    "difficulty": "medium"
+  }
 ];
 
 export default QUESTIONS;

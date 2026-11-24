@@ -761,7 +761,127 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-eng-20",
+    "subjectKey": "english",
+    "chapter": {
+      "bn": "English 1st Paper: Seen Passages, Flow Chart & Summary Writing",
+      "en": "English 1st Paper: Seen Passages, Flow Chart & Summary"
+    },
+    "question": {
+      "bn": "HSC English 1st Paper-এর Flow Chart লেখার সময় প্রতিটি বক্সে তথ্য কীভাবে উপস্থাপন করা উত্তম?",
+      "en": "In HSC English 1st Paper Flow Chart writing, what is the standard format inside each box?"
+    },
+    "options": [
+      {
+        "bn": "পূর্ণাঙ্গ জটিল বাক্যে (Full complex sentences)",
+        "en": "Full complex sentences with finite verbs"
+      },
+      {
+        "bn": "সংক্ষিপ্ত ফ্রেজ আকারে (Short parallel phrases — gerund/infinitive/noun phrase)",
+        "en": "Short parallel phrases (gerund, infinitive, or noun phrase) without full stops"
+      },
+      {
+        "bn": "সরাসরি প্যাসেজের ৩–৪ লাইন কপি করে",
+        "en": "Copying 3–4 full lines verbatim from the passage"
+      },
+      {
+        "bn": "প্রশ্নবোধক বাক্যে",
+        "en": "Interrogative sentences"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "Flow Chart-এর বক্সে পূর্ণবাক্য বা ফুলস্টপ ব্যবহার না করে প্রদত্ত ১ নম্বর বক্সের ধাঁচে সংক্ষিপ্ত সমান্তরাল ফ্রেজ (Gerund/Infinitive/Noun phrase) লিখতে হয়।",
+      "en": "Flow chart boxes should use concise parallel phrases matching the given first box rather than full sentences."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও যশোর বোর্ড",
+      "en": "Dhaka & Jashore Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-eng-21",
+    "subjectKey": "english",
+    "chapter": {
+      "bn": "Cloze Test (With & Without Clues), Rearranging & Graph/Chart",
+      "en": "Cloze Test, Rearranging & Graph/Chart Analysis"
+    },
+    "question": {
+      "bn": "Cloze Test: \"Education aims at ______ the mind and broadening our outlook.\" — শূন্যস্থানে সঠিক শব্দ কোনটি?",
+      "en": "Cloze Test: \"Education aims at ______ the mind and broadening our outlook.\""
+    },
+    "options": [
+      {
+        "bn": "enlighten",
+        "en": "enlighten"
+      },
+      {
+        "bn": "enlightening",
+        "en": "enlightening"
+      },
+      {
+        "bn": "enlightened",
+        "en": "enlightened"
+      },
+      {
+        "bn": "enlightenment",
+        "en": "enlightenment"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "Preposition 'at'-এর পরে এবং 'and broadening'-এর সাথে সমান্তরাল (parallel) গঠন রাখতে Gerund 'enlightening' বসবে।",
+      "en": "After the preposition 'at' and parallel to 'and broadening', the gerund 'enlightening' is required."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-eng-22",
+    "subjectKey": "english",
+    "chapter": {
+      "bn": "Writing Part: Formal Application, Email, Paragraph & Composition",
+      "en": "Writing: Formal Application, Compare/Contrast Paragraph"
+    },
+    "question": {
+      "bn": "কোনো প্রতিষ্ঠানের প্রধান বরাবর আনুষ্ঠানিক আবেদনপত্রে (Formal Application) পরিচিত প্রাপকের নাম না জানা থাকলে সৌজন্যমূলক সমাপ্তিতে (Subscription) কোনটি ব্যবহৃত হয়?",
+      "en": "In a formal application addressed by title (e.g., 'Dear Sir/Madam'), which complimentary close is standard?"
+    },
+    "options": [
+      {
+        "bn": "Yours lovingly,",
+        "en": "Yours lovingly,"
+      },
+      {
+        "bn": "Yours faithfully, / Yours obediently,",
+        "en": "Yours faithfully, / Yours obediently,"
+      },
+      {
+        "bn": "Best cheers,",
+        "en": "Best cheers,"
+      },
+      {
+        "bn": "Your's faithfully,",
+        "en": "Your's faithfully,"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "আনুষ্ঠানিক পত্রে অ্যাপোস্ট্রফি ছাড়া 'Yours faithfully,' বা ছাত্রছাত্রীদের আবেদনে 'Yours obediently,' ব্যবহৃত হয় ('Your's' বানানটি ভুল)।",
+      "en": "Formal letters use 'Yours faithfully,' or 'Yours obediently,' — never with an apostrophe ('Your's' is incorrect)."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

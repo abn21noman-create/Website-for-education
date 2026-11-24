@@ -601,7 +601,207 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-math2-16",
+    "subjectKey": "math2",
+    "chapter": {
+      "bn": "বাস্তব সংখ্যা ও অসমতা",
+      "en": "Real Numbers & Inequalities"
+    },
+    "question": {
+      "bn": "|2x − 3| < 5 অসমতাটির সমাধান সেট কোনটি?",
+      "en": "What is the solution set of the inequality |2x − 3| < 5?"
+    },
+    "options": [
+      {
+        "bn": "(−1, 4)",
+        "en": "(−1, 4)"
+      },
+      {
+        "bn": "[−1, 4]",
+        "en": "[−1, 4]"
+      },
+      {
+        "bn": "(−4, 1)",
+        "en": "(−4, 1)"
+      },
+      {
+        "bn": "(1, 4)",
+        "en": "(1, 4)"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "−5 < 2x − 3 < 5 ⇒ −2 < 2x < 8 ⇒ −1 < x < 4, অর্থাৎ সমাধান সেট (−1, 4)।",
+      "en": "−5 < 2x − 3 < 5 ⇒ −2 < 2x < 8 ⇒ −1 < x < 4, giving the open interval (−1, 4)."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও যশোর বোর্ড",
+      "en": "Dhaka & Jashore Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-math2-17",
+    "subjectKey": "math2",
+    "chapter": {
+      "bn": "যোগাশ্রয়ী প্রোগ্রাম",
+      "en": "Linear Programming"
+    },
+    "question": {
+      "bn": "যোগাশ্রয়ী প্রোগ্রামিং সমস্যায় (LPP) অনুকূল সমাধান ক্ষেত্রের (feasible region) কোথায় অভীষ্ট ফাংশনের চরম মান পাওয়া যায়?",
+      "en": "In a linear programming problem, where does the objective function attain its optimal (maximum/minimum) value?"
+    },
+    "options": [
+      {
+        "bn": "কেবল মূলবিন্দুতে",
+        "en": "Only at the origin"
+      },
+      {
+        "bn": "কৌণিক বিন্দুতে (Corner / Extreme points)",
+        "en": "At corner (extreme) points of the feasible region"
+      },
+      {
+        "bn": "অক্ষরেখার বাইরে",
+        "en": "Outside the coordinate axes"
+      },
+      {
+        "bn": "ভরকেন্দ্রে",
+        "en": "At the centroid only"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "যোগাশ্রয়ী প্রোগ্রামের মৌলিক উপপাদ্য অনুযায়ী সীমাবদ্ধ উত্তল অনুকূল ক্ষেত্রের কৌণিক বিন্দুগুলোতেই অভীষ্ট ফাংশনের সর্বোচ্চ বা সর্বনিম্ন মান পাওয়া যায়।",
+      "en": "By the fundamental theorem of linear programming, optimal values on a bounded convex feasible polygon occur at its corner points."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-math2-18",
+    "subjectKey": "math2",
+    "chapter": {
+      "bn": "দ্বিপদী বিস্তৃতি",
+      "en": "Binomial Expansion"
+    },
+    "question": {
+      "bn": "(x + 1/x)⁶ এর দ্বিপদী বিস্তৃতিতে x-বর্জিত পদটির মান কত?",
+      "en": "What is the term independent of x in the binomial expansion of (x + 1/x)⁶?"
+    },
+    "options": [
+      {
+        "bn": "15",
+        "en": "15"
+      },
+      {
+        "bn": "20",
+        "en": "20"
+      },
+      {
+        "bn": "6",
+        "en": "6"
+      },
+      {
+        "bn": "60",
+        "en": "60"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "(r+1)-তম পদে x^(6−2r) থাকে; x-বর্জিত পদের জন্য 6 − 2r = 0 ⇒ r = 3। সুতরাং পদটির মান = ⁶C₃ = 20।",
+      "en": "General term has x^(6−2r); setting 6 − 2r = 0 gives r = 3, so the constant term is ⁶C₃ = 20."
+    },
+    "boardTag": {
+      "bn": "বুয়েট ও ঢাকা বোর্ড",
+      "en": "BUET & Dhaka Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-math2-19",
+    "subjectKey": "math2",
+    "chapter": {
+      "bn": "বিপরীত ত্রিকোণমিতিক ফাংশন ও ত্রিকোণমিতিক সমীকরণ",
+      "en": "Inverse Trig Functions & Equations"
+    },
+    "question": {
+      "bn": "tan⁻¹(1/2) + tan⁻¹(1/3) এর মুখ্য মান কত?",
+      "en": "What is the principal value of tan⁻¹(1/2) + tan⁻¹(1/3)?"
+    },
+    "options": [
+      {
+        "bn": "π / 6",
+        "en": "π / 6"
+      },
+      {
+        "bn": "π / 4",
+        "en": "π / 4"
+      },
+      {
+        "bn": "π / 3",
+        "en": "π / 3"
+      },
+      {
+        "bn": "π / 2",
+        "en": "π / 2"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "tan⁻¹[(1/2 + 1/3) / (1 − 1/6)] = tan⁻¹[(5/6) / (5/6)] = tan⁻¹(1) = π/4।",
+      "en": "tan⁻¹[(1/2 + 1/3)/(1 − 1/6)] = tan⁻¹(1) = π/4."
+    },
+    "boardTag": {
+      "bn": "ঢাবি ও সকল বোর্ড",
+      "en": "DU & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-math2-20",
+    "subjectKey": "math2",
+    "chapter": {
+      "bn": "সমতলে বস্তুকণার গতি",
+      "en": "Motion of Particles in a Plane"
+    },
+    "question": {
+      "bn": "u আদিবেগে আনুভূমিকের সাথে কত কোণে প্রক্ষেপ করলে প্রাসের আনুভূমিক পাল্লা (Horizontal range) সর্বাধিক হয়?",
+      "en": "At what launch angle with the horizontal does a projectile achieve maximum horizontal range for a given initial speed u?"
+    },
+    "options": [
+      {
+        "bn": "30°",
+        "en": "30°"
+      },
+      {
+        "bn": "45°",
+        "en": "45°"
+      },
+      {
+        "bn": "60°",
+        "en": "60°"
+      },
+      {
+        "bn": "90°",
+        "en": "90°"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "পাল্লা R = (u² sin 2α)/g সর্বাধিক হয় যখন sin 2α = 1 ⇒ 2α = 90° ⇒ α = 45°।",
+      "en": "Range R = (u² sin 2α)/g is maximized when sin 2α = 1, i.e., α = 45°."
+    },
+    "boardTag": {
+      "bn": "বুয়েট ও সকল বোর্ড",
+      "en": "BUET & All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

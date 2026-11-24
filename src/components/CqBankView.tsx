@@ -30,11 +30,14 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
 }) => {
   const isDark = theme === 'dark';
   const [selectedSubject, setSelectedSubject] = useState<SubjectKey | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unsolved' | 'solved'>('all');
   const [search, setSearch] = useState('');
   const [openSolutions, setOpenSolutions] = useState<Record<string, boolean>>({});
 
   const filtered = CQ_QUESTIONS.filter((cq) => {
     if (selectedSubject !== 'all' && cq.subjectKey !== selectedSubject) return false;
+    if (statusFilter === 'unsolved' && solvedCqs.includes(cq.id)) return false;
+    if (statusFilter === 'solved' && !solvedCqs.includes(cq.id)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return (
@@ -140,24 +143,58 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
           ))}
         </div>
 
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-          <input
-            type="text"
-            aria-label={lang === 'bn' ? 'সৃজনশীল প্রশ্ন খুঁজুন' : 'Search creative questions'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={
-              lang === 'bn'
-                ? 'সৃজনশীল উদ্দীপক বা অধ্যায় অনুসন্ধান করুন (যেমন: নদী-নৌকা, কার্নো ইঞ্জিন, বাফার, বৃত্ত)...'
-                : 'Search CQ stem or topic (e.g., river-boat, Carnot, buffer, circle)...'
-            }
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none transition-all ${
-              isDark
-                ? 'bg-slate-800/70 border-slate-700/80 text-slate-100 placeholder:text-slate-500 focus:border-indigo-400'
-                : 'bg-white border-slate-200/90 text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 shadow-2xs'
-            }`}
-          />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+            <input
+              type="text"
+              aria-label={lang === 'bn' ? 'সৃজনশীল প্রশ্ন খুঁজুন' : 'Search creative questions'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                lang === 'bn'
+                  ? 'সৃজনশীল উদ্দীপক বা অধ্যায় অনুসন্ধান করুন (যেমন: নদী-নৌকা, কার্নো ইঞ্জিন, বাফার, বৃত্ত)...'
+                  : 'Search CQ stem or topic (e.g., river-boat, Carnot, buffer, circle)...'
+              }
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none transition-all ${
+                isDark
+                  ? 'bg-slate-800/70 border-slate-700/80 text-slate-100 placeholder:text-slate-500 focus:border-indigo-400'
+                  : 'bg-white border-slate-200/90 text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 shadow-2xs'
+              }`}
+            />
+          </div>
+
+          <div
+            role="group"
+            aria-label={lang === 'bn' ? 'সৃজনশীল প্রশ্নের অবস্থা ফিল্টার' : 'Filter CQs by practice status'}
+            className="flex items-center gap-1.5 shrink-0"
+          >
+            {(
+              [
+                { id: 'all' as const, bn: 'সবগুলো', en: 'All' },
+                { id: 'unsolved' as const, bn: 'বাকি আছে', en: 'Unsolved' },
+                { id: 'solved' as const, bn: 'সম্পন্ন', en: 'Practiced' },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={statusFilter === f.id}
+                onClick={() => setStatusFilter(f.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                  statusFilter === f.id
+                    ? isDark
+                      ? 'bg-teal-500/20 text-teal-200 border-teal-400/35'
+                      : 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                    : isDark
+                    ? 'bg-slate-800/60 border-slate-700/70 text-slate-400 hover:text-slate-200'
+                    : 'bg-white border-slate-200/85 text-slate-600 hover:text-slate-900 shadow-2xs'
+                }`}
+              >
+                {lang === 'bn' ? f.bn : f.en}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -165,7 +202,7 @@ export const CqBankView: React.FC<CqBankViewProps> = ({
         <Search size={21} aria-hidden="true" />
         <strong>{lang === 'bn' ? 'কোনো প্রশ্ন পাওয়া যায়নি' : 'No questions found'}</strong>
         <span>{lang === 'bn' ? 'অন্য শব্দ বা বিষয় দিয়ে আবার খোঁজ করো।' : 'Try a different search or subject.'}</span>
-        <button onClick={() => { setSearch(''); setSelectedSubject('all'); }}>{lang === 'bn' ? 'ফিল্টার সরাও' : 'Clear filters'}</button>
+        <button onClick={() => { setSearch(''); setSelectedSubject('all'); setStatusFilter('all'); }}>{lang === 'bn' ? 'ফিল্টার সরাও' : 'Clear filters'}</button>
       </div>}
 
       {/* CQ Cards */}

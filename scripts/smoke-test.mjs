@@ -3857,6 +3857,246 @@ check(
   'explicit motion, contrast and reading-scale modes have global CSS coverage'
 );
 
+// Every one of the 93 NCTB syllabus chapters resolves to at least one bank MCQ.
+const { CHAPTERS: allSyllabusChapters } = await vite.ssrLoadModule('/src/data/syllabusData.ts');
+const { loadAllMcq: loadEveryMcq } = await vite.ssrLoadModule('/src/data/mcqBank.ts');
+const { mcqChapter: resolveChapterForMcq } = await vite.ssrLoadModule('/src/lib/mcqChapters.ts');
+const everyMcq = await loadEveryMcq();
+const chapterCoverageCounts = new Map(allSyllabusChapters.map(ch => [ch.id, 0]));
+let unmatchedMcqs = 0;
+for (const q of everyMcq) {
+  const ch = resolveChapterForMcq(q);
+  if (ch && chapterCoverageCounts.has(ch.id)) {
+    chapterCoverageCounts.set(ch.id, chapterCoverageCounts.get(ch.id) + 1);
+  } else {
+    unmatchedMcqs += 1;
+  }
+}
+const uncoveredChapters = [...chapterCoverageCounts.values()].filter(n => n === 0).length;
+check(
+  allSyllabusChapters.length === 93 && uncoveredChapters === 0 && unmatchedMcqs === 0 && everyMcq.length >= 230,
+  'all 93 syllabus chapters across 11 papers have mapped MCQ practice coverage'
+);
+
+// Command palette supports keyboard ArrowDown + Enter navigation and personal-note search.
+const { CommandPaletteModal } = await vite.ssrLoadModule('/src/components/CommandPaletteModal.tsx');
+let paletteSelectedTab = null;
+let paletteClosed = false;
+root = createRoot(container);
+root.render(React.createElement(CommandPaletteModal, {
+  isOpen: true,
+  onClose() { paletteClosed = true; },
+  lang: 'en',
+  theme: 'light',
+  personalNotes: [{
+    id: 'note-1',
+    subjectKey: 'chemistry1',
+    chapterTitle: 'Chemical Changes',
+    title: 'Buffer Henderson Shortcut',
+    formula: 'pH = pKa + log([Salt]/[Acid])',
+    content: 'Equal concentrations mean pH = pKa',
+    createdAt: new Date().toISOString(),
+  }],
+  onSelectDestination(tab) { paletteSelectedTab = tab; },
+}));
+await new Promise(resolve => setTimeout(resolve, 60));
+const paletteDialog = container.querySelector('[role="dialog"][aria-modal="true"]');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 40));
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 40));
+check(
+  !!paletteDialog && paletteSelectedTab === 'syllabus' && paletteClosed,
+  'command palette exposes accessible dialog semantics and keyboard ArrowDown + Enter selection'
+);
+root.unmount(); root = null;
+
+// Syllabus tracker exposes 1-click Chapter Drill that writes a chapter drill request and navigates to mcq.
+const { SyllabusTrackerView } = await vite.ssrLoadModule('/src/components/SyllabusTrackerView.tsx');
+const { takeChapterDrill: readPendingDrill } = await vite.ssrLoadModule('/src/lib/chapterDrill.ts');
+let drillNavigatedTab = null;
+root = createRoot(container);
+root.render(React.createElement(SyllabusTrackerView, {
+  lang: 'en',
+  theme: 'light',
+  initialSubject: 'physics2',
+  progressMap: {},
+  onToggleStage() {},
+  onNavigate(tab) { drillNavigatedTab = tab; },
+}));
+await new Promise(resolve => setTimeout(resolve, 60));
+const syllabusDrillButton = [...container.querySelectorAll('button')].find(
+  btn => btn.textContent.includes('Chapter Drill')
+);
+syllabusDrillButton?.click();
+const queuedDrill = readPendingDrill();
+check(
+  !!syllabusDrillButton && drillNavigatedTab === 'mcq' && queuedDrill?.subjectKey === 'physics2' && !!queuedDrill?.chapterId,
+  'syllabus tracker launches a targeted 1-click chapter MCQ drill'
+);
+root.unmount(); root = null;
+
+// Formula vault flashcard mode supports accessible keyboard flip and M mastery shortcut.
+const { FormulaVaultView } = await vite.ssrLoadModule('/src/components/FormulaVaultView.tsx');
+let masteredViaShortcut = null;
+root = createRoot(container);
+root.render(React.createElement(FormulaVaultView, {
+  lang: 'en',
+  theme: 'light',
+  bookmarks: [],
+  onToggleBookmark() {},
+  srsMasteredIds: [],
+  onToggleSrsMastered(id) { masteredViaShortcut = id; },
+  personalNotes: [],
+  onAddPersonalNote() {},
+  onDeletePersonalNote() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 60));
+[...container.querySelectorAll('button')].find(btn => btn.textContent.includes('Flashcards'))?.click();
+await new Promise(resolve => setTimeout(resolve, 60));
+const flashcardSurface = container.querySelector('[role="button"][aria-pressed="false"]');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 40));
+const flippedSurface = container.querySelector('[role="button"][aria-pressed="true"]');
+window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'm', bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 40));
+check(
+  !!flashcardSurface && !!flippedSurface && typeof masteredViaShortcut === 'string',
+  'formula flashcards expose aria-pressed flip state and keyboard Space/M shortcuts'
+);
+root.unmount(); root = null;
+
+// Virtual Lab Phase 2 simulators: Simple Pendulum & Acid-Base Titration Curve.
+root = createRoot(container);
+root.render(React.createElement(VirtualLabView, { lang: 'en', theme: 'light' }));
+await new Promise(resolve => setTimeout(resolve, 50));
+[...container.querySelectorAll('button')].find(btn => btn.textContent.includes('Physics: Vector & Projectile'))?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const moonBtn = [...container.querySelectorAll('button')].find(btn => btn.textContent.includes('Moon (1.62'));
+moonBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const moonPendulumOk = moonBtn?.getAttribute('aria-pressed') === 'true' && container.textContent.includes('4.94s');
+[...container.querySelectorAll('button')].find(btn => btn.textContent.includes('Chem: Periodic & Buffer'))?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const naohInput = container.querySelector('input[aria-label="Added NaOH volume in mL"]');
+Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(naohInput, '25');
+naohInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+await new Promise(resolve => setTimeout(resolve, 40));
+const eqPointOk = container.textContent.includes('Equivalence Point (pH 7.00)');
+check(
+  moonPendulumOk && eqPointOk,
+  'virtual lab pendulum gravity switch and HCl-NaOH titration equivalence point compute accurately'
+);
+root.unmount(); root = null;
+
+// CQ Bank unsolved/practiced status filter narrows questions accurately.
+const { CQ_QUESTIONS: allCqItems } = await vite.ssrLoadModule('/src/data/cqData.ts');
+root = createRoot(container);
+root.render(React.createElement(CqBankView, {
+  lang: 'en',
+  theme: 'light',
+  solvedCqs: [allCqItems[0].id, allCqItems[1].id],
+  onToggleSolvedCq() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 50));
+const practicedFilterBtn = [...container.querySelectorAll('button')].find(btn => btn.textContent === 'Practiced');
+practicedFilterBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const practicedShownOk = practicedFilterBtn?.getAttribute('aria-pressed') === 'true' &&
+  container.querySelectorAll('.sector-stat')[3]?.textContent.includes('2');
+check(practicedShownOk, 'CQ bank status filter isolates practiced vs unsolved questions');
+root.unmount(); root = null;
+
+// Analytics weakness radar offers a 1-click targeted chapter drill.
+let analyticsNavTab = null;
+root = createRoot(container);
+root.render(React.createElement(AnalyticsView, {
+  lang: 'en',
+  theme: 'light',
+  authUserId: null,
+  profile: backupFixture.profile,
+  progressMap: {},
+  quizHistory: [],
+  sessions: [],
+  onNavigate(tab) { analyticsNavTab = tab; },
+}));
+await new Promise(resolve => setTimeout(resolve, 60));
+const radarDrillBtn = [...container.querySelectorAll('button')].find(btn => btn.textContent.trim() === 'Drill');
+radarDrillBtn?.click();
+const radarQueuedDrill = readPendingDrill();
+check(
+  !!radarDrillBtn && analyticsNavTab === 'mcq' && !!radarQueuedDrill?.subjectKey && !!radarQueuedDrill?.chapterId,
+  'analytics weakness radar launches a 1-click chapter drill for priority subjects'
+);
+root.unmount(); root = null;
+
+// Phase 3: Practical & Writing Vault covers all 9 lab-bearing papers (10 experiments) + 8 templates + target modes.
+root = createRoot(container);
+root.render(React.createElement(PracticalWritingView, {
+  lang: 'en',
+  theme: 'light',
+  completedPracticals: ['prac-phy1-1', 'prac-phy2-1'],
+  onTogglePractical() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 50));
+const expStatOk = container.querySelectorAll('.sector-stat')[0]?.textContent.includes('10');
+const tplStatOk = container.querySelectorAll('.sector-stat')[2]?.textContent.includes('8');
+const mathPracFilter = [...container.querySelectorAll('button')].find(btn => btn.textContent === 'Higher Math');
+mathPracFilter?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const mathPracFilteredOk = mathPracFilter?.getAttribute('aria-pressed') === 'true' &&
+  container.textContent.includes('Graphing Conics');
+check(
+  expStatOk && tplStatOk && mathPracFilteredOk,
+  'practical & writing vault covers 10 experiments, 8 templates, and subject filtering'
+);
+root.unmount(); root = null;
+
+// Phase 3: GPA Calculator scenario presets & A+ distance hints.
+root = createRoot(container);
+root.render(React.createElement(GpaCalculatorView, { lang: 'en', theme: 'light' }));
+await new Promise(resolve => setTimeout(resolve, 50));
+const rescuePresetBtn = [...container.querySelectorAll('button')].find(btn => btn.textContent.includes('4th-Subject Rescue'));
+rescuePresetBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+check(
+  container.textContent.includes('(+4 to A+)') && container.textContent.includes('5.00'),
+  'GPA calculator scenario presets compute 4th-subject rescue and A+ point gap hints'
+);
+root.unmount(); root = null;
+
+// Phase 3: Study Planner open/done task filter & Clear Completed action.
+const { StudyPlannerView } = await vite.ssrLoadModule('/src/components/StudyPlannerView.tsx');
+const deletedTaskIds = [];
+root = createRoot(container);
+root.render(React.createElement(StudyPlannerView, {
+  lang: 'en',
+  theme: 'light',
+  tasks: [
+    { id: 't-open', title: 'Solve Conics CQ', subjectKey: 'math2', completed: false, priority: 'high' },
+    { id: 't-done', title: 'Read Vector Notes', subjectKey: 'physics1', completed: true, priority: 'medium' },
+  ],
+  sessions: [],
+  progressMap: {},
+  onAddTask() {},
+  onToggleTask() {},
+  onDeleteTask(id) { deletedTaskIds.push(id); },
+  onLogSession() {},
+}));
+await new Promise(resolve => setTimeout(resolve, 50));
+const openFilterBtn = [...container.querySelectorAll('[aria-label="Filter study tasks"] button')].find(btn => btn.textContent === 'Open');
+openFilterBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const openOnlyOk = openFilterBtn?.getAttribute('aria-pressed') === 'true' &&
+  container.textContent.includes('Solve Conics CQ') &&
+  !container.textContent.includes('Read Vector Notes');
+[...container.querySelectorAll('button')].find(btn => btn.textContent === 'Clear Completed')?.click();
+check(
+  openOnlyOk && deletedTaskIds.length === 1 && deletedTaskIds[0] === 't-done',
+  'study planner filters open/completed tasks and clears completed items cleanly'
+);
+root.unmount(); root = null;
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

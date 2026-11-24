@@ -15,7 +15,7 @@ export default defineConfig({
     allowedHosts: true,
   },
   build: {
-    target: 'es2020',
+    target: 'es2022',
     cssCodeSplit: true,
     // Every module is a lazy route, so the data files must stay in their own
     // view chunk. Grouping all of `/src/data` into a single `academic-data`
@@ -26,7 +26,12 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/@supabase')) return 'supabase';
           if (id.includes('node_modules/lucide-react')) return 'icons';
-          if (id.includes('node_modules/react')) return 'react-core';
+          if (
+            id.includes('node_modules/react') ||
+            id.includes('node_modules/scheduler')
+          ) {
+            return 'react-core';
+          }
           if (id.includes('node_modules')) return 'vendor';
         },
       },

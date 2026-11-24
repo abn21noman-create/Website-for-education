@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Download,
   Upload,
+  Play,
 } from 'lucide-react';
 import {
   ActiveTab,
@@ -22,6 +23,7 @@ import {
 } from '../types';
 import { CHAPTERS, SUBJECTS } from '../data/syllabusData';
 import { formatNum } from '../lib/i18n';
+import { requestChapterDrill } from '../lib/chapterDrill';
 import { SubjectIcon } from './SubjectIcon';
 import { WeeklyReviewCard } from './WeeklyReviewCard';
 import { SectorStats } from './SectorStats';
@@ -258,13 +260,45 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onNavigate('syllabus', item.subj.key)}
-                  className="p-2 rounded-lg text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 cursor-pointer shrink-0"
-                  title="Go to syllabus"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const subjChapters = CHAPTERS.filter(
+                        (c) => c.subjectKey === item.subj.key
+                      );
+                      const nextCh =
+                        subjChapters.find((c) => !progressMap[c.id]?.mcqDone) ||
+                        subjChapters[0];
+                      if (nextCh) {
+                        requestChapterDrill({
+                          subjectKey: item.subj.key,
+                          chapterBn: nextCh.title.bn,
+                          chapterEn: nextCh.title.en,
+                          chapterId: nextCh.id,
+                          count: 10,
+                        });
+                      }
+                      onNavigate('mcq');
+                    }}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                      isDark
+                        ? 'bg-teal-500/15 text-teal-200 border-teal-400/30 hover:bg-teal-500/25'
+                        : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                    }`}
+                  >
+                    <Play className="w-2.5 h-2.5 fill-current" />
+                    <span>{lang === 'bn' ? 'ড্রিল' : 'Drill'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('syllabus', item.subj.key)}
+                    className="p-2 rounded-lg text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/10 cursor-pointer shrink-0"
+                    title="Go to syllabus"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
 

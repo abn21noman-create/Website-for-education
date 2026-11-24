@@ -373,6 +373,86 @@ export const ENGLISH_DRILL_QUESTIONS: EnglishDrillQuestion[] = [
     'কোনো কাজ বা অভ্যাস ছেড়ে দেওয়া — to abandon।',
     'It means to stop doing something: to abandon it.'
   ),
+  q(
+    'ed-33',
+    'tense',
+    'It is high time we ___ our study habits.',
+    'It is high time we ___ our study habits.',
+    [['change', 'change'], ['changed', 'changed'], ['have changed', 'have changed'], ['will change', 'will change']],
+    1,
+    '“It is time / It is high time + subject” থাকলে পরবর্তী verb-টি past indefinite (V2) রূপে বসে।',
+    'After “It is time / It is high time + subject”, English uses the past subjunctive (V2: changed).'
+  ),
+  q(
+    'ed-34',
+    'tense',
+    'Neither the captain nor the players ___ present at the briefing.',
+    'Neither the captain nor the players ___ present at the briefing.',
+    [['was', 'was'], ['were', 'were'], ['is', 'is'], ['has been', 'has been']],
+    1,
+    'Neither…nor বা Either…or দ্বারা যুক্ত হলে verb তার নিকটবর্তী কর্তা (the players — plural) অনুযায়ী বহুবচন হয়।',
+    'With neither…nor, the verb agrees with the nearer subject (“the players” → plural “were”).'
+  ),
+  q(
+    'ed-35',
+    'preposition',
+    'The patient died ___ dengue fever last week.',
+    'The patient died ___ dengue fever last week.',
+    [['from', 'from'], ['of', 'of'], ['by', 'by'], ['for', 'for']],
+    1,
+    'রোগে মারা গেলে die of বসে; অতিরিক্ত পরিশ্রম বা বাহ্যিক কারণে হলে die from, আর দেশের জন্য হলে die for বসে।',
+    'Use “die of” for a disease, “die from” for an external cause/overwork, and “die for” a noble cause.'
+  ),
+  q(
+    'ed-36',
+    'preposition',
+    'True scholars abstain ___ unfair practices.',
+    'True scholars abstain ___ unfair practices.',
+    [['of', 'of'], ['from', 'from'], ['to', 'to'], ['with', 'with']],
+    1,
+    'বিরত থাকা অর্থে abstain এবং refrain উভয়ের পরেই appropriate preposition হিসেবে from বসে।',
+    'Both “abstain” and “refrain” take the preposition “from”.'
+  ),
+  q(
+    'ed-37',
+    'vocabulary',
+    'Choose the closest synonym of “Ephemeral”:',
+    'Choose the closest synonym of “Ephemeral”:',
+    [['eternal', 'eternal'], ['short-lived', 'short-lived'], ['massive', 'massive'], ['stubborn', 'stubborn']],
+    1,
+    '“Ephemeral” অর্থ ক্ষণস্থায়ী (short-lived / transient); এর বিপরীত শব্দ eternal বা permanent।',
+    '“Ephemeral” means lasting for a very short time (short-lived); its antonym is eternal.'
+  ),
+  q(
+    'ed-38',
+    'vocabulary',
+    'Choose the antonym of “Benevolent”:',
+    'Choose the antonym of “Benevolent”:',
+    [['generous', 'generous'], ['kind', 'kind'], ['malevolent', 'malevolent'], ['humble', 'humble']],
+    2,
+    '“Benevolent” মানে পরোপকারী বা সদাশয়; এর বিপরীতার্থক শব্দ “malevolent” (বিদ্বেষপরায়ণ/ক্ষতিকর)।',
+    '“Benevolent” means well-meaning and kindly; its opposite is “malevolent” (wishing harm).'
+  ),
+  q(
+    'ed-39',
+    'idiom',
+    '“Once in a blue moon” means —',
+    '“Once in a blue moon” means —',
+    [['every month', 'every month'], ['very rarely', 'very rarely'], ['at midnight', 'at midnight'], ['quite often', 'quite often']],
+    1,
+    '“Once in a blue moon” বাগধারাটির অর্থ কদাচিৎ বা অত্যন্ত বিরলভাবে (very rarely)।',
+    '“Once in a blue moon” refers to something that happens very rarely.'
+  ),
+  q(
+    'ed-40',
+    'idiom',
+    '“To burn the midnight oil” means —',
+    '“To burn the midnight oil” means —',
+    [['to waste fuel', 'to waste fuel'], ['to study or work late into the night', 'to study or work late into the night'], ['to start an argument', 'to start an argument'], ['to sleep early', 'to sleep early']],
+    1,
+    'রাত জেগে কঠোর পরিশ্রম বা পড়াশোনা করা অর্থে “burn the midnight oil” ব্যবহৃত হয়।',
+    'It means working or studying diligently late into the night.'
+  ),
 ];
 
 export const ENGLISH_DRILL_ROUND_SIZE = 10;
