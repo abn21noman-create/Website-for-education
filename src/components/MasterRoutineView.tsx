@@ -8,7 +8,10 @@ import {
   Clock3,
   GraduationCap,
   Minus,
+  Play,
   Plus,
+  RotateCcw,
+  Sparkles,
   Target,
 } from 'lucide-react';
 import { ChapterProgressState, Lang, Theme } from '../types';
@@ -62,7 +65,9 @@ import {
   learnedChapters,
   loadRoutineState,
   setChronotype,
+  setPaceMode,
   setPrimaryTrack,
+  startFreshRoutine,
   logStudyMinutes,
   revisionTaskKey,
   setStartDate,
@@ -340,6 +345,131 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
         </div>
       </div>
 
+      {/* Fresh Day-1 Journey Launchpad — lets the student start cleanly whenever ready */}
+      <div
+        data-routine-launchpad="true"
+        className={`rounded-2xl border p-4 sm:p-5 transition-all ${
+          !state.journeyStarted
+            ? isDark
+              ? 'bg-gradient-to-r from-indigo-950/60 via-slate-900/90 to-teal-950/50 border-indigo-500/40'
+              : 'bg-gradient-to-r from-indigo-50/90 via-white to-teal-50/80 border-indigo-200/90 shadow-xs'
+            : card
+        }`}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {!state.journeyStarted
+                  ? useBn
+                    ? 'শূন্য থেকে নতুন যাত্রা • Day 1 তোমার হাতে'
+                    : 'FRESH START • DAY 1 ON YOUR SCHEDULE'
+                  : useBn
+                    ? `রুটিন চালু আছে • শুরু: ${state.startDate}`
+                    : `Routine active • Started: ${state.startDate}`}
+              </span>
+            </div>
+            <h2 className="text-base sm:text-lg font-extrabold tracking-tight">
+              {!state.journeyStarted
+                ? useBn
+                  ? 'এখনো পড়া শুরু করোনি? যেদিন শুরু করবে সেদিনই তোমার Day 1!'
+                  : 'Haven’t started yet? Whenever you begin becomes your Day 1!'
+                : useBn
+                  ? 'চাইলে যেকোনো দিন নতুন করে Day 1 থেকে রুটিন শুরু করতে পারো'
+                  : 'Restart or shift Day 1 anytime to match your real study start'}
+            </h2>
+            <p className={`text-xs leading-relaxed ${muted}`}>
+              {useBn
+                ? 'কোনো পুরোনো দিনের চাপ নেই। তোমার নিজের গতি (হালকা / নিয়মিত / ফোকাসড) বেছে নিয়ে এক ক্লিকে আজ বা যেকোনো তারিখ থেকে Day 1 শুরু করো।'
+                : 'Zero backlog guilt. Pick your daily pace and launch Day 1 today—or choose the exact date you want to start.'}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div
+              role="group"
+              aria-label={useBn ? 'দৈনিক গতির ধরন' : 'Daily routine pace'}
+              className={`inline-flex p-1 rounded-xl border ${
+                isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-100/85 border-slate-200'
+              }`}
+            >
+              {(
+                [
+                  { id: 'light', bn: 'হালকা (২ ঘ.)', en: 'Light (2h)' },
+                  { id: 'steady', bn: 'নিয়মিত (৪ ঘ.)', en: 'Steady (4h)' },
+                  { id: 'intense', bn: 'ফোকাসড (৬ ঘ.)', en: 'Intense (6h)' },
+                ] as const
+              ).map((p) => {
+                const active = (state.paceMode || 'steady') === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setState((prev) => setPaceMode(prev, p.id))}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                      active
+                        ? isDark
+                          ? 'bg-indigo-500/25 text-indigo-200'
+                          : 'bg-white text-indigo-700 shadow-2xs'
+                        : muted
+                    }`}
+                  >
+                    {useBn ? p.bn : p.en}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              data-start-fresh-today="true"
+              onClick={() => {
+                const today = toDateKey(new Date());
+                setDateKey(today);
+                setState((prev) => startFreshRoutine(prev, today, prev.paceMode || 'steady'));
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all bg-indigo-600 text-white hover:bg-indigo-500 shadow-xs"
+            >
+              {!state.journeyStarted ? (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>{useBn ? 'আজ থেকেই Day 1 শুরু করো' : 'Start Day 1 Today'}</span>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{useBn ? 'আজ থেকে নতুন করে Day 1' : 'Restart Day 1 Today'}</span>
+                </>
+              )}
+            </button>
+
+            <label
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-slate-200 hover:border-slate-500'
+                  : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300'
+              }`}
+            >
+              <span>{useBn ? 'শুরুর তারিখ:' : 'Start date:'}</span>
+              <input
+                type="date"
+                aria-label={useBn ? 'রুটিন শুরুর তারিখ' : 'Routine start date'}
+                value={state.startDate}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const picked = e.target.value;
+                  setDateKey(picked);
+                  setState((prev) => setStartDate(prev, picked));
+                }}
+                className="bg-transparent font-mono text-xs outline-none cursor-pointer"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div role="group" aria-label={useBn ? 'রুটিনের বিভাগ' : 'Routine sections'} className={`routine-sections inline-flex p-1 rounded-xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-100/80 border-slate-200'}`}>
         {(
@@ -458,24 +588,67 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
               </p>
             </div>
           ) : (
-            slots.map((slot, slotIndex) => (
-              <div key={`${slot.subjectKey}-${slotIndex}`} className={`rounded-2xl border p-4 ${card}`}>
+            slots.map((slot, slotIndex) => {
+              const slotCompletedCount = CLASS_TASKS.reduce(
+                (sum, _t, idx) => sum + (state.tasks[taskKey(dateKey, slotIndex, idx)] ? 1 : 0),
+                0
+              );
+              const paceDurationLabel =
+                state.paceMode === 'light'
+                  ? useBn
+                    ? '১ ঘণ্টা'
+                    : '1 h'
+                  : state.paceMode === 'intense'
+                    ? useBn
+                      ? '৩ ঘণ্টা'
+                      : '3 h'
+                    : useBn
+                      ? '২ ঘণ্টা'
+                      : '2 h';
+              return (
+              <div
+                key={`${slot.subjectKey}-${slotIndex}`}
+                className={`rounded-2xl border p-4 sm:p-5 transition-all ${card}`}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                      {useBn ? `ক্লাস ${bn(slotIndex + 1)}` : `Class ${slotIndex + 1}`}
-                    </p>
-                    <p className="text-sm font-extrabold mt-0.5">
-                      {useBn ? slot.subjectBn : slot.subjectEn}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${muted}`}>
-                      {useBn ? slot.chapterBn : slot.chapterEn}
-                      <span className="opacity-70"> · {useBn ? `চ্যাপ্টার ${bn(slot.chapterNumber)}` : `chapter ${slot.chapterNumber}`}</span>
-                    </p>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-mono text-xs font-extrabold shrink-0 ${
+                        slotCompletedCount === CLASS_TASKS.length
+                          ? 'bg-emerald-500 text-white'
+                          : slotIndex === 0
+                            ? isDark
+                              ? 'bg-indigo-500/25 text-indigo-200 border border-indigo-400/30'
+                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            : isDark
+                              ? 'bg-teal-500/20 text-teal-200 border border-teal-400/30'
+                              : 'bg-teal-50 text-teal-700 border border-teal-200'
+                      }`}
+                    >
+                      {slotCompletedCount === CLASS_TASKS.length ? '✓' : `0${slotIndex + 1}`}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        {slotIndex === 0
+                          ? useBn
+                            ? `ক্লাস ${bn(slotIndex + 1)} • প্রথম মিশন`
+                            : `Class ${slotIndex + 1} • Mission 1`
+                          : useBn
+                            ? `ক্লাস ${bn(slotIndex + 1)} • দ্বিতীয় মিশন`
+                            : `Class ${slotIndex + 1} • Mission 2`}
+                      </p>
+                      <p className="text-sm sm:text-base font-extrabold mt-0.5">
+                        {useBn ? slot.subjectBn : slot.subjectEn}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${muted}`}>
+                        {useBn ? slot.chapterBn : slot.chapterEn}
+                        <span className="opacity-70"> · {useBn ? `চ্যাপ্টার ${bn(slot.chapterNumber)}` : `chapter ${slot.chapterNumber}`}</span>
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
                     <span className={`text-[10px] font-mono px-2 py-1 rounded-lg border ${chip}`}>
-                      {useBn ? '২ ঘণ্টা' : '2 h'}
+                      {paceDurationLabel} · {useBn ? `${bn(slotCompletedCount)}/৪` : `${slotCompletedCount}/4`}
                     </span>
                     {onToggleStage && slot.chapterId && (
                       <button
@@ -500,6 +673,13 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                       </button>
                     )}
                   </div>
+                </div>
+
+                <div className={`mt-3 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300"
+                    style={{ width: `${(slotCompletedCount / CLASS_TASKS.length) * 100}%` }}
+                  />
                 </div>
 
                 <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -530,7 +710,8 @@ export const MasterRoutineView: React.FC<MasterRoutineViewProps> = ({
                   })}
                 </ul>
               </div>
-            ))
+              );
+            })
           )}
 
           {/* Spaced reviews due today */}

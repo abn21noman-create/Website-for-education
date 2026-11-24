@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, lang, s
   );
   const SyncIcon = syncStatus.phase === 'saving' ? LoaderCircle : syncStatus.phase === 'error' ? CircleAlert : syncStatus.phase === 'offline' ? CloudOff : Cloud;
   return <>
-    <aside className="premium-sidebar no-print hidden md:flex" aria-label={bn ? 'প্রধান নেভিগেশন' : 'Main navigation'}>
+    <aside className={`premium-sidebar no-print hidden md:flex ${isDark ? 'is-dark' : ''}`} aria-label={bn ? 'প্রধান নেভিগেশন' : 'Main navigation'}>
       <button className="premium-brand" onClick={() => setActiveTab('dashboard')} aria-label="Nokkhotro dashboard">
         <span className="premium-brand-mark"><Sparkles size={20} strokeWidth={1.8} /></span>
         <span><strong>নক্ষত্র<span className="premium-brand-dot">.</span></strong><small>HSC 2028 · STUDY SPACE</small></span>

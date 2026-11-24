@@ -4097,6 +4097,53 @@ check(
 );
 root.unmount(); root = null;
 
+// Unstarted routines stay anchored to today (Day 1) until the student explicitly
+// starts or logs real study progress, and the Day-1 Launchpad resets cleanly.
+const routineStoreMod = await vite.ssrLoadModule('/src/lib/routineStore.ts');
+const masterRoutineMod = await vite.ssrLoadModule('/src/lib/masterRoutine.ts');
+const todayDateKey = masterRoutineMod.toDateKey(new Date());
+localStorage.setItem(
+  routineStoreMod.ROUTINE_KEY,
+  JSON.stringify({
+    startDate: '2026-01-01',
+    journeyStarted: false,
+    tasks: {},
+    minutes: {},
+  })
+);
+const idleLoadedRoutine = routineStoreMod.loadRoutineState();
+check(
+  idleLoadedRoutine.startDate === todayDateKey && idleLoadedRoutine.journeyStarted === false,
+  'an unstarted routine with zero study history stays anchored to Day 1 today without backlog drift'
+);
+
+const routineViewMod = await vite.ssrLoadModule('/src/components/MasterRoutineView.tsx');
+root = createRoot(container);
+root.render(React.createElement(routineViewMod.MasterRoutineView, {
+  lang: 'bn',
+  theme: 'light',
+  progressMap: {},
+}));
+await new Promise(resolve => setTimeout(resolve, 60));
+const launchpadEl = container.querySelector('[data-routine-launchpad="true"]');
+const freshBtn = container.querySelector('[data-start-fresh-today="true"]');
+const intensePaceBtn = [...container.querySelectorAll('[aria-label="দৈনিক গতির ধরন"] button')].find(
+  btn => (btn.textContent || '').includes('ফোকাসড')
+);
+intensePaceBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 30));
+freshBtn?.click();
+await new Promise(resolve => setTimeout(resolve, 40));
+const startedRoutine = routineStoreMod.loadRoutineState();
+check(
+  !!launchpadEl &&
+    startedRoutine.journeyStarted === true &&
+    startedRoutine.startDate === todayDateKey &&
+    startedRoutine.paceMode === 'intense',
+  'routine launchpad selects daily pace and starts Day 1 cleanly on demand'
+);
+root.unmount(); root = null;
+
 const relevantErrors = errors.filter(
   (e) => !e.includes('act(') && !e.includes('Not implemented')
 );

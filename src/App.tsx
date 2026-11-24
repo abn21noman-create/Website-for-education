@@ -1514,8 +1514,8 @@ export function App() {
     <div
       className={`premium-shell min-h-dvh flex flex-col justify-between transition-colors duration-300 ${
         isDark
-          ? 'bg-[#111827] text-slate-100'
-          : 'bg-[#f5f6fa] text-slate-800'
+          ? 'bg-[#0b1120] text-slate-100'
+          : 'bg-[#f8f7f4] text-slate-800'
       }`}
     >
       <a className="skip-link no-print" href="#main-content">

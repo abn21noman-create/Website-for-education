@@ -34,6 +34,7 @@ import {
   revisionTaskKey,
   ROUTINE_CHANGED_EVENT,
   ROUTINE_KEY,
+  startFreshRoutine,
   taskKey,
 } from '../lib/routineStore';
 import { focusPlanForSlot, type StudyFocusPlan } from '../lib/focusSession';
@@ -176,11 +177,18 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
   const nextUnreadSlot = slotProgress.find((slot) => !slot.readingDone);
 
   const startToday = () => {
+    if (!routine.journeyStarted) {
+      setRoutine((prev) => startFreshRoutine(prev, toDateKey(new Date()), prev.paceMode || 'steady'));
+    }
     if (nextUnreadSlot) {
       onStartFocus(nextUnreadSlot.focusPlan);
       return;
     }
     onNavigate('routine');
+  };
+
+  const launchFreshDayOne = () => {
+    setRoutine((prev) => startFreshRoutine(prev, toDateKey(new Date()), prev.paceMode || 'steady'));
   };
 
   return (
@@ -205,10 +213,21 @@ export const DashboardTodayFocus: React.FC<DashboardTodayFocusProps> = ({
           </p>
         </div>
         <div className="dashboard-today-actions">
-          {dayNumber && (
-            <span className="dashboard-today-day">
-              Day {formatNum(dayNumber, lang)} / 391
-            </span>
+          {!routine.journeyStarted ? (
+            <button
+              type="button"
+              onClick={launchFreshDayOne}
+              className="dashboard-today-day"
+              style={{ cursor: 'pointer' }}
+            >
+              {lang === 'bn' ? '★ আজ থেকেই Day 1 শুরু করুন' : '★ Start Day 1 Today'}
+            </button>
+          ) : (
+            dayNumber && (
+              <span className="dashboard-today-day">
+                Day {formatNum(dayNumber, lang)} / 391
+              </span>
+            )
           )}
           <button type="button" onClick={() => onNavigate('routine')}>
             {lang === 'bn' ? 'পুরো রুটিন' : 'Full routine'}
