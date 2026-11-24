@@ -561,7 +561,247 @@ const QUESTIONS: McqQuestion[] = [
     "en": "Medical & All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-bio2-15",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "প্রাণীর বিভিন্নতা ও শ্রেণিবিন্যাস",
+      "en": "Animal Diversity & Classification"
+    },
+    "question": {
+      "bn": "শিখাকোষ (Flame cell) কোন পর্বের প্রাণীর প্রধান রেচন অঙ্গ?",
+      "en": "Flame cells serve as the excretory organ of which animal phylum?"
+    },
+    "options": [
+      {
+        "bn": "পরিফেরা (Porifera)",
+        "en": "Porifera"
+      },
+      {
+        "bn": "প্লাটিহেলমিনথেস (Platyhelminthes)",
+        "en": "Platyhelminthes"
+      },
+      {
+        "bn": "অ্যানিলিডা (Annelida)",
+        "en": "Annelida"
+      },
+      {
+        "bn": "আর্থ্রোপোডা (Arthropoda)",
+        "en": "Arthropoda"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "চ্যাপ্টা কৃমি বা প্লাটিহেলমিনথেস পর্বের রেচন অঙ্গ শিখাকোষ; অ্যানিলিডায় নেফ্রিডিয়া এবং আর্থ্রোপোডায় মালপিজিয়ান নালিকা থাকে।",
+      "en": "Platyhelminthes excrete via flame cells (protonephridia), Annelida via nephridia, and Arthropoda via Malpighian tubules."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio2-16",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "মানব শারীরতত্ত্ব: চলন ও অঙ্গচালনা",
+      "en": "Human Physiology: Locomotion & Movement"
+    },
+    "question": {
+      "bn": "পূর্ণবয়স্ক মানব কঙ্কালতন্ত্রে মোট অস্থির সংখ্যা কয়টি?",
+      "en": "How many bones are present in a normal adult human skeleton?"
+    },
+    "options": [
+      {
+        "bn": "186টি",
+        "en": "186"
+      },
+      {
+        "bn": "206টি",
+        "en": "206"
+      },
+      {
+        "bn": "216টি",
+        "en": "216"
+      },
+      {
+        "bn": "300টি",
+        "en": "300"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "পূর্ণবয়স্ক মানুষের দেহে মোট 206টি অস্থি থাকে (অক্ষীয় কঙ্কালে 80টি এবং উপাঙ্গীয় কঙ্কালে 126টি)।",
+      "en": "An adult human skeleton comprises 206 bones: 80 axial bones and 126 appendicular bones."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও ঢাকা বোর্ড",
+      "en": "Medical & Dhaka Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio2-17",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "মানব জীবনের ধারাবাহিকতা",
+      "en": "Continuity of Human Life"
+    },
+    "question": {
+      "bn": "মানবদেহে নিষেক (Fertilization) সাধারণত স্ত্রী প্রজননতন্ত্রের কোন অংশে সংঘটিত হয়?",
+      "en": "In which part of the human female reproductive tract does fertilization normally take place?"
+    },
+    "options": [
+      {
+        "bn": "ডিম্বাশয় (Ovary)",
+        "en": "Ovary"
+      },
+      {
+        "bn": "ফ্যালোপিয়ান নালি / ডিম্বনালি (Fallopian tube)",
+        "en": "Fallopian tube (ampulla)"
+      },
+      {
+        "bn": "জরায়ু গাত্র (Endometrium)",
+        "en": "Endometrium"
+      },
+      {
+        "bn": "সার্ভিক্স",
+        "en": "Cervix"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ডিম্বনালির অ্যাম্পুলা অংশে শুক্রাণু ও ডিম্বাণুর নিষেক ঘটে এবং পরবর্তীতে ব্লাস্টোসিস্ট দশায় জরায়ুর এন্ডোমেট্রিয়ামে রোপণ (Implantation) হয়।",
+      "en": "Fertilization occurs in the ampulla of the Fallopian tube, followed by blastocyst implantation in the uterine endometrium."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও চট্টগ্রাম বোর্ড",
+      "en": "Medical & Chattogram Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio2-18",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "মানবদেহের প্রতিরক্ষা",
+      "en": "Immunity of Human Body"
+    },
+    "question": {
+      "bn": "মায়ের প্রথম দুধে (শালদুধ / Colostrum) নবজাতকের প্রতিরক্ষার জন্য কোন অ্যান্টিবডি সর্বাধিক থাকে?",
+      "en": "Which immunoglobulin is most abundant in colostrum (mother's first milk), providing passive mucosal immunity?"
+    },
+    "options": [
+      {
+        "bn": "IgA",
+        "en": "IgA"
+      },
+      {
+        "bn": "IgE",
+        "en": "IgE"
+      },
+      {
+        "bn": "IgM",
+        "en": "IgM"
+      },
+      {
+        "bn": "IgD",
+        "en": "IgD"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "শালদুধ, অশ্রু ও লালায় ক্ষরণকারী IgA সর্বাধিক থাকে; আর অমরা (Placenta) অতিক্রম করতে পারে একমাত্র IgG।",
+      "en": "Secretory IgA dominates colostrum, tears, and saliva, while IgG is the only antibody that crosses the placenta."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-bio2-19",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "প্রাণীর আচরণ",
+      "en": "Animal Behavior"
+    },
+    "question": {
+      "bn": "মৌমাছির নৃত্যভাষা (Waggle dance) আবিষ্কারের জন্য কোন বিজ্ঞানী নোবেল পুরস্কার পান?",
+      "en": "Which ethologist won the Nobel Prize for decoding the waggle-dance communication of honeybees?"
+    },
+    "options": [
+      {
+        "bn": "আইভান প্যাভলভ",
+        "en": "Ivan Pavlov"
+      },
+      {
+        "bn": "কার্ল ভন ফ্রিশ (Karl von Frisch)",
+        "en": "Karl von Frisch"
+      },
+      {
+        "bn": "গ্রেগর মেন্ডেল",
+        "en": "Gregor Mendel"
+      },
+      {
+        "bn": "চার্লস ডারউইন",
+        "en": "Charles Darwin"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "কার্ল ভন ফ্রিশ মৌমাছির রাউন্ড ড্যান্স ও ওয়াগল ড্যান্স বিশ্লেষণের জন্য ১৯৭৩ সালে চিকিৎসাবিজ্ঞানে নোবেল পান।",
+      "en": "Karl von Frisch shared the 1973 Nobel Prize for demonstrating how honeybees communicate food direction and distance via dance."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও যশোর বোর্ড",
+      "en": "Medical & Jashore Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio2-20",
+    "subjectKey": "biology2",
+    "chapter": {
+      "bn": "প্রাণীর আচরণ",
+      "en": "Animal Behavior"
+    },
+    "question": {
+      "bn": "আলোর উদ্দীপনার দিকে বা বিপরীতে প্রাণীর দিকমুখী চলনকে কী বলা হয়?",
+      "en": "What is the directed movement of an organism toward or away from a light stimulus called?"
+    },
+    "options": [
+      {
+        "bn": "জিওট্যাক্সিস",
+        "en": "Geotaxis"
+      },
+      {
+        "bn": "ফটোট্যাক্সিস (Phototaxis)",
+        "en": "Phototaxis"
+      },
+      {
+        "bn": "কেমোট্যাক্সিস",
+        "en": "Chemotaxis"
+      },
+      {
+        "bn": "রিওট্যাক্সিস",
+        "en": "Rheotaxis"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "আলো দ্বারা নিয়ন্ত্রিত সমগ্র দেহের দিকমুখী চলনকে ফটোট্যাক্সিস বলে (যেমন: ইউগ্লিনার আলোর দিকে গমন ধনাত্মক ফটোট্যাক্সিস)।",
+      "en": "Whole-body orientation and locomotion in response to light is phototaxis (e.g., positive phototaxis in Euglena)."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

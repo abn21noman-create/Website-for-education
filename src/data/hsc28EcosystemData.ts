@@ -240,6 +240,48 @@ export const EXCEPTION_SHEETS: ExceptionCheatCard[] = [
     },
     targetTag: 'Physics CQ (খ) + BUET',
   },
+  {
+    id: 'ex-chem-4',
+    subjectKey: 'chemistry2',
+    title: {
+      bn: 'কিটোনের অ্যালডিহাইড-সদৃশ টলেন/ফেহলিং ব্যতিক্রম: আলফা-হাইড্রক্সি কিটোন ও ফরমিক এসিড',
+      en: 'Tollens’ Silver Mirror Exceptions: Formic Acid & α-Hydroxy Ketones',
+    },
+    rule: {
+      bn: 'সাধারণত শুধুমাত্র অ্যালডিহাইড (-CHO) টলেন বিকারক ও ফেহলিং দ্রবণে সাড়া দেয়; জৈব এসিড বা সাধারণ কিটোন দেয় না।',
+      en: 'Normally only aldehydes reduce Tollens’ and Fehling’s reagents, whereas carboxylic acids and simple ketones do not.',
+    },
+    exception: {
+      bn: 'ব্যতিক্রম: ফরমিক এসিড (HCOOH) এবং ফ্রুক্টোজ (কিটোহেক্সোজ হয়েও) টলেন বিকারকে রৌপ্য দর্পণ সৃষ্টি করে!',
+      en: 'Formic acid (HCOOH) contains an embedded -CHO group, and fructose tautomerizes in base to reduce Tollens’ reagent!',
+    },
+    reason: {
+      bn: 'HCOOH-এর গঠনে কার্বনিলের একপাশে H থাকায় অ্যালডিহাইড মূলক উপস্থিত থাকে এবং ক্ষারীয় মাধ্যমে ফ্রুক্টোজ গ্লুকোজে রূপান্তরিত হয়।',
+      en: 'Formic acid structurally carries an aldehydic H-C=O moiety, while α-hydroxy ketones undergo Lobry de Bruyn–van Ekenstein tautomerism.',
+    },
+    targetTag: 'Organic Chem Star + Medical',
+  },
+  {
+    id: 'ex-phy-2',
+    subjectKey: 'physics2',
+    title: {
+      bn: 'তাপমাত্রা বৃদ্ধিতে রোধের ব্যতিক্রম: পরিবাহী বনাম অর্ধপরিবাহী (Si, Ge)',
+      en: 'Resistance vs Temperature Exception: Metals vs Semiconductors',
+    },
+    rule: {
+      bn: 'সাধারণ ধাতব পরিবাহীর (Cu, Al, Ag) তাপমাত্রা বাড়ালে আপেক্ষিক রোধ বৃদ্ধি পায় (উষ্ণতা গুণাঙ্ক α ধনাত্মক)।',
+      en: 'In metallic conductors (Cu, Ag, Al), electrical resistivity rises linearly with temperature (positive α).',
+    },
+    exception: {
+      bn: 'ব্যতিক্রম: অর্ধপরিবাহী (Si, Ge) ও কার্বনের তাপমাত্রা বাড়ালে রোধ হ্রাস পায় (উষ্ণতা গুণাঙ্ক α ঋণাত্মক)!',
+      en: 'Semiconductors (Si, Ge) and carbon have a NEGATIVE temperature coefficient of resistance—resistance drops when heated!',
+    },
+    reason: {
+      bn: 'তাপমাত্রা বাড়লে সমযোজী বন্ধন ভেঙে প্রচুর মুক্ত ইলেকট্রন ও হোল সৃষ্টি হয়, যা সংঘর্ষজনিত বাধাকে ছাড়িয়ে পরিবাহিতা বাড়িয়ে দেয়।',
+      en: 'Thermal excitation breaks covalent bonds and exponentially increases charge-carrier density (electrons and holes).',
+    },
+    targetTag: 'Physics 2nd MCQ + Admission',
+  },
 ];
 
 export interface PeriodicElementItem {
@@ -493,6 +535,62 @@ export const CONCEPT_QA_CARDS: ConceptHelperEntry[] = [
     answer: {
       bn: 'NAND গেট দিয়ে:\n১) NOT: একটি NAND গেটের দুটি ইনপুট একসাথে যুক্ত করে A দিলে আউটপুট A\' পাওয়া যায়।\n২) AND: একটি NAND গেটের আউটপুটে আরেকটি এক-ইনপুট NAND লাগালে AB পাওয়া যায় (মোট ২টি NAND)।\n৩) OR: ডি-মরগ্যানের উপপাদ্য A+B = (A\'·B\')\' অনুযায়ী ৩টি NAND গেট যুক্ত করলে OR গেট পাওয়া যায়।',
       en: 'Using NAND: 1 NAND tying inputs gives NOT; 2 NANDs in series give AND; 3 NANDs via De Morgan\'s law (A\'·B\')\' give OR.',
+    },
+  },
+  {
+    id: 'cqa-7',
+    keywords: ['কার্নো', 'দক্ষতা', 'তাপগতিবিদ্যা', 'carnot', 'efficiency', 'kelvin', 'entropy'],
+    subjectKey: 'physics2',
+    question: {
+      bn: 'কার্নো ইঞ্জিনের দক্ষতা (η) বাড়াতে উৎসের তাপমাত্রা বাড়ানো নাকি গ্রাহকের তাপমাত্রা কমানো বেশি কার্যকর?',
+      en: 'To boost Carnot efficiency η, is raising source temperature T₁ or lowering sink temperature T₂ by ΔT better?',
+    },
+    formula: 'η = 1 − T₂ / T₁   (অবশ্যই কেলভিন এককে: K = °C + 273)',
+    answer: {
+      bn: 'সমপরিমাণ ΔT তাপমাত্রা পরিবর্তনের ক্ষেত্রে গ্রাহকের তাপমাত্রা (T₂) কমানো সর্বদা বেশি কার্যকর! কারণ η_low = 1 − (T₂ − ΔT)/T₁ এর মান η_high = 1 − T₂/(T₁ + ΔT) অপেক্ষা সর্বদা বড় হয়। সতর্কতা: সূত্রে বসানোর আগে °C কে অবশ্যই ২৭৩ যোগ করে কেলভিনে রূপান্তর করতে হবে।',
+      en: 'Lowering sink temperature T₂ by ΔT ALWAYS yields a higher efficiency gain than raising T₁ by the same ΔT, because (T₂ − ΔT)/T₁ < T₂/(T₁ + ΔT). Always convert °C to Kelvin first!',
+    },
+  },
+  {
+    id: 'cqa-8',
+    keywords: ['জৈব', 'মারকনিকভ', 'অ্যান্টি', 'markovnikov', 'peroxide', 'alkene', 'অ্যালকিন'],
+    subjectKey: 'chemistry2',
+    question: {
+      bn: 'অপ্রতিসম অ্যালকিনে HBr সংযোজনে মারকনিকভ ও বিপরীত মারকনিকভ (খারাস) নিয়ম কখন প্রযোজ্য?',
+      en: 'When does HBr addition to an unsymmetrical alkene follow Markovnikov vs Anti-Markovnikov rule?',
+    },
+    formula: 'CH₃-CH=CH₂ + HBr → ২-ব্রোমোপ্রোপেন (সাধারণ) | + H₂O₂ → ১-ব্রোমোপ্রোপেন (খারাস প্রভাব)',
+    answer: {
+      bn: '• সাধারণ অবস্থায় (পারঅক্সাইড ছাড়া): ঋণাত্মক অংশ (Br⁻) সেই দ্বিবন্ধনযুক্ত কার্বনে যুক্ত হয় যেখানে হাইড্রোজেন সংখ্যা কম (প্রধান উৎপাদ: ২-ব্রোমোপ্রোপেন)।\n• জৈব পারঅক্সাইড (R-O-O-R / H₂O₂) উপস্থিত থাকলে মুক্ত মূলক কৌশলে কেবল HBr-এর ক্ষেত্রে বিপরীত মারকনিকভ নিয়ম ঘটে (প্রধান উৎপাদ: ১-ব্রোমোপ্রোপেন)। HCl বা HI এই প্রভাব দেখায় না।',
+      en: 'Without peroxide, Br⁻ attaches to the less hydrogenated double-bond carbon (2-bromopropane). With organic peroxide, ONLY HBr reverses via free-radical mechanism to give 1-bromopropane (HCl and HI do not show Kharasch effect).',
+    },
+  },
+  {
+    id: 'cqa-9',
+    keywords: ['কনিক', 'উৎকেন্দ্রিকতা', 'পরাবৃত্ত', 'উপবৃত্ত', 'অধিবৃত্ত', 'conic', 'eccentricity', 'ellipse'],
+    subjectKey: 'math2',
+    question: {
+      bn: 'সমীকরণ বা উৎকেন্দ্রিকতা (e) দেখে ১ সেকেন্ডে বৃত্ত, পরাবৃত্ত, উপবৃত্ত ও অধিবৃত্ত চেনার উপায় কী?',
+      en: 'How to identify Circle, Parabola, Ellipse, and Hyperbola instantly from e or general equation?',
+    },
+    formula: 'e = 0 (বৃত্ত) | e = 1 (পরাবৃত্ত) | 0 < e < 1 (উপবৃত্ত) | e > 1 (অধিবৃত্ত)',
+    answer: {
+      bn: 'দ্বিঘাত সাধারণ সমীকরণ ax² + 2hxy + by² + 2gx + 2fy + c = 0 (যেখানে Δ ≠ 0) হতে:\n• a = b এবং h = 0 হলে → বৃত্ত\n• h² = ab হলে → পরাবৃত্ত (e = 1)\n• h² < ab হলে → উপবৃত্ত (0 < e < 1)\n• h² > ab হলে → অধিবৃত্ত (e > 1; আর a + b = 0 হলে আয়তাকার অধিবৃত্ত, e = √2)।',
+      en: 'For non-degenerate ax² + 2hxy + by² + 2gx + 2fy + c = 0: a=b & h=0 is Circle (e=0); h²=ab is Parabola (e=1); h²<ab is Ellipse (0<e<1); h²>ab is Hyperbola (e>1; if a+b=0, rectangular hyperbola with e=√2).',
+    },
+  },
+  {
+    id: 'cqa-10',
+    keywords: ['হৃৎপিণ্ড', 'পেসমেকার', 'রক্তচাপ', 'heart', 'pacemaker', 'san', 'cardiac', 'চক্র'],
+    subjectKey: 'biology2',
+    question: {
+      bn: 'মানব হৃৎপিণ্ডের প্রাকৃতিক পেসমেকার (SAN) এবং কার্ডিয়াক চক্রের ০.৮ সেকেন্ডের হিসাব কীভাবে মনে রাখব?',
+      en: 'How to remember the SA Node conduction pathway and the 0.8s Human Cardiac Cycle timing?',
+    },
+    formula: 'SAN → AVN → Bundle of His → Purkinje Fibers | অ্যাট্রিয়াল সিস্টোল ০.১s + ভেন্ট্রিকুলার সিস্টোল ০.৩s',
+    answer: {
+      bn: 'ডান অলিন্দের প্রাচীরে অবস্থিত সাইনো-অ্যাট্রিয়াল নোডকে (SAN) প্রাকৃতিক পেসমেকার বলে। ৭৫ বার স্পন্দনে প্রতিটি কার্ডিয়াক চক্রের স্থায়িত্ব ৬০/৭৫ = ০.৮ সেকেন্ড:\n• অলিন্দের সিস্টোল: ০.১ সে. ও ডায়াস্টোল: ০.৭ সে.\n• নিলয়ের সিস্টোল: ০.৩ সে. (‘লাব’ শব্দ) ও ডায়াস্টোল: ০.৫ সে. (‘ডাব’ শব্দ)।',
+      en: 'Impulse travels SAN → AVN (0.09s delay) → Bundle of His → Purkinje fibers. At 75 bpm, one 0.8s cycle comprises Atrial systole (0.1s)/diastole (0.7s) and Ventricular systole (0.3s, lub)/diastole (0.5s, dub).',
     },
   },
 ];

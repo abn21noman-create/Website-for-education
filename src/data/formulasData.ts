@@ -834,4 +834,148 @@ export const FORMULAS: FormulaCard[] = [
     },
     boardTag: 'সকল বোর্ড / মেডিকেল',
   },
+  {
+    id: 'f-phy2-7',
+    subjectKey: 'physics2',
+    chapterTitle: { bn: 'জ্যোতির্বিজ্ঞান', en: 'Astronomy' },
+    title: { bn: 'সোয়ার্জশিল্ড ব্যাসার্ধ ও হাবল সূত্র', en: 'Schwarzschild Radius & Hubble Law' },
+    formula: 'Rₛ = 2GM / c²,   v = H₀ d',
+    explanation: {
+      bn: 'Rₛ হলো কৃষ্ণগহ্বরের ঘটনা দিগন্তের (Event horizon) ব্যাসার্ধ যেখানে মুক্তিবেগ আলোর বেগের সমান। হাবল সূত্র v = H₀ d অনুসারে গ্যালাক্সির অপসারণ বেগ দূরত্বের সমানুপাতিক।',
+      en: 'Rₛ is the event-horizon radius where escape velocity equals c; Hubble’s law v = H₀ d relates galaxy recession speed to distance.',
+    },
+    examTip: {
+      bn: 'সূর্যের ভরের (1.989 × 10³⁰ kg) জন্য Rₛ প্রায় 2.95 km এবং চন্দ্রশেখর সীমা 1.4 M☉ — এমসিকিউতে সরাসরি আসে।',
+      en: 'For one solar mass, Rₛ ≈ 2.95 km, and the Chandrasekhar white-dwarf limit is 1.4 M☉.',
+    },
+    boardTag: 'সকল বোর্ড / বুয়েট',
+  },
+  {
+    id: 'f-phy2-8',
+    subjectKey: 'physics2',
+    chapterTitle: { bn: 'সেমিকন্ডাক্টর ও ইলেকট্রনিক্স', en: 'Semiconductors & Electronics' },
+    title: { bn: 'ট্রানজিস্টরের প্রবাহ ও বিবর্ধন সম্পর্ক', en: 'Transistor Current & Gain Relations' },
+    formula: 'I_E = I_B + I_C,   α = I_C / I_E,   β = I_C / I_B = α / (1 − α)',
+    explanation: {
+      bn: 'নিঃসারক প্রবাহ সর্বদা পীঠ ও সংগ্রাহক প্রবাহের যোগফলের সমান। α সবসময় 1-এর সামান্য কম (০.৯৫–০.৯৯) এবং β সাধারণত ২০ থেকে ২০০ পর্যন্ত হয়।',
+      en: 'Emitter current equals base plus collector current; α is slightly below 1 while common-emitter gain β = α/(1 − α) is much larger than 1.',
+    },
+    examTip: {
+      bn: 'α দেওয়া থাকলে দ্রুত β = α/(1−α) এবং β দেওয়া থাকলে α = β/(β+1) বসিয়ে ৫ সেকেন্ডে উত্তর বের করা যায়।',
+      en: 'Convert α ↔ β in seconds using β = α/(1 − α) and α = β/(β + 1).',
+    },
+    boardTag: 'সকল বোর্ড / বুয়েট',
+  },
+  {
+    id: 'f-chem1-6',
+    subjectKey: 'chemistry1',
+    chapterTitle: { bn: 'রাসায়নিক পরিবর্তন', en: 'Chemical Changes' },
+    title: { bn: 'হেন্ডারসন-হ্যাসেলবাল্ক বাফার সমীকরণ', en: 'Henderson-Hasselbalch Buffer Equation' },
+    formula: 'pH = pKₐ + log₁₀([Salt] / [Acid]),   pOH = pK_b + log₁₀([Salt] / [Base])',
+    explanation: {
+      bn: 'মৃদু অম্ল ও তার অনুবন্ধী ক্ষারকের (লবণ) মিশ্রণে বাফার দ্রবণের pH নির্ণয়ে এই সমীকরণ ব্যবহৃত হয়; যখন [Salt] = [Acid], তখন pH = pKₐ।',
+      en: 'Computes the pH of an acidic buffer; when salt and weak-acid concentrations are equal, log(1) = 0 so pH = pKₐ.',
+    },
+    examTip: {
+      bn: 'মানব রক্তের স্বাভাবিক pH ৭.৩৫–৭.৪৫ (বাইকার্বোনেট বাফার) — মেডিকেল ও বোর্ড উভয় পরীক্ষায় বারবার আসে।',
+      en: 'Human blood is buffered at pH 7.35–7.45 primarily by the H₂CO₃ / HCO₃⁻ system.',
+    },
+    boardTag: 'মেডিকেল / সকল বোর্ড',
+  },
+  {
+    id: 'f-chem2-6',
+    subjectKey: 'chemistry2',
+    chapterTitle: { bn: 'তড়িৎ রসায়ন', en: 'Electrochemistry' },
+    title: { bn: 'নার্নস্ট সমীকরণ (২৫°C তাপমাত্রায়)', en: 'Nernst Equation at 25°C' },
+    formula: 'E_cell = E°_cell − (0.0592 / n) log₁₀ Q',
+    explanation: {
+      bn: 'অপ্রমাণ অবস্থায় তড়িৎ রাসায়নিক কোষের তড়িচ্চালক বল (EMF) নির্ণয়ে নার্নস্ট সমীকরণ ব্যবহৃত হয়, যেখানে n হলো স্থানান্তরিত ইলেকট্রনের মোল সংখ্যা এবং Q বিক্রিয়া অনুপাত।',
+      en: 'Relates cell potential under non-standard concentrations to standard EMF E°_cell, electron mole transfer n, and reaction quotient Q.',
+    },
+    examTip: {
+      bn: 'সাম্যাবস্থায় E_cell = 0 হয়, ফলে E°_cell = (0.0592 / n) log₁₀ K_c — সরাসরি সাম্যধ্রুবক বের করতে কাজে লাগে।',
+      en: 'At equilibrium E_cell = 0, giving E°_cell = (0.0592 / n) log₁₀ K_c.',
+    },
+    boardTag: 'বুয়েট / সকল বোর্ড',
+  },
+  {
+    id: 'f-math1-7',
+    subjectKey: 'math1',
+    chapterTitle: { bn: 'ভেক্টর', en: 'Vectors' },
+    title: { bn: 'ভেক্টরের ডট গুণন ও লম্ব অভিক্ষেপ', en: 'Vector Dot Product & Scalar Projection' },
+    formula: 'A⃗ · B⃗ = |A⃗||B⃗| cos θ,   Proj_A(B) = (A⃗ · B⃗) / |A⃗|',
+    explanation: {
+      bn: 'দুটি অশূন্য ভেক্টরের ডট গুণফল শূন্য হলে তারা পরস্পর লম্ব (θ = 90°)। A⃗ এর ওপর B⃗ এর লম্ব অভিক্ষেপ হলো (A⃗ · B⃗)/|A⃗|।',
+      en: 'Two nonzero vectors are orthogonal iff A⃗ · B⃗ = 0; dividing A⃗ · B⃗ by |A⃗| gives the scalar projection of B⃗ onto A⃗.',
+    },
+    examTip: {
+      bn: 'যার ওপর অভিক্ষেপ চাওয়া হবে ("A এর ওপর"), সবসময় তার মান |A⃗| হরে (নিচে) বসবে।',
+      en: 'Whichever vector you project ONTO goes in the denominator (|A⃗|).',
+    },
+    boardTag: 'বুয়েট / সকল বোর্ড',
+  },
+  {
+    id: 'f-math2-7',
+    subjectKey: 'math2',
+    chapterTitle: { bn: 'সমতলে বস্তুকণার গতি', en: 'Motion of Particles in a Plane' },
+    title: { bn: 'প্রাসের সর্বাধিক উচ্চতা, বিচরণকাল ও পাল্লা', en: 'Projectile Height, Flight Time & Range' },
+    formula: 'H = (u² sin²α) / 2g,   T = (2u sin α) / g,   R = (u² sin 2α) / g',
+    explanation: {
+      bn: 'আনুভূমিকের সাথে α কোণে u বেগে নিক্ষিপ্ত প্রাসের গতিপথ একটি পরাবৃত্ত। α = 45° হলে পাল্লা সর্বাধিক R_max = u²/g হয় এবং তখন H = R_max / 4।',
+      en: 'A projectile traces a parabola; maximum horizontal range R_max = u²/g occurs at α = 45°, where H = R_max / 4.',
+    },
+    examTip: {
+      bn: 'R = 4H cot α শর্টকাট সূত্রটি দিয়ে উচ্চতা ও পাল্লা দেওয়া থাকলে মুহূর্তেই নিক্ষেপণ কোণ α বের করা যায়।',
+      en: 'Use R = 4H cot α to find launch angle immediately from height and range.',
+    },
+    boardTag: 'বুয়েট / সকল বোর্ড',
+  },
+  {
+    id: 'f-bio2-5',
+    subjectKey: 'biology2',
+    chapterTitle: { bn: 'মানব শারীরতত্ত্ব: রক্ত ও সংবহন', en: 'Human Physiology: Blood & Circulation' },
+    title: { bn: 'কার্ডিয়াক আউটপুট ও বিএমআই (BMI)', en: 'Cardiac Output & Body Mass Index' },
+    formula: 'CO = HR × SV,   BMI = ভর (kg) / [উচ্চতা (m)]²',
+    explanation: {
+      bn: 'হৃদপিণ্ড প্রতি মিনিটে যে পরিমাণ রক্ত পাম্প করে তা কার্ডিয়াক আউটপুট (সুস্থ পূর্ণবয়স্কের প্রায় ৫ লিটার/মিনিট)। স্বাভাবিক দেহভরের জন্য BMI মান ১৮.৫০–২৪.৯৯ kg/m²।',
+      en: 'Cardiac output equals heart rate times stroke volume (~5 L/min at rest); normal adult BMI spans 18.50–24.99 kg/m².',
+    },
+    examTip: {
+      bn: 'উচ্চতা সেন্টিমিটারে দেওয়া থাকলে আগে ১০০ দিয়ে ভাগ করে মিটারে নিয়ে বর্গ করতে ভুলবে না।',
+      en: 'Always convert height from cm to meters before squaring in the BMI formula.',
+    },
+    boardTag: 'মেডিকেল / সকল বোর্ড',
+  },
+  {
+    id: 'f-ict-5',
+    subjectKey: 'ict',
+    chapterTitle: { bn: 'সংখ্যা পদ্ধতি ও ডিজিটাল ডিভাইস', en: 'Number Systems & Digital Devices' },
+    title: { bn: 'ডি মরগানের উপপাদ্য (বুলিয়ান অ্যালজেব্রা)', en: 'De Morgan’s Theorems (Boolean Algebra)' },
+    formula: '(A + B)′ = A′ · B′,    (A · B)′ = A′ + B′',
+    explanation: {
+      bn: 'NOR গেটের আউটপুট ইনভার্টেড ইনপুটবিশিষ্ট AND গেটের সমান এবং NAND গেটের আউটপুট ইনভার্টেড ইনপুটবিশিষ্ট OR গেটের সমান — লজিক সরলীকরণের মূল ভিত্তি।',
+      en: 'Complementing a sum gives the product of complements, and complementing a product gives the sum of complements — key to NAND/NOR circuit simplification.',
+    },
+    examTip: {
+      bn: 'বার (′) ভাঙলে মাঝখানের চিহ্ন বদলে যায় (+ থেকে · অথবা · থেকে +) — এই এক নিয়মেই সব বুলিয়ান সরলীকরণ মেলে।',
+      en: '“Break the line, change the sign” (+ ↔ ·) solves De Morgan reductions reliably.',
+    },
+    boardTag: 'সকল বোর্ড / ঢাবি',
+  },
+  {
+    id: 'f-ban-4',
+    subjectKey: 'bangla',
+    chapterTitle: { bn: 'ব্যাকরণ: উচ্চারণ ও বানানরীতি', en: 'Grammar: Orthoepy & Spelling' },
+    title: { bn: 'তৎসম শব্দের ই-কার ও উ-কার বানান সূত্র', en: 'Bangla Spelling Rule for ই-কার vs ঈ-কার' },
+    formula: 'অ-তৎসম (তদ্ভব, দেশি, বিদেশি) সকল শব্দে হ্রস্ব ই-কার (ি) ও হ্রস্ব উ-কার (ু);  -অঞ্জলি যুক্ত সকল শব্দে হ্রস্ব ই-কার (শ্রদ্ধাঞ্জলি, গীতাঞ্জলি)',
+    explanation: {
+      bn: 'প্রমিত বাংলা বানানের নিয়ম অনুসারে বাড়ি, গাড়ি, পাখি, শাড়ি এবং অঞ্জলি-যুক্ত শব্দে (পুষ্পাঞ্জলি, জলাঞ্জলি) সর্বদা হ্রস্ব ই-কার ব্যবহৃত হয়।',
+      en: 'Modern Bangla Academy orthography uses short ই-কার in non-tatsama words and in every compound ending with -অঞ্জলি (e.g., শ্রদ্ধাঞ্জলি).',
+    },
+    examTip: {
+      bn: '‘শ্রদ্ধাঞ্জলী’ ও ‘ইতিপূর্বে’ ভুল বানান; শুদ্ধ রূপ হলো ‘শ্রদ্ধাঞ্জলি’ এবং ‘ইতঃপূর্বে’।',
+      en: 'Common board traps: write শ্রদ্ধাঞ্জলি (not শ্রদ্ধাঞ্জলী) and ইতঃপূর্বে (not ইতিপূর্বে).',
+    },
+    boardTag: 'ঢাবি / সকল বোর্ড',
+  },
 ];

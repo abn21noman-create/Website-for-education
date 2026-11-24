@@ -138,6 +138,61 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
       </div>
 
       <div className="gpa-notice" role="note"><AlertCircle size={17} aria-hidden="true" /><span>{lang === 'bn' ? 'শুরুর নম্বরগুলো উদাহরণ হিসেবে দেওয়া আছে। নিজের নম্বর ও SSC GPA দিয়ে বদলে নাও; সর্বশেষ ভর্তি বিজ্ঞপ্তিও যাচাই করো।' : 'The starting marks are examples. Replace them with your own marks and SSC GPA, and check the latest admission circular.'}</span></div>
+
+      <div
+        role="group"
+        aria-label={lang === 'bn' ? 'দ্রুত নম্বরের প্রিসেট' : 'Quick score scenario presets'}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="text-xs font-bold opacity-70">
+          {lang === 'bn' ? 'দ্রুত প্রিসেট:' : 'Scenario Presets:'}
+        </span>
+        {[
+          {
+            id: 'golden',
+            bn: 'Golden A+ (সব বিষয়ে ৮৫+)',
+            en: 'Golden A+ (85+ All)',
+            marks: { bangla: 84, english: 86, ict: 90, physics: 88, chemistry: 87, math: 91, biology: 86 },
+            ssc: 5,
+          },
+          {
+            id: 'borderline',
+            bn: '৪র্থ বিষয় উদ্ধার (GPA 5.00)',
+            en: '4th-Subject Rescue (GPA 5.00)',
+            marks: { bangla: 76, english: 75, ict: 85, physics: 82, chemistry: 81, math: 84, biology: 84 },
+            ssc: 5,
+          },
+          {
+            id: 'steady',
+            bn: 'A গ্রেড বেসলাইন (৭২–৭৮)',
+            en: 'Solid A Baseline (72–78)',
+            marks: { bangla: 73, english: 74, ict: 78, physics: 76, chemistry: 75, math: 77, biology: 74 },
+            ssc: 4.75,
+          },
+        ].map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => {
+              setRows((prev) =>
+                prev.map((r) => ({
+                  ...r,
+                  marks: preset.marks[r.id as keyof typeof preset.marks] ?? r.marks,
+                }))
+              );
+              setSscGpa(preset.ssc);
+            }}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors ${
+              isDark
+                ? 'bg-slate-800/75 border-slate-700 text-slate-200 hover:border-indigo-400/50'
+                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 shadow-2xs'
+            }`}
+          >
+            {lang === 'bn' ? preset.bn : preset.en}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Marks Input Table */}
         <div
@@ -211,6 +266,20 @@ export const GpaCalculatorView: React.FC<GpaCalculatorViewProps> = ({
                           }`}
                         >
                           4TH
+                        </span>
+                      )}
+                      {r.marks < 80 && r.marks >= 33 && (
+                        <span className="text-[10px] font-mono opacity-60">
+                          {lang === 'bn'
+                            ? `(A+ হতে +${formatNum(80 - r.marks, lang)})`
+                            : `(+${80 - r.marks} to A+)`}
+                        </span>
+                      )}
+                      {r.marks < 33 && (
+                        <span className="text-[10px] font-mono font-bold text-rose-500">
+                          {lang === 'bn'
+                            ? `(পাস হতে +${formatNum(33 - r.marks, lang)})`
+                            : `(+${33 - r.marks} to pass)`}
                         </span>
                       )}
                     </div>

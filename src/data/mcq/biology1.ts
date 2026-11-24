@@ -641,7 +641,247 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-bio1-17",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "শৈবাল ও ছত্রাক",
+      "en": "Algae & Fungi"
+    },
+    "question": {
+      "bn": "ছত্রাকের কোষপ্রাচীরের প্রধান রাসায়নিক উপাদান কোনটি?",
+      "en": "What is the main structural polysaccharide of a fungal cell wall?"
+    },
+    "options": [
+      {
+        "bn": "সেলুলোজ",
+        "en": "Cellulose"
+      },
+      {
+        "bn": "কাইটিন (Chitin)",
+        "en": "Chitin"
+      },
+      {
+        "bn": "পেপটিডোগ্লাইকান",
+        "en": "Peptidoglycan"
+      },
+      {
+        "bn": "লিগনিন",
+        "en": "Lignin"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ছত্রাকের কোষপ্রাচীর কাইটিন নির্মিত, শৈবালের কোষপ্রাচীর সেলুলোজ নির্মিত এবং ব্যাকটেরিয়ার কোষপ্রাচীর পেপটিডোগ্লাইকান নির্মিত।",
+      "en": "Fungal cell walls are made of chitin, whereas algal walls use cellulose and bacterial walls use peptidoglycan."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio1-18",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "ব্রায়োফাইটা ও টেরিডোফাইটা",
+      "en": "Bryophyta & Pteridophyta"
+    },
+    "question": {
+      "bn": "কোন উদ্ভিদগোষ্ঠীকে ‘উদ্ভিদজগতের উভচর’ (Amphibians of the plant kingdom) বলা হয়?",
+      "en": "Which plant group is known as the 'amphibians of the plant kingdom'?"
+    },
+    "options": [
+      {
+        "bn": "থ্যালোফাইটা",
+        "en": "Thallophyta"
+      },
+      {
+        "bn": "ব্রায়োফাইটা",
+        "en": "Bryophyta"
+      },
+      {
+        "bn": "টেরিডোফাইটা",
+        "en": "Pteridophyta"
+      },
+      {
+        "bn": "নগ্নবীজী",
+        "en": "Gymnosperms"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ব্রায়োফাইটা স্থলে জন্মালেও যৌন জনন ও নিষেকের জন্য পানির ওপর সম্পূর্ণ নির্ভরশীল, তাই এদের উভচর উদ্ভিদ বলে।",
+      "en": "Bryophytes grow on moist land yet require external water for motile sperm to achieve fertilization."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও ঢাকা বোর্ড",
+      "en": "Medical & Dhaka Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio1-19",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "নগ্নবীজী ও আবৃতবীজী উদ্ভিদ",
+      "en": "Gymnosperms & Angiosperms"
+    },
+    "question": {
+      "bn": "Cycas উদ্ভিদের কোরালয়েড মূলে (Coralloid root) কোন সায়ানোব্যাকটেরিয়া মিথোজীবী হিসেবে বাস করে?",
+      "en": "Which cyanobacterium lives symbiotically inside the coralloid roots of Cycas?"
+    },
+    "options": [
+      {
+        "bn": "Nostoc ও Anabaena",
+        "en": "Nostoc & Anabaena"
+      },
+      {
+        "bn": "Ulothrix",
+        "en": "Ulothrix"
+      },
+      {
+        "bn": "Spirogyra",
+        "en": "Spirogyra"
+      },
+      {
+        "bn": "Agaricus",
+        "en": "Agaricus"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "Cycas-এর কোরালয়েড মূলে Nostoc ও Anabaena নামক নীলাভ সবুজ শৈবাল বাস করে নাইট্রোজেন সংবন্ধনে সহায়তা করে।",
+      "en": "Nitrogen-fixing cyanobacteria Nostoc and Anabaena inhabit Cycas coralloid roots."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও যশোর বোর্ড",
+      "en": "Medical & Jashore Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-bio1-20",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "টিস্যু ও টিস্যুতন্ত্র",
+      "en": "Tissue & Tissue System"
+    },
+    "question": {
+      "bn": "সমদ্বিপার্শ্বীয় (Bicollateral) ভাস্কুলার বান্ডল কোন উদ্ভিদের কাণ্ডে দেখা যায়?",
+      "en": "In the stem of which plant is a bicollateral vascular bundle found?"
+    },
+    "options": [
+      {
+        "bn": "ধান",
+        "en": "Rice"
+      },
+      {
+        "bn": "ভুট্টা",
+        "en": "Maize"
+      },
+      {
+        "bn": "লাউ / কুমড়া",
+        "en": "Gourd / Pumpkin (Cucurbita)"
+      },
+      {
+        "bn": "কচু",
+        "en": "Arum"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "লাউ ও কুমড়া জাতীয় (Cucurbitaceae) দ্বিবীজপত্রী উদ্ভিদের কাণ্ডে জাইলেমের উভয় পাশে ফ্লোয়েম থাকায় সমদ্বিপার্শ্বীয় ভাস্কুলার বান্ডল দেখা যায়।",
+      "en": "Cucurbita stems (gourd/pumpkin) contain phloem on both outer and inner sides of xylem, forming bicollateral bundles."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও রাজশাহী বোর্ড",
+      "en": "Medical & Rajshahi Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-bio1-21",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "উদ্ভিদ প্রজনন",
+      "en": "Plant Reproduction"
+    },
+    "question": {
+      "bn": "আবৃতবীজী উদ্ভিদে দ্বিনিষেকের (Double fertilization) ফলে উৎপন্ন শস্যকলা (Endosperm) কেমন প্রকৃতির হয়?",
+      "en": "What is the ploidy level of the endosperm formed via double fertilization in angiosperms?"
+    },
+    "options": [
+      {
+        "bn": "হ্যাপ্লয়েড (n)",
+        "en": "Haploid (n)"
+      },
+      {
+        "bn": "ডিপ্লয়েড (2n)",
+        "en": "Diploid (2n)"
+      },
+      {
+        "bn": "ট্রিপ্লয়েড (3n)",
+        "en": "Triploid (3n)"
+      },
+      {
+        "bn": "টেট্রাপ্লয়েড (4n)",
+        "en": "Tetraploid (4n)"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "সেকেন্ডারি নিউক্লিয়াস (2n) ও একটি পুংগ্যামেট (n) মিলিত হয়ে ট্রিপ্লয়েড (3n) শস্যকলা গঠন করে; নগ্নবীজীতে শস্য হ্যাপ্লয়েড (n)।",
+      "en": "Fusion of the diploid secondary nucleus (2n) with a haploid male gamete (n) produces triploid (3n) endosperm."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-bio1-22",
+    "subjectKey": "biology1",
+    "chapter": {
+      "bn": "জীবের পরিবেশ, বিস্তার ও সংরক্ষণ",
+      "en": "Environment, Distribution & Conservation"
+    },
+    "question": {
+      "bn": "সুন্দরবন ম্যানগ্রোভ বনের উদ্ভিদে শ্বাসগ্রহণের জন্য মাটির ওপরে যে বিশেষ মূল দেখা যায় তাকে কী বলে?",
+      "en": "What are the upward-growing respiratory roots of Sundarbans mangrove trees called?"
+    },
+    "options": [
+      {
+        "bn": "গুচ্ছমূল",
+        "en": "Fibrous root"
+      },
+      {
+        "bn": "নিউম্যাটোফোর (শ্বাসমূল)",
+        "en": "Pneumatophore"
+      },
+      {
+        "bn": "হস্টোরিয়া",
+        "en": "Haustoria"
+      },
+      {
+        "bn": "কোরালয়েড মূল",
+        "en": "Coralloid root"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "লবণাক্ত ও জলাবদ্ধ মাটিতে অক্সিজেনের অভাবে সুন্দরী ও গেওয়া উদ্ভিদে অসংখ্য ছিদ্রযুক্ত শ্বাসমূল বা নিউম্যাটোফোর মাটির ওপরে উঠে আসে।",
+      "en": "Halophytic mangrove trees grow negatively geotropic pneumatophores with lenticels for gas exchange in waterlogged soil."
+    },
+    "boardTag": {
+      "bn": "যশোর ও সকল বোর্ড",
+      "en": "Jashore & All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

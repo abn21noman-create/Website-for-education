@@ -354,6 +354,106 @@ export const GK_QUESTIONS: GkQuestion[] = [
     'এক ওভারে ৬টি বৈধ বল; ওয়াইড ও নো-বল বৈধ হিসেবে গণনা হয় না, তাই ওভার লম্বা হতে পারে।',
     'Six legal deliveries per over; wides and no-balls do not count.'
   ),
+  q(
+    'gk-31',
+    'bangladesh',
+    'বাংলাদেশের একমাত্র প্রবাল দ্বীপ সেন্টমার্টিন কোন জেলায় অবস্থিত?',
+    'In which district is Saint Martin’s Island, Bangladesh’s only coral island, located?',
+    [['চট্টগ্রাম', 'Chattogram'], ['কক্সবাজার', 'Cox’s Bazar'], ['ভোলা', 'Bhola'], ['পটুয়াখালী', 'Patuakhali']],
+    1,
+    'সেন্টমার্টিন দ্বীপ (স্থানীয় নাম নারিকেল জিঞ্জিরা) কক্সবাজার জেলার টেকনাফ উপজেলার দক্ষিণে বঙ্গোপসাগরে অবস্থিত।',
+    'Saint Martin’s Island (locally Narikel Jinjira) lies in the Bay of Bengal under Teknaf Upazila of Cox’s Bazar district.'
+  ),
+  q(
+    'gk-32',
+    'bangladesh',
+    '১৯৫২ সালের ভাষা আন্দোলনের শহিদদের স্মরণে নির্মিত কেন্দ্রীয় শহিদ মিনারের স্থপতি কে?',
+    'Who designed the Central Shaheed Minar commemorating the 1952 Language Movement martyrs?',
+    [['হামিদুর রহমান', 'Hamidur Rahman'], ['কামরুল হাসান', 'Quamrul Hassan'], ['জয়নুল আবেদিন', 'Zainul Abedin'], ['মৃণাল হক', 'Mrinal Haque']],
+    0,
+    'স্থপতি ও চিত্রশিল্পী হামিদুর রহমান (সহযোগী নভেরা আহমেদ) কেন্দ্রীয় শহিদ মিনারের নকশা প্রণয়ন করেন।',
+    'Painter and sculptor Hamidur Rahman (with Novera Ahmed) designed the Central Shaheed Minar in Dhaka.'
+  ),
+  q(
+    'gk-33',
+    'bangladesh',
+    'বাংলাদেশের জাতীয় সংসদের আসন সংখ্যা মোট কতটি?',
+    'What is the total number of seats in the Jatiya Sangsad (Parliament of Bangladesh)?',
+    [['৩০০', '300'], ['৩৩০', '330'], ['৩৫০', '350'], ['৪০০', '400']],
+    2,
+    'প্রত্যক্ষ নির্বাচনে ৩০০টি সাধারণ আসন এবং নারীদের জন্য সংরক্ষিত ৫০টি আসনসহ মোট আসন সংখ্যা ৩৫০টি।',
+    'Parliament has 350 seats in total: 300 directly elected constituency seats plus 50 reserved seats for women.'
+  ),
+  q(
+    'gk-34',
+    'international',
+    'বিশ্ব স্বাস্থ্য সংস্থার (WHO) সদর দপ্তর কোথায় অবস্থিত?',
+    'Where is the headquarters of the World Health Organization (WHO) located?',
+    [['নিউইয়র্ক', 'New York'], ['জেনেভা', 'Geneva'], ['প্যারিস', 'Paris'], ['ভিয়েনা', 'Vienna']],
+    1,
+    '১৯৪৮ সালের ৭ এপ্রিল প্রতিষ্ঠিত WHO-এর সদর দপ্তর সুইজারল্যান্ডের জেনেভায়; ৭ এপ্রিল বিশ্ব স্বাস্থ্য দিবস পালিত হয়।',
+    'Founded on 7 April 1948, WHO is headquartered in Geneva, Switzerland; 7 April is observed as World Health Day.'
+  ),
+  q(
+    'gk-35',
+    'international',
+    'রেড ক্রস (ICRC)-এর প্রতিষ্ঠাতা কে?',
+    'Who founded the International Red Cross movement?',
+    [['জ্যঁ হেনরি ডুনান্ট', 'Henry Dunant'], ['ফ্লোরেন্স নাইটিঙ্গেল', 'Florence Nightingale'], ['লুই পাস্তুর', 'Louis Pasteur'], ['রবার্ট কখ', 'Robert Koch']],
+    0,
+    'সুইস মানবতাবাদী জ্যঁ হেনরি ডুনান্ট ১৮৬৩ সালে রেড ক্রস প্রতিষ্ঠা করেন এবং ১৯০১ সালে প্রথম শান্তিতে নোবেল পান।',
+    'Swiss humanitarian Henry Dunant co-founded the Red Cross in 1863 and received the first Nobel Peace Prize in 1901.'
+  ),
+  q(
+    'gk-36',
+    'science',
+    'পেনিসিলিন অ্যান্টিবায়োটিক কে আবিষ্কার করেন?',
+    'Who discovered the antibiotic penicillin?',
+    [['লুই পাস্তুর', 'Louis Pasteur'], ['আলেকজান্ডার ফ্লেমিং', 'Alexander Fleming'], ['এডওয়ার্ড জেনার', 'Edward Jenner'], ['রবার্ট হুক', 'Robert Hooke']],
+    1,
+    'আলেকজান্ডার ফ্লেমিং ১৯২৮ সালে Penicillium notatum ছত্রাক থেকে প্রথম অ্যান্টিবায়োটিক পেনিসিলিন আবিষ্কার করেন।',
+    'Alexander Fleming discovered penicillin in 1928 from the mould Penicillium notatum.'
+  ),
+  q(
+    'gk-37',
+    'science',
+    'গুটিবসন্তের (Smallpox) টিকা আবিষ্কার করে টিকাদানের জনক হিসেবে পরিচিত হন কে?',
+    'Who developed the first smallpox vaccine in 1796?',
+    [['এডওয়ার্ড জেনার', 'Edward Jenner'], ['জোনাস সল্ক', 'Jonas Salk'], ['রোনাল্ড রস', 'Ronald Ross'], ['জোসেফ লিস্টার', 'Joseph Lister']],
+    0,
+    'ইংরেজ চিকিৎসক এডওয়ার্ড জেনার ১৭৯৬ সালে গো-বসন্তের জীবাণু থেকে বিশ্বের প্রথম কার্যকর টিকা (Smallpox vaccine) উদ্ভাবন করেন।',
+    'English physician Edward Jenner pioneered vaccination in 1796 by inoculating against smallpox using cowpox.'
+  ),
+  q(
+    'gk-38',
+    'science',
+    'মানবদেহের বৃহত্তম গ্রন্থি কোনটি?',
+    'Which is the largest internal gland in the human body?',
+    [['অগ্ন্যাশয়', 'Pancreas'], ['যকৃৎ (Liver)', 'Liver'], ['থাইরয়েড', 'Thyroid'], ['পিটুইটারি', 'Pituitary']],
+    1,
+    'মানবদেহের বৃহত্তম গ্রন্থি হলো যকৃৎ (ওজন প্রায় ১.৫ কেজি); আর বৃহত্তম বাহ্যিক অঙ্গ হলো ত্বক (Skin)।',
+    'The liver (~1.5 kg) is the largest internal gland, while the skin is the largest external organ.'
+  ),
+  q(
+    'gk-39',
+    'sports',
+    'আধুনিক অলিম্পিক গেমস কত সালে প্রথম শুরু হয়?',
+    'In which year were the first modern Olympic Games held in Athens?',
+    [['১৮৮৬', '1886'], ['১৮৯৬', '1896'], ['১৯০০', '1900'], ['১৯০৪', '1904']],
+    1,
+    'পিয়েরে দ্য কুবার্তিনের উদ্যোগে ১৮৯৬ সালে গ্রিসের এথেন্সে প্রথম আধুনিক গ্রীষ্মকালীন অলিম্পিক অনুষ্ঠিত হয়।',
+    'Revived by Pierre de Coubertin, the inaugural modern Summer Olympics took place in Athens in 1896.'
+  ),
+  q(
+    'gk-40',
+    'sports',
+    'আন্তর্জাতিক ক্রিকেট কাউন্সিল (ICC)-এর বর্তমান সদর দপ্তর কোথায়?',
+    'Where is the headquarters of the International Cricket Council (ICC) located?',
+    [['লন্ডন', 'London'], ['দুবাই', 'Dubai'], ['মেলবোর্ন', 'Melbourne'], ['মুম্বাই', 'Mumbai']],
+    1,
+    '২০০৫ সালে লন্ডন থেকে স্থানান্তরিত হয়ে ICC-এর সদর দপ্তর সংযুক্ত আরব আমিরাতের দুবাই শহরে স্থাপিত হয়।',
+    'In 2005 the ICC relocated its global headquarters from Lord’s in London to Dubai, UAE.'
+  ),
 ];
 
 export const GK_RAPID_ROUND_SIZE = 10;

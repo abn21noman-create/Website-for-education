@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Search,
   Bookmark,
@@ -84,6 +84,33 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
 
   const activeCard =
     filteredFormulas[Math.min(cardIndex, Math.max(0, filteredFormulas.length - 1))];
+
+  useEffect(() => {
+    if (viewMode !== 'flashcard' || !activeCard || showNoteModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCardIndex((prev) => (prev + 1) % filteredFormulas.length);
+        setIsFlipped(false);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCardIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredFormulas.length - 1
+        );
+        setIsFlipped(false);
+      } else if (e.key === ' ' && tag !== 'BUTTON') {
+        e.preventDefault();
+        setIsFlipped((prev) => !prev);
+      } else if (e.key.toLowerCase() === 'm' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        onToggleSrsMastered(activeCard.id);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeCard, filteredFormulas.length, onToggleSrsMastered, showNoteModal, viewMode]);
 
   const handleSaveNote = (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,8 +486,8 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
           <div className="flex items-center justify-between text-xs font-mono opacity-65">
             <span>
               {lang === 'bn'
-                ? 'কার্ডে ক্লিক করে সূত্র ও ব্যাখ্যা দেখুন'
-                : 'CLICK CARD TO REVEAL FORMULA'}
+                ? 'কার্ডে ক্লিক বা Space চাপুন • ← → পরিবর্তন • M আয়ত্তকৃত'
+                : 'CLICK OR SPACE TO FLIP • ← → NAVIGATE • M MASTER'}
             </span>
             <span className="tabular-nums">
               {formatNum(cardIndex + 1, lang)} /{' '}
@@ -469,8 +496,26 @@ export const FormulaVaultView: React.FC<FormulaVaultViewProps> = ({
           </div>
 
           <div
+            role="button"
+            tabIndex={0}
+            aria-pressed={isFlipped}
+            aria-label={
+              isFlipped
+                ? lang === 'bn'
+                  ? `${activeCard.title.bn} — উত্তর পৃষ্ঠা প্রদর্শিত`
+                  : `${activeCard.title.en} — answer side shown`
+                : lang === 'bn'
+                ? `${activeCard.title.bn} — সূত্র দেখতে ক্লিক করুন`
+                : `${activeCard.title.en} — activate to reveal formula`
+            }
             onClick={() => setIsFlipped(!isFlipped)}
-            className={`min-h-[300px] p-7 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all duration-300 select-none ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsFlipped((prev) => !prev);
+              }
+            }}
+            className={`min-h-[300px] p-7 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all duration-300 select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
               isFlipped
                 ? isDark
                   ? 'bg-gradient-to-br from-slate-800 to-teal-950/35 border-teal-400/40 text-slate-100 card-soft-dark'

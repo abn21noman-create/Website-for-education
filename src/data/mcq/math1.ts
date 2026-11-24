@@ -641,7 +641,167 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-math1-17",
+    "subjectKey": "math1",
+    "chapter": {
+      "bn": "ভেক্টর",
+      "en": "Vectors"
+    },
+    "question": {
+      "bn": "A⃗ = 2î + 3ĵ − k̂ এবং B⃗ = î − 2ĵ − 4k̂ ভেক্টরদ্বয়ের ডট গুণফল (A⃗ · B⃗) কত?",
+      "en": "What is the dot product (A⃗ · B⃗) of A⃗ = 2î + 3ĵ − k̂ and B⃗ = î − 2ĵ − 4k̂?"
+    },
+    "options": [
+      {
+        "bn": "0",
+        "en": "0"
+      },
+      {
+        "bn": "4",
+        "en": "4"
+      },
+      {
+        "bn": "−8",
+        "en": "−8"
+      },
+      {
+        "bn": "2",
+        "en": "2"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "A⃗ · B⃗ = (2)(1) + (3)(−2) + (−1)(−4) = 2 − 6 + 4 = 0; অর্থাৎ ভেক্টর দুটি পরস্পর লম্ব।",
+      "en": "A⃗ · B⃗ = 2(1) + 3(−2) + (−1)(−4) = 2 − 6 + 4 = 0, so the two vectors are perpendicular."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও যশোর বোর্ড",
+      "en": "Dhaka & Jashore Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-math1-18",
+    "subjectKey": "math1",
+    "chapter": {
+      "bn": "সংযুক্ত কোণের ত্রিকোণমিতিক অনুপাত",
+      "en": "Trigonometric Ratios of Associated Angles"
+    },
+    "question": {
+      "bn": "cos 15° এর সঠিক মান কোনটি?",
+      "en": "What is the exact value of cos 15°?"
+    },
+    "options": [
+      {
+        "bn": "(√3 − 1) / 2√2",
+        "en": "(√3 − 1) / 2√2"
+      },
+      {
+        "bn": "(√3 + 1) / 2√2",
+        "en": "(√3 + 1) / 2√2"
+      },
+      {
+        "bn": "√3 / 2",
+        "en": "√3 / 2"
+      },
+      {
+        "bn": "(√3 + 1) / 2",
+        "en": "(√3 + 1) / 2"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "cos(45° − 30°) = cos 45° cos 30° + sin 45° sin 30° = (1/√2)(√3/2) + (1/√2)(1/2) = (√3 + 1) / 2√2।",
+      "en": "cos(45° − 30°) = cos 45° cos 30° + sin 45° sin 30° = (√3 + 1) / (2√2)."
+    },
+    "boardTag": {
+      "bn": "বুয়েট ও সকল বোর্ড",
+      "en": "BUET & All Boards"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-math1-19",
+    "subjectKey": "math1",
+    "chapter": {
+      "bn": "ফাংশন ও ফাংশনের লেখচিত্র",
+      "en": "Functions & Graphs"
+    },
+    "question": {
+      "bn": "f(x) = √(9 − x²) বাস্তব ফাংশনটির ডোমেইন কোনটি?",
+      "en": "What is the real domain of the function f(x) = √(9 − x²)?"
+    },
+    "options": [
+      {
+        "bn": "[−3, 3]",
+        "en": "[−3, 3]"
+      },
+      {
+        "bn": "(−3, 3)",
+        "en": "(−3, 3)"
+      },
+      {
+        "bn": "[0, 3]",
+        "en": "[0, 3]"
+      },
+      {
+        "bn": "(−∞, 3]",
+        "en": "(−∞, 3]"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "বাস্তব মানের জন্য 9 − x² ≥ 0 ⇒ x² ≤ 9 ⇒ −3 ≤ x ≤ 3, অর্থাৎ ডোমেইন [−3, 3]।",
+      "en": "For f(x) to be real, 9 − x² ≥ 0 ⇒ x² ≤ 9 ⇒ x ∈ [−3, 3]."
+    },
+    "boardTag": {
+      "bn": "ঢাবি ও রাজশাহী বোর্ড",
+      "en": "DU & Rajshahi Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-math1-20",
+    "subjectKey": "math1",
+    "chapter": {
+      "bn": "ফাংশন ও ফাংশনের লেখচিত্র",
+      "en": "Functions & Graphs"
+    },
+    "question": {
+      "bn": "যদি f(x) = 2x − 5 হয়, তবে বিপরীত ফাংশন f⁻¹(3) এর মান কত?",
+      "en": "If f(x) = 2x − 5, what is the value of f⁻¹(3)?"
+    },
+    "options": [
+      {
+        "bn": "1",
+        "en": "1"
+      },
+      {
+        "bn": "4",
+        "en": "4"
+      },
+      {
+        "bn": "−1",
+        "en": "−1"
+      },
+      {
+        "bn": "8",
+        "en": "8"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ধরি f(x) = 3 ⇒ 2x − 5 = 3 ⇒ 2x = 8 ⇒ x = 4; সুতরাং f⁻¹(3) = 4।",
+      "en": "Solve 2x − 5 = 3 ⇒ 2x = 8 ⇒ x = 4, so f⁻¹(3) = 4."
+    },
+    "boardTag": {
+      "bn": "সকল বোর্ড",
+      "en": "All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

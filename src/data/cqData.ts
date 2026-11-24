@@ -838,4 +838,154 @@ export const CQ_QUESTIONS: CqQuestionItem[] = [
       en: 'Six moles of CO₂ give one mole of glucose, so 0.006 mol gives 0.001 mol = 0.18 g.',
     },
   },
+  {
+    id: 'cq-phy2-4',
+    subjectKey: 'physics2',
+    chapter: { bn: 'অধ্যায় ১০ : সেমিকন্ডাক্টর ও ইলেকট্রনিক্স', en: 'Ch 10: Semiconductors & Electronics' },
+    boardTag: { bn: 'ঢাকা ও যশোর বোর্ড আদর্শ সৃজনশীল', en: 'Dhaka & Jashore Board Standard' },
+    stem: {
+      bn: 'একটি সিলিকন npn ট্রানজিস্টরকে সাধারণ নিঃসারক (CE) বর্তনীতে বিবর্ধক হিসেবে যুক্ত করা হলো। বর্তনীর নিঃসারক প্রবাহ I_E = 5.0 mA এবং সংগ্রাহক প্রবাহ I_C = 4.9 mA। আউটপুট রোধ R_L = 4 kΩ এবং ইনপুট গতীয় রোধ R_i = 1 kΩ।',
+      en: 'A silicon npn transistor is connected in a common-emitter (CE) amplifier circuit with emitter current I_E = 5.0 mA, collector current I_C = 4.9 mA, load resistance R_L = 4 kΩ, and input dynamic resistance R_i = 1 kΩ.',
+    },
+    qA: { bn: 'ডোপিং কাকে বলে?', en: 'What is doping in semiconductors?' },
+    qB: { bn: 'তাপমাত্রা বাড়ালে বিশুদ্ধ অর্ধপরিবাহীর রোধ কমে কেন?', en: 'Why does the resistance of an intrinsic semiconductor decrease as temperature rises?' },
+    qC: { bn: 'ট্রানজিস্টরটির পীঠ প্রবাহ (I_B) এবং প্রবাহ বিবর্ধন গুণক (β) নির্ণয় করো।', en: 'Calculate the base current (I_B) and current gain (β) of the transistor.' },
+    qD: { bn: 'উদ্দীপকের বর্তনীটির ভোল্টেজ বিবর্ধন (A_v) এবং ক্ষমতা বিবর্ধন (A_p) গাণিতিকভাবে বিশ্লেষণ করো।', en: 'Analyze the voltage gain (A_v) and power gain (A_p) of the amplifier circuit.' },
+    ansA: {
+      bn: 'বিশুদ্ধ অর্ধপরিবাহীর তড়িৎ পরিবাহিতা বৃদ্ধির জন্য সুনিয়ন্ত্রিতভাবে সামান্য পরিমাণে ত্রিযোজী বা পঞ্চযোজী অপদ্রব্য পরমাণু মেশানোর প্রক্রিয়াকে ডোপিং বলে।',
+      en: 'Doping is the controlled addition of trace trivalent or pentavalent impurity atoms to a pure semiconductor to boost its electrical conductivity.',
+    },
+    ansB: {
+      bn: 'তাপমাত্রা বৃদ্ধি পেলে অর্ধপরিবাহীর সমযোজী বন্ধন ভেঙে মুক্ত ইলেকট্রন ও হোলের সংখ্যা সূচকীয়ভাবে বৃদ্ধি পায়। আধান বাহকের ঘনত্ব বৃদ্ধির প্রভাব সংঘর্ষের হারের চেয়ে অনেক বেশি হওয়ায় রোধ দ্রুত হ্রাস পায়।',
+      en: 'Rising temperature breaks covalent bonds and exponentially increases electron-hole pairs; the surge in charge carriers outweighs scattering, lowering resistance.',
+    },
+    ansC: {
+      bn: 'আমরা জানি, I_E = I_B + I_C ⇒ I_B = 5.0 − 4.9 = 0.1 mA। সুতরাং সাধারণ নিঃসারক প্রবাহ বিবর্ধন গুণক β = I_C / I_B = 4.9 / 0.1 = 49।',
+      en: 'I_B = I_E − I_C = 5.0 − 4.9 = 0.1 mA. Common-emitter current gain β = I_C / I_B = 4.9 / 0.1 = 49.',
+    },
+    ansD: {
+      bn: 'ভোল্টেজ বিবর্ধন A_v = β × (R_L / R_i) = 49 × (4 / 1) = 196 এবং ক্ষমতা বিবর্ধন A_p = β × A_v = 49 × 196 = 9604। সুতরাং বর্তনীটি সংকেতের ভোল্টেজ ১৯৬ গুণ এবং ক্ষমতা ৯৬০৪ গুণ বিবর্ধিত করবে।',
+      en: 'Voltage gain A_v = β(R_L / R_i) = 49 × (4 / 1) = 196, and power gain A_p = β × A_v = 49 × 196 = 9604, confirming strong signal amplification.',
+    },
+  },
+  {
+    id: 'cq-chem2-3',
+    subjectKey: 'chemistry2',
+    chapter: { bn: 'অধ্যায় ৩ : পরিমাণগত রসায়ন', en: 'Ch 3: Quantitative Chemistry' },
+    boardTag: { bn: 'বুয়েট ও সকল বোর্ড আদর্শ সৃজনশীল', en: 'BUET & All Boards Standard' },
+    stem: {
+      bn: 'ল্যাবরেটরিতে পাত্র-A তে 25 mL অজানা ঘনমাত্রার FeSO₄ (লঘু H₂SO₄ মিশ্রিত) দ্রবণ এবং পাত্র-B তে 0.02 M KMnO₄ প্রমাণ দ্রবণ রাখা আছে। পূর্ণ প্রশমনের জন্য পাত্র-B এর 20 mL দ্রবণ প্রয়োজন হলো। (Fe এর পারমাণবিক ভর = 55.85)',
+      en: 'Vessel A holds 25 mL of acidified FeSO₄ solution of unknown concentration, and Vessel B holds 0.02 M standard KMnO₄ solution. Exactly 20 mL from Vessel B is needed for complete titration. (Atomic mass of Fe = 55.85)',
+    },
+    qA: { bn: 'মোলার দ্রবণ কাকে বলে?', en: 'What is a molar solution?' },
+    qB: { bn: 'KMnO₄ দ্বারা টাইট্রেশনে আলাদা নির্দেশক (Indicator) প্রয়োজন হয় না কেন?', en: 'Why is no external indicator needed in a KMnO₄ titration?' },
+    qC: { bn: 'পাত্র-A তে বিদ্যমান FeSO₄ দ্রবণের মোলার ঘনমাত্রা নির্ণয় করো।', en: 'Determine the molar concentration of the FeSO₄ solution in Vessel A.' },
+    qD: { bn: 'পাত্র-A এর দ্রবণে উপস্থিত বিশুদ্ধ লোহার (Fe²⁺) ভর নির্ণয়পূর্বক আকরিকের বিশুদ্ধতা যাচাইয়ে এর গুরুত্ব ব্যাখ্যা করো।', en: 'Calculate the mass of Fe²⁺ in Vessel A and explain how this redox titration verifies iron purity.' },
+    ansA: {
+      bn: 'নির্দিষ্ট তাপমাত্রায় প্রতি লিটার (1000 mL) দ্রবণে ঠিক ১ মোল দ্রব দ্রবীভূত থাকলে তাকে মোলার দ্রবণ (1 M) বলে।',
+      en: 'A solution containing exactly 1 mole of solute per liter (1000 mL) of solution at a given temperature is a 1 M molar solution.',
+    },
+    ansB: {
+      bn: 'KMnO₄ নিজেই উজ্জ্বল বেগুনি বর্ণের জারক এবং বিজারিত হলে বর্ণহীন Mn²⁺ আয়নে পরিণত হয়। তুল্যবিন্দুতে এক ফোঁটা অতিরিক্ত KMnO₄ হালকা গোলাপি বর্ণ সৃষ্টি করে বলে এটি স্ব-নির্দেশক (Self-indicator) হিসেবে কাজ করে।',
+      en: 'Purple MnO₄⁻ reduces to colorless Mn²⁺; at the equivalence point, one extra drop imparts a permanent pale pink tint, acting as a self-indicator.',
+    },
+    ansC: {
+      bn: 'জারণ-বিজারণ সমীকরণ: 2KMnO₄ + 10FeSO₄ + 8H₂SO₄ → K₂SO₄ + 2MnSO₄ + 5Fe₂(SO₄)₃ + 8H₂O। অনুপাত n(FeSO₄)/n(KMnO₄) = 5/1। তাই M₁V₁ = 5 × M₂V₂ ⇒ M₁ × 25 = 5 × 0.02 × 20 = 2.0 ⇒ M₁ = 0.08 M।',
+      en: 'From 1 mol MnO₄⁻ ≡ 5 mol Fe²⁺: M₁ × 25 = 5 × 0.02 × 20 = 2.0, so M₁ = 0.08 M.',
+    },
+    ansD: {
+      bn: 'Fe²⁺ এর মোল সংখ্যা n = M₁V₁(L) = 0.08 × 0.025 = 0.002 mol। বিশুদ্ধ লোহার ভর w = 0.002 × 55.85 = 0.1117 g। নমুনার মোট ভরের সাথে 0.1117 g তুলনা করে শতকরা বিশুদ্ধতা নির্ভুলভাবে বের করা যায়।',
+      en: 'Moles of Fe²⁺ = 0.08 × 0.025 = 0.002 mol; mass of Fe = 0.002 × 55.85 = 0.1117 g, enabling exact percentage-purity calculation against raw ore mass.',
+    },
+  },
+  {
+    id: 'cq-math2-4',
+    subjectKey: 'math2',
+    chapter: { bn: 'অধ্যায় ৬ : কণিক', en: 'Ch 6: Conics' },
+    boardTag: { bn: 'বুয়েট ও রাজশাহী বোর্ড আদর্শ সৃজনশীল', en: 'BUET & Rajshahi Board Standard' },
+    stem: {
+      bn: 'একটি উপবৃত্তের সমীকরণ 9x² + 25y² = 225 এবং একটি পরাবৃত্তের সমীকরণ y² = 12x।',
+      en: 'An ellipse is given by 9x² + 25y² = 225 and a parabola is given by y² = 12x.',
+    },
+    qA: { bn: 'কণিকের উৎকেন্দ্রিকতা (Eccentricity) কাকে বলে?', en: 'Define the eccentricity of a conic section.' },
+    qB: { bn: 'উৎকেন্দ্রিকতার মানের সাপেক্ষে বৃত্ত, পরাবৃত্ত, উপবৃত্ত ও অধিবৃত্তের শর্ত লেখো।', en: 'State the eccentricity conditions for a circle, parabola, ellipse, and hyperbola.' },
+    qC: { bn: 'উদ্দীপকের উপবৃত্তটির উৎকেন্দ্রিকতা ও উপকেন্দ্রদ্বয়ের স্থানাঙ্ক নির্ণয় করো।', en: 'Find the eccentricity and focus coordinates of the given ellipse.' },
+    qD: { bn: 'যাচাই করো পরাবৃত্তটির উপকেন্দ্র এবং উপবৃত্তটির ধনাত্মক x-অক্ষস্থ উপকেন্দ্র অভিন্ন কি না।', en: 'Verify whether the focus of the parabola coincides with the positive-x focus of the ellipse.' },
+    ansA: {
+      bn: 'কণিকের ওপর যেকোনো বিন্দু হতে উপকেন্দ্রের দূরত্ব (SP) এবং নিয়ামক রেখার লম্ব দূরত্বের (PM) ধ্রুব অনুপাতকে উৎকেন্দ্রিকতা e (= SP/PM) বলে।',
+      en: 'Eccentricity e is the constant ratio of the distance of any point on the conic from its focus (SP) to its perpendicular distance from the directrix (PM).',
+    },
+    ansB: {
+      bn: 'বৃত্তের জন্য e = 0, উপবৃত্তের জন্য 0 < e < 1, পরাবৃত্তের জন্য e = 1 এবং অধিবৃত্তের জন্য e > 1।',
+      en: 'Circle: e = 0; Ellipse: 0 < e < 1; Parabola: e = 1; Hyperbola: e > 1.',
+    },
+    ansC: {
+      bn: '9x² + 25y² = 225 ⇒ x²/25 + y²/9 = 1; এখানে a = 5, b = 3 (a > b)। উৎকেন্দ্রিকতা e = √(1 − b²/a²) = √(1 − 9/25) = 4/5। উপকেন্দ্রদ্বয় (±ae, 0) = (±4, 0)।',
+      en: 'x²/25 + y²/9 = 1 gives a = 5, b = 3. Eccentricity e = √(1 − 9/25) = 4/5, and foci are (±ae, 0) = (±4, 0).',
+    },
+    ansD: {
+      bn: 'পরাবৃত্ত y² = 12x = 4·3·x এর ক্ষেত্রে a′ = 3, তাই এর উপকেন্দ্র (3, 0)। অন্যদিকে উপবৃত্তটির ধনাত্মক উপকেন্দ্র (4, 0)। যেহেতু (3, 0) ≠ (4, 0), তাই উপকেন্দ্র দুটি অভিন্ন নয়; এদের মধ্যবর্তী দূরত্ব 1 একক।',
+      en: 'For y² = 12x = 4(3)x, the parabola focus is (3, 0), whereas the ellipse positive focus is (4, 0); they do not coincide and are 1 unit apart.',
+    },
+  },
+  {
+    id: 'cq-bio2-3',
+    subjectKey: 'biology2',
+    chapter: { bn: 'অধ্যায় ৪ : মানব শারীরতত্ত্ব — রক্ত ও সংবহন', en: 'Ch 4: Human Physiology — Blood & Circulation' },
+    boardTag: { bn: 'মেডিকেল ও ঢাকা বোর্ড আদর্শ সৃজনশীল', en: 'Medical & Dhaka Board Standard' },
+    stem: {
+      bn: 'সুস্থ হৃদস্পন্দনে হৃদপিণ্ডের ডান অলিন্দ প্রসারিত হওয়ার পর বিশেষ ছন্দোময় বৈদ্যুতিক উদ্দীপনা SA নোড থেকে উৎপন্ন হয়ে AV নোড ও পার্কিনজি তন্তুতে ছড়িয়ে পড়ে। একজন তরুণের হৃদস্পন্দন হার প্রতি মিনিটে ৭৫ বার এবং প্রতি স্পন্দনে নিলয় থেকে ৭০ mL রক্ত পাম্প হয়।',
+      en: 'During a healthy cardiac cycle, rhythmic electrical impulses originate at the SA node and spread via the AV node and Purkinje fibers. A young adult has a heart rate of 75 beats/min and a stroke volume of 70 mL/beat.',
+    },
+    qA: { bn: 'প্রাকৃতিক পেসমেকার (Natural Pacemaker) কোনটি?', en: 'What is known as the natural pacemaker of the human heart?' },
+    qB: { bn: 'মানুষের রক্ত সংবহনকে দ্বি-সংবহন (Double circulation) বলা হয় কেন?', en: 'Why is human blood circulation described as double circulation?' },
+    qC: { bn: 'উদ্দীপকের তরুণের কার্ডিয়াক আউটপুট (Cardiac Output) লিটার এককে নির্ণয় করো।', en: 'Calculate the cardiac output of the individual in liters per minute.' },
+    qD: { bn: 'হৃদস্পন্দন নিয়ন্ত্রণে SA নোড ও AV নোডের সমন্বিত ভূমিকা বিশ্লেষণ করো।', en: 'Analyze the coordinated role of the SA node and AV node in regulating the heartbeat.' },
+    ansA: {
+      bn: 'হৃদপিণ্ডের ডান অলিন্দের প্রাচীরে অবস্থিত সাইনো-অ্যাট্রিয়াল নোডকে (SA Node) প্রাকৃতিক পেসমেকার বলা হয়।',
+      en: 'The sinoatrial (SA) node in the upper right atrial wall is the natural pacemaker of the heart.',
+    },
+    ansB: {
+      bn: 'সারা দেহে একবার পূর্ণ সংবহনের জন্য রক্তকে হৃদপিণ্ডের ভেতর দিয়ে দুইবার অতিক্রম করতে হয় — একবার ফুসফুসীয় (Pulmonary) সংবহনে এবং আরেকবার সিস্টেমিক (Systemic) সংবহনে; তাই একে দ্বি-সংবহন বলে।',
+      en: 'Blood passes through the heart twice per complete circuit — once via the pulmonary loop for oxygenation and once via the systemic loop to supply tissues.',
+    },
+    ansC: {
+      bn: 'কার্ডিয়াক আউটপুট = হার্ট রেট × স্ট্রোক ভলিউম = 75 × 70 mL/min = 5250 mL/min = 5.25 L/min।',
+      en: 'Cardiac output = Heart rate × Stroke volume = 75 × 70 mL/min = 5250 mL/min = 5.25 L/min.',
+    },
+    ansD: {
+      bn: 'SA নোড স্বতঃস্ফূর্তভাবে অ্যাকশন পটেনশিয়াল সৃষ্টি করে অলিন্দের সংকোচন ঘটায়। AV নোড সংকেতটি প্রায় 0.1 সেকেন্ড বিলম্বিত করে যেন নিলয় সংকোচনের আগেই অলিন্দ থেকে সম্পূর্ণ রক্ত নিলয়ে নামতে পারে, এরপর বান্ডল অব হিজ ও পার্কিনজি তন্তু দ্রুত নিলয় সংকুচিত করে।',
+      en: 'The SA node initiates atrial contraction, while the AV node introduces a ~0.1 s delay so ventricles fill completely before His-Purkinje fibers trigger ventricular systole.',
+    },
+  },
+  {
+    id: 'cq-ban-2',
+    subjectKey: 'bangla',
+    chapter: { bn: 'উপন্যাস : লালসালু', en: 'Novel: Lalsalu' },
+    boardTag: { bn: 'সকল বোর্ড আদর্শ সৃজনশীল', en: 'All Boards Standard' },
+    stem: {
+      bn: 'নদীভাঙা চরের প্রান্তিক গ্রাম শিমুলতলীতে হঠাৎ আগমন ঘটে এক আগন্তুকের। গ্রামের অশিক্ষা ও ভীতিকে পুঁজি করে সে পুরোনো একটি বটগাছের নিচে বাঁধানো স্থান ঘিরে মানুষকে অলৌকিক ভয়ের কথা শোনায়। তবে গ্রামের সাহসী কিশোরী রাহেলা তার অন্যায় শাসনের কাছে মাথা নত করতে অস্বীকার করে।',
+      en: 'A stranger arrives in the remote river-eroded village of Shimultoli. Exploiting local fear and lack of schooling, he cordons off a spot beneath an old banyan tree and rules through superstition, until a fearless young woman named Rahela refuses to bow to his intimidation.',
+    },
+    qA: { bn: '‘লালসালু’ উপন্যাসে মজিদের প্রথম স্ত্রীর নাম কী?', en: 'What is the name of Majeed’s first wife in the novel Lalsalu?' },
+    qB: { bn: '“শস্যের চেয়ে টুপি বেশি, ধর্মের আগাছা বেশি” — উক্তিটির তাৎপর্য ব্যাখ্যা করো।', en: 'Explain the significance of the line about scarcity of crops and abundance of blind ritualism in Lalsalu.' },
+    qC: { bn: 'উদ্দীপকের আগন্তুকের কর্মকাণ্ডের সাথে ‘লালসালু’ উপন্যাসের মজিদ চরিত্রের সাদৃশ্য নিরূপণ করো।', en: 'Compare the stranger’s actions in the stem with Majeed’s character in Lalsalu.' },
+    qD: { bn: 'উদ্দীপকের রাহেলা চরিত্রটি কি ‘লালসালু’ উপন্যাসের জমিলা চরিত্রের প্রতিচ্ছবি? যুক্তিসহ বিশ্লেষণ করো।', en: 'Is Rahela in the stem a reflection of Jamila in Lalsalu? Analyze with textual reasoning.' },
+    ansA: {
+      bn: '‘লালসালু’ উপন্যাসে মজিদের প্রথম স্ত্রীর নাম রহিমা।',
+      en: 'Majeed’s first wife in Lalsalu is Rahima.',
+    },
+    ansB: {
+      bn: 'অনুর্বর ও জনবহুল অঞ্চলে জীবিকার তীব্র সংকট থাকা সত্ত্বেও কুসংস্কার ও বাহ্যিক আনুষ্ঠানিকতার আধিক্য বোঝাতে লেখক উক্তিটি করেছেন, যা মজিদের মতো সুযোগসন্ধানীদের জীবিকা খোঁজার পটভূমি তৈরি করে।',
+      en: 'The remark highlights how severe agrarian poverty coexists with outward superstition, creating fertile ground for opportunists like Majeed.',
+    },
+    ansC: {
+      bn: 'উদ্দীপকের আগন্তুক যেমন অশিক্ষা ও ভীতিকে পুঁজি করে আধিপত্য বিস্তার করে, ‘লালসালু’ উপন্যাসে মজিদও মহব্বতনগর গ্রামে অজ্ঞাত কবরকে মোদাচ্ছের পীরের মাজার বানিয়ে শালিস ও ভীতির মাধ্যমে গ্রামবাসীকে নিয়ন্ত্রণ করে।',
+      en: 'Like the stranger, Majeed exploits fear in Mohabbatnagar by turning an old grave into a shrine to command obedience and economic control.',
+    },
+    ansD: {
+      bn: 'হ্যাঁ, রাহেলা চরিত্রটি জমিলারই প্রতিচ্ছবি। কিশোরী জমিলা মজিদের কৃত্রিম ভীতিকে পরোয়া না করে সহজাত মানবিক স্বতঃস্ফূর্ততা ও প্রতিবাদী আচরণের মাধ্যমে মজিদের সাজানো ক্ষমতার ভিত্তিকে কাঁপিয়ে তোলে।',
+      en: 'Yes — Jamila embodies spontaneous human defiance, refusing to fear Majeed’s manufactured authority and exposing the fragility of his control.',
+    },
+  },
 ];

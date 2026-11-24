@@ -9,8 +9,10 @@ import { refreshAccessibilityPreferences } from '../lib/accessibility';
 import { isNativeAndroidHost } from '../lib/nativeFocus';
 import { ACCOUNT_DELETION_URL, PRIVACY_POLICY_URL } from '../lib/publicUrls';
 import { AccessibilityMenu } from './AccessibilityMenu';
-import App from '../App';
-
+const LazyStudentApp = lazy(async () => {
+  const module = await import('../App');
+  return { default: module.App };
+});
 const LazyAdminPortal = lazy(async () => {
   const module = await import('./AdminPortal');
   return { default: module.AdminPortal };
@@ -234,7 +236,9 @@ export function AuthGate({ clientFactory = getSupabase }: { clientFactory?: () =
     </section></main>;
     return <>
       {role === 'admin' && <button className="admin-student-return" onClick={openAdminPortal}><LayoutDashboard size={16} />{bn ? 'অ্যাডমিন পোর্টাল' : 'Admin portal'}</button>}
-      <App key={session.user.id} />
+      <Suspense fallback={<div className="min-h-dvh grid place-items-center bg-slate-950 text-white" role="status"><div className="text-center"><LoaderCircle className="animate-spin mx-auto mb-4" /><p>{bn ? 'স্টুডেন্ট স্পেস প্রস্তুত হচ্ছে…' : 'Opening study space…'}</p></div></div>}>
+        <LazyStudentApp key={session.user.id} />
+      </Suspense>
     </>;
   }
   if (status === 'loading' || status === 'preparing') return <div className="min-h-dvh grid place-items-center bg-slate-950 text-white" role="status"><div className="text-center"><LoaderCircle className="animate-spin mx-auto mb-4" /><p>{status === 'preparing' ? (bn ? 'আপনার ডেটা নিরাপদে প্রস্তুত হচ্ছে…' : 'Preparing your data safely…') : (bn ? 'নক্ষত্র চালু হচ্ছে…' : 'Starting Nokkhotro…')}</p></div></div>;

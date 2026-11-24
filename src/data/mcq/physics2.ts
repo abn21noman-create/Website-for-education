@@ -641,7 +641,167 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "medium"
-}
+},
+  {
+    "id": "q-phy2-17",
+    "subjectKey": "physics2",
+    "chapter": {
+      "bn": "জ্যোতির্বিজ্ঞান",
+      "en": "Astronomy"
+    },
+    "question": {
+      "bn": "চন্দ্রশেখর সীমার (Chandrasekhar limit) মান সূর্যের ভরের (M☉) কত গুণ?",
+      "en": "What is the value of the Chandrasekhar limit in terms of solar mass (M☉)?"
+    },
+    "options": [
+      {
+        "bn": "1.4 M☉",
+        "en": "1.4 M☉"
+      },
+      {
+        "bn": "2.4 M☉",
+        "en": "2.4 M☉"
+      },
+      {
+        "bn": "3.0 M☉",
+        "en": "3.0 M☉"
+      },
+      {
+        "bn": "0.8 M☉",
+        "en": "0.8 M☉"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "নক্ষত্রের অবশিষ্ট ভর 1.4 M☉-এর কম হলে তা শ্বেত বামন (White Dwarf) নক্ষত্রে পরিণত হয়; একে চন্দ্রশেখর সীমা বলে।",
+      "en": "A stellar core remnant below 1.4 M☉ stabilizes as a white dwarf; this threshold is the Chandrasekhar limit."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও রাজশাহী বোর্ড",
+      "en": "Dhaka & Rajshahi Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-phy2-18",
+    "subjectKey": "physics2",
+    "chapter": {
+      "bn": "জ্যোতির্বিজ্ঞান",
+      "en": "Astronomy"
+    },
+    "question": {
+      "bn": "M ভরের একটি কৃষ্ণগহ্বরের সোয়ার্জশিল্ড ব্যাসার্ধ (Schwarzschild radius, Rₛ) নির্ণয়ের সূত্র কোনটি?",
+      "en": "Which formula gives the Schwarzschild radius (Rₛ) of a black hole of mass M?"
+    },
+    "options": [
+      {
+        "bn": "GM / c²",
+        "en": "GM / c²"
+      },
+      {
+        "bn": "2GM / c²",
+        "en": "2GM / c²"
+      },
+      {
+        "bn": "√(2GM / c)",
+        "en": "√(2GM / c)"
+      },
+      {
+        "bn": "GM / 2c²",
+        "en": "GM / 2c²"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "মুক্তিবেগ vₑ = √(2GM/R) = c বসালে সোয়ার্জশিল্ড ব্যাসার্ধ Rₛ = 2GM / c² পাওয়া যায়।",
+      "en": "Setting escape velocity √(2GM/R) equal to light speed c yields Rₛ = 2GM / c²."
+    },
+    "boardTag": {
+      "bn": "বুয়েট ও সকল বোর্ড",
+      "en": "BUET & All Boards"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy2-19",
+    "subjectKey": "physics2",
+    "chapter": {
+      "bn": "সেমিকন্ডাক্টর ও ইলেকট্রনিক্স",
+      "en": "Semiconductors & Electronics"
+    },
+    "question": {
+      "bn": "একটি ট্রানজিস্টরের সাধারণ পীঠ (CB) সংযোগে প্রবাহ বিবর্ধন গুণক α = 0.98 হলে সাধারণ নিঃসারক (CE) প্রবাহ বিবর্ধন গুণক β কত?",
+      "en": "If the common-base current gain of a transistor is α = 0.98, what is its common-emitter current gain β?"
+    },
+    "options": [
+      {
+        "bn": "24",
+        "en": "24"
+      },
+      {
+        "bn": "49",
+        "en": "49"
+      },
+      {
+        "bn": "98",
+        "en": "98"
+      },
+      {
+        "bn": "50",
+        "en": "50"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "β = α / (1 − α) = 0.98 / (1 − 0.98) = 0.98 / 0.02 = 49।",
+      "en": "β = α / (1 − α) = 0.98 / 0.02 = 49."
+    },
+    "boardTag": {
+      "bn": "যশোর ও চট্টগ্রাম বোর্ড",
+      "en": "Jashore & Chattogram Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-phy2-20",
+    "subjectKey": "physics2",
+    "chapter": {
+      "bn": "ভৌত আলোকবিজ্ঞান",
+      "en": "Physical Optics"
+    },
+    "question": {
+      "bn": "ইয়ং-এর দ্বি-চিড় পরীক্ষায় চিড় দুটির মধ্যবর্তী দূরত্ব অর্ধেক করলে ডোরার প্রস্থ (fringe width) কতগুণ হবে?",
+      "en": "In Young's double-slit experiment, if the slit separation is halved, the fringe width becomes:"
+    },
+    "options": [
+      {
+        "bn": "অর্ধেক",
+        "en": "Half"
+      },
+      {
+        "bn": "দ্বিগুণ",
+        "en": "Double"
+      },
+      {
+        "bn": "চারগুণ",
+        "en": "Four times"
+      },
+      {
+        "bn": "অপরিবর্তিত",
+        "en": "Unchanged"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ডোরার প্রস্থ β = λD / a; তাই চিড়দ্বয়ের দূরত্ব a অর্ধেক হলে β দ্বিগুণ হবে।",
+      "en": "Fringe width β = λD / a is inversely proportional to slit separation a, so halving a doubles β."
+    },
+    "boardTag": {
+      "bn": "ঢাকা ও কুমিল্লা বোর্ড",
+      "en": "Dhaka & Cumilla Board"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

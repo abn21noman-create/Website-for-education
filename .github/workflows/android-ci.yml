@@ -69,12 +69,12 @@ jobs:
           REQUIRE_RELEASE_SIGNING: 'true'
         run: |
           set +e
-          gradle_version=$(gradle --version | awk '/^Gradle / { print $2 }')
+          gradle_version=$(./android/gradlew -p android --version | awk '/^Gradle / { print $2 }')
           if [[ "$gradle_version" != "9.8.2" ]]; then
-            echo "::error::Runner Gradle is $gradle_version; expected the repository-pinned 9.8.2"
+            echo "::error::Wrapper Gradle is $gradle_version; expected the repository-pinned 9.8.2"
             exit 1
           fi
-          gradle -p android --no-daemon \
+          ./android/gradlew -p android --no-daemon \
             testDebugUnitTest testReleaseUnitTest \
             lintDebug lintRelease assembleDebug bundleRelease \
             2>&1 | tee "$RUNNER_TEMP/gradle-build.log"

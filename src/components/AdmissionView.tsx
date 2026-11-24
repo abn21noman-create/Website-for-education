@@ -85,6 +85,25 @@ const TRACK_PROBLEMS: Record<AdmissionTrack, TrackProblem[]> = {
         en: 'The centre is (2, 3). The radius to (5, 3) is horizontal, so the tangent is x = 5 and the normal is y = 3.',
       },
     },
+    {
+      id: 'buet-3',
+      tag: {
+        bn: 'BUET Written • পদার্থবিজ্ঞান ২য় (তাপগতিবিদ্যা ও রুদ্ধতাপীয় প্রক্রিয়া)',
+        en: 'BUET Written • Physics 2nd (Thermodynamics)',
+      },
+      question: {
+        bn: '27°C তাপমাত্রায় থাকা দ্বিপারমাণবিক গ্যাসকে (γ = 1.4) রুদ্ধতাপীয় প্রক্রিয়ায় সংকুচিত করে আয়তন অর্ধেক করা হলে চূড়ান্ত তাপমাত্রা কত হবে? (2^0.4 ≈ 1.32)',
+        en: 'A diatomic gas (γ = 1.4) at 27°C is adiabatically compressed to half its volume. Find the final Celsius temperature (use 2^0.4 ≈ 1.32).',
+      },
+      trick: {
+        bn: 'রুদ্ধতাপীয় প্রক্রিয়ায় চাপ না থাকলে সরাসরি T₁V₁^(γ−1) = T₂V₂^(γ−1) সূত্র বসাও এবং তাপমাত্রা অবশ্যই কেলভিনে (K) নাও!',
+        en: 'Always convert Celsius to Kelvin first, then apply T₂ = T₁ (V₁/V₂)^(γ−1).',
+      },
+      solution: {
+        bn: 'T₁ = 27 + 273 = 300 K এবং V₁/V₂ = 2। তাই T₂ = 300 × 2^(1.4 − 1) = 300 × 2^0.4 = 300 × 1.32 = 396 K = 123°C।',
+        en: 'T₁ = 300 K, V₁/V₂ = 2 ⇒ T₂ = 300 × 2^0.4 = 396 K = 123°C.',
+      },
+    },
   ],
   medical: [
     {
@@ -123,6 +142,25 @@ const TRACK_PROBLEMS: Record<AdmissionTrack, TrackProblem[]> = {
       solution: {
         bn: 'Na⁺ = সোনালি হলুদ (Golden yellow), K⁺ = বেগুনি (Lilac/Violet; ব্লু-গ্লাসে গোলাপি-লাল), Ca²⁺ = ইটের মতো লাল (Brick red), Cu²⁺ = নীলাভ সবুজ (Bluish green)। (Be ও Mg শিখা পরীক্ষা দেয় না!)।',
         en: 'Na⁺: Golden yellow; K⁺: Lilac; Ca²⁺: Brick red; Cu²⁺: Bluish green. Note: Be²⁺ & Mg²⁺ do NOT give flame colors!',
+      },
+    },
+    {
+      id: 'med-3',
+      tag: {
+        bn: 'Medical Admission • জীববিজ্ঞান ২য় (কটিকাল স্নায়ু — Cranial Nerves)',
+        en: 'Medical Admission • Biology 2nd (12 Cranial Nerves)',
+      },
+      question: {
+        bn: 'মানবদেহের ১২ জোড়া করোটিক স্নায়ুর মধ্যে কোনগুলো সংবেদী (Sensory), কোনগুলো চেষ্টীয় (Motor) এবং দীর্ঘতম মিশ্র স্নায়ু কোনটি?',
+        en: 'Among the 12 pairs of human cranial nerves, which are purely sensory, and which is the longest mixed wandering nerve?',
+      },
+      trick: {
+        bn: 'মনে রাখার কোড: সংবেদী = ১২৮ (I, II, VIII); মিশ্র = ৫, ৭, ৯, ১০ (V, VII, IX, X); বাকি সব চেষ্টীয়!',
+        en: 'Sensory code: 1-2-8 (I, II, VIII); Mixed: 5, 7, 9, 10; all remaining pairs are motor!',
+      },
+      solution: {
+        bn: 'সংবেদী: অলফ্যাক্টরি (I), অপটিক (II) ও অডিটরি/ভেস্টিবুলোককলিয়ার (VIII)। দীর্ঘতম মিশ্র স্নায়ু হলো দশম স্নায়ু ভ্যাগাস (X — Vagus), যা হৃদপিণ্ড, ফুসফুস ও পাকস্থলী নিয়ন্ত্রণ করে।',
+        en: 'Purely sensory: Olfactory (I), Optic (II), Vestibulocochlear (VIII). The Vagus nerve (X) is the longest mixed cranial nerve.',
       },
     },
   ],
@@ -165,6 +203,25 @@ const TRACK_PROBLEMS: Record<AdmissionTrack, TrackProblem[]> = {
         en: 'Differentiating numerator and denominator: (5 - 2) / 3 = 1.',
       },
     },
+    {
+      id: 'du-3',
+      tag: {
+        bn: 'ঢাবি ‘ক’ (ক্যালকুলেটর ছাড়া!) • নির্দিষ্ট যোগজীকরণ শর্টকাট',
+        en: 'DU Ka (No Calculator!) • Definite Integral Symmetry Shortcut',
+      },
+      question: {
+        bn: 'ক্যালকুলেটর ছাড়াই ৩ সেকেন্ডে মান বলো: ∫(0 থেকে π/2) sin³x / (sin³x + cos³x) dx = কত?',
+        en: 'Evaluate in 3 seconds without a calculator: ∫₀^(π/2) sin³x / (sin³x + cos³x) dx.',
+      },
+      trick: {
+        bn: 'King’s Property: ∫(0 থেকে π/2) f(sin x) / [f(sin x) + f(cos x)] dx আকারের যেকোনো যোগজের উত্তর সর্বদা π / 4!',
+        en: 'By King’s rule f(a − x), any integral ∫₀^(π/2) f(sin x)/[f(sin x) + f(cos x)] dx equals (π/2)/2 = π/4!',
+      },
+      solution: {
+        bn: 'I + I = ∫(0 থেকে π/2) [sin³x + cos³x] / [sin³x + cos³x] dx = ∫(0 থেকে π/2) 1 dx = π/2 ⇒ 2I = π/2 ⇒ I = π/4।',
+        en: 'Adding I(x) and I(π/2 − x) gives 2I = ∫₀^(π/2) 1 dx = π/2 ⇒ I = π/4.',
+      },
+    },
   ],
 };
 
@@ -192,6 +249,30 @@ const MENTAL_DRILLS = [
     options: ['6.85', '7.07', '7.25', '7.50'],
     ans: 1,
     exp: '√50 = √(25 × 2) = 5 × √2 = 5 × 1.414 = 7.07',
+  },
+  {
+    q: '0.005 M H₂SO₄ জলীয় দ্রবণের pH কত? (পূর্ণ বিয়োজনে)',
+    options: ['2.0', '2.3', '3.0', '1.7'],
+    ans: 0,
+    exp: 'দ্বিক্ষারকীয় অম্ল হওয়ায় [H⁺] = 2 × 0.005 = 0.01 M = 10⁻² M ⇒ pH = 2.0',
+  },
+  {
+    q: '∫₀^(π/2) √sin x / (√sin x + √cos x) dx = ?',
+    options: ['π / 2', 'π / 4', '1', '0'],
+    ans: 1,
+    exp: 'King’s symmetry rule অনুসারে 0 থেকে π/2 সীমায় উত্তর সরাসরি (π/2)/2 = π/4',
+  },
+  {
+    q: '25°C তাপমাত্রা কেলভিন স্কেলে কত এবং পরম শূন্যের চেয়ে কত বেশি?',
+    options: ['298 K', '273 K', '310 K', '248 K'],
+    ans: 0,
+    exp: 'T(K) = 25 + 273 = 298 K',
+  },
+  {
+    q: 'sin 15° × cos 15° এর মান কত?',
+    options: ['1 / 2', '1 / 4', '√3 / 4', '1 / √2'],
+    ans: 1,
+    exp: 'sin θ cos θ = (1/2) sin 2θ = (1/2) sin 30° = (1/2)(1/2) = 1/4',
   },
 ];
 

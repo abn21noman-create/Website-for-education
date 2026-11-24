@@ -681,7 +681,127 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-ban-18",
+    "subjectKey": "bangla",
+    "chapter": {
+      "bn": "উপন্যাস ও নাটক: লালসালু এবং সিরাজউদ্দৌলা",
+      "en": "Novel & Drama: Lalsalu & Sirajuddaula"
+    },
+    "question": {
+      "bn": "সৈয়দ ওয়ালীউল্লাহ্ রচিত ‘লালসালু’ উপন্যাসে মজিদ কোন গ্রামে এসে মোদাচ্ছের পীরের মাজার গড়ে তোলে?",
+      "en": "In Syed Waliullah's novel 'Lalsalu', in which village does Majeed establish the shrine?"
+    },
+    "options": [
+      {
+        "bn": "মহব্বতনগর",
+        "en": "Mohabbatnagar"
+      },
+      {
+        "bn": "আওয়ালপুর",
+        "en": "Awalpur"
+      },
+      {
+        "bn": "রসুলপুর",
+        "en": "Rasulpur"
+      },
+      {
+        "bn": "মধুপুর",
+        "en": "Madhupur"
+      }
+    ],
+    "correctIndex": 0,
+    "explanation": {
+      "bn": "মজিদ মহব্বতনগর গ্রামে এসে একটি পুরোনো কবরকে ‘মোদাচ্ছের পীরের মাজার’ হিসেবে প্রতিষ্ঠা করে; পাশের গ্রামের নাম ছিল আওয়ালপুর।",
+      "en": "Majeed settles in Mohabbatnagar and turns an unmarked grave into 'Modasser Pir's Mazar'; Awalpur is the neighboring village."
+    },
+    "boardTag": {
+      "bn": "ঢাবি ও সকল বোর্ড",
+      "en": "DU & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-ban-19",
+    "subjectKey": "bangla",
+    "chapter": {
+      "bn": "উপন্যাস ও নাটক: লালসালু এবং সিরাজউদ্দৌলা",
+      "en": "Novel & Drama: Lalsalu & Sirajuddaula"
+    },
+    "question": {
+      "bn": "সিকান্দার আবু জাফরের ‘সিরাজউদ্দৌলা’ নাটকে মোট কয়টি অঙ্ক ও দৃশ্য রয়েছে?",
+      "en": "How many acts and scenes are there in Sikandar Abu Jafar's historical drama 'Sirajuddaula'?"
+    },
+    "options": [
+      {
+        "bn": "৩ অঙ্ক, ৯ দৃশ্য",
+        "en": "3 acts, 9 scenes"
+      },
+      {
+        "bn": "৪ অঙ্ক, ১২ দৃশ্য",
+        "en": "4 acts, 12 scenes"
+      },
+      {
+        "bn": "৫ অঙ্ক, ১০ দৃশ্য",
+        "en": "5 acts, 10 scenes"
+      },
+      {
+        "bn": "৪ অঙ্ক, ৮ দৃশ্য",
+        "en": "4 acts, 8 scenes"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "‘সিরাজউদ্দৌলা’ নাটকটি ৪টি অঙ্ক এবং মোট ১২টি দৃশ্যে বিভক্ত (প্রথম অঙ্কে ৩, দ্বিতীয় অঙ্কে ৩, তৃতীয় অঙ্কে ৪ ও চতুর্থ অঙ্কে ২টি দৃশ্য)।",
+      "en": "'Sirajuddaula' has 4 acts and 12 scenes in total (3 + 3 + 4 + 2)."
+    },
+    "boardTag": {
+      "bn": "যশোর ও ঢাকা বোর্ড",
+      "en": "Jashore & Dhaka Board"
+    },
+    "difficulty": "medium"
+  },
+  {
+    "id": "q-ban-20",
+    "subjectKey": "bangla",
+    "chapter": {
+      "bn": "ব্যাকরণ ও নির্মিতি: বাক্যতত্ত্ব, অপপ্রয়োগ-শুদ্ধ প্রয়োগ, পারিভাষিক শব্দ ও প্রতিবেদন/ইমেইল",
+      "en": "Sentence Transformation, Correction & Composition"
+    },
+    "question": {
+      "bn": "নিচের কোন বাক্যটি বাহুল্য দোষমুক্ত ও ব্যাকরণগতভাবে শুদ্ধ?",
+      "en": "Which of the following Bengali sentences is grammatically pure and free of redundancy?"
+    },
+    "options": [
+      {
+        "bn": "সকল সদস্যগণ সভায় উপস্থিত ছিলেন।",
+        "en": "সকল সদস্যগণ সভায় উপস্থিত ছিলেন।"
+      },
+      {
+        "bn": "কেবলমাত্র তুমিই কাজটি করতে পারো।",
+        "en": "কেবলমাত্র তুমিই কাজটি করতে পারো।"
+      },
+      {
+        "bn": "সদস্যগণ সভায় উপস্থিত ছিলেন।",
+        "en": "সদস্যগণ সভায় উপস্থিত ছিলেন।"
+      },
+      {
+        "bn": "অশ্রুজলে তার বুক ভেসে গেল।",
+        "en": "অশ্রুজলে তার বুক ভেসে গেল।"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "‘সকল’ ও ‘গণ’, ‘কেবল’ ও ‘মাত্র’, এবং ‘অশ্রু’ ও ‘জল’ একসাথে ব্যবহার করলে বাহুল্য দোষ ঘটে; তাই ‘সদস্যগণ সভায় উপস্থিত ছিলেন’ শুদ্ধ।",
+      "en": "'সকল সদস্যগণ', 'কেবলমাত্র', and 'অশ্রুজল' repeat plural/exclusive/meaning markers; 'সদস্যগণ সভায় উপস্থিত ছিলেন' is concise and correct."
+    },
+    "boardTag": {
+      "bn": "ঢাবি ও সকল বোর্ড",
+      "en": "DU & All Boards"
+    },
+    "difficulty": "medium"
+  }
 ];
 
 export default QUESTIONS;

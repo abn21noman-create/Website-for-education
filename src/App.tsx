@@ -1585,6 +1585,7 @@ export function App() {
               progressMap={progressMap}
               onToggleStage={handleToggleStage}
               onSubjectChange={handleSyllabusSubjectChange}
+              onNavigate={handleNavigate}
             />
           )}
 
@@ -1801,6 +1802,7 @@ export function App() {
             onClose={() => setIsSearchOpen(false)}
             lang={lang}
             theme={theme}
+            personalNotes={personalNotes}
             onSelectDestination={handleNavigate}
           />
         </Suspense>

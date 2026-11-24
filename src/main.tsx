@@ -1,15 +1,19 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { AppRuntimeStatus } from './components/AppRuntimeStatus';
 import { AuthGate } from './components/AuthGate';
-import { PublicLegalPage } from './components/PublicLegalPages';
 import { getPublicRoute } from './lib/publicUrls';
 import {
   applyAccessibilityPreferences,
   loadAccessibilityPreferences,
 } from './lib/accessibility';
+
+const LazyPublicLegalPage = lazy(async () => {
+  const module = await import('./components/PublicLegalPages');
+  return { default: module.PublicLegalPage };
+});
 
 // Restore the chosen appearance before React paints the authentication gate.
 // App.tsx keeps this in sync after authentication; doing the first read here
@@ -30,7 +34,11 @@ const publicRoute = getPublicRoute(window.location.pathname);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      {publicRoute ? <PublicLegalPage route={publicRoute} /> : <AuthGate />}
+      {publicRoute ? (
+        <Suspense fallback={<div className="min-h-dvh grid place-items-center bg-slate-950 text-white" role="status">Loading…</div>}>
+          <LazyPublicLegalPage route={publicRoute} />
+        </Suspense>
+      ) : <AuthGate />}
     </AppErrorBoundary>
     {!publicRoute && <AppRuntimeStatus />}
   </StrictMode>

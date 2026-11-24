@@ -641,7 +641,167 @@ const QUESTIONS: McqQuestion[] = [
     "en": "All Boards"
   },
   "difficulty": "easy"
-}
+},
+  {
+    "id": "q-chem1-17",
+    "subjectKey": "chemistry1",
+    "chapter": {
+      "bn": "ল্যাবরেটরির নিরাপদ ব্যবহার",
+      "en": "Safe Use of Laboratory"
+    },
+    "question": {
+      "bn": "নিচের কোনটি প্রাইমারি স্ট্যান্ডার্ড পদার্থ?",
+      "en": "Which of the following is a primary standard substance?"
+    },
+    "options": [
+      {
+        "bn": "NaOH",
+        "en": "NaOH"
+      },
+      {
+        "bn": "KMnO₄",
+        "en": "KMnO₄"
+      },
+      {
+        "bn": "অনাদ্র Na₂CO₃",
+        "en": "Anhydrous Na₂CO₃"
+      },
+      {
+        "bn": "HCl",
+        "en": "HCl"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "অনাদ্র Na₂CO₃ বাতাসের জলীয় বাষ্প বা অক্সিজেনের সাথে বিক্রিয়া করে না এবং এর ঘনমাত্রা দীর্ঘকাল অপরিবর্তিত থাকে, তাই এটি প্রাইমারি স্ট্যান্ডার্ড পদার্থ।",
+      "en": "Anhydrous Na₂CO₃ is non-hygroscopic, stable in air, and keeps its exact molarity over time, making it a primary standard."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-chem1-18",
+    "subjectKey": "chemistry1",
+    "chapter": {
+      "bn": "ল্যাবরেটরির নিরাপদ ব্যবহার",
+      "en": "Safe Use of Laboratory"
+    },
+    "question": {
+      "bn": "4-ডিজিট রাসায়নিক নিক্তি (Paul-Bunge / Digital analytical balance) দিয়ে সর্বনিম্ন কত গ্রাম ভর সূক্ষ্মভাবে মাপা যায়?",
+      "en": "What is the smallest mass readable on a 4-digit analytical balance?"
+    },
+    "options": [
+      {
+        "bn": "0.01 g",
+        "en": "0.01 g"
+      },
+      {
+        "bn": "0.001 g",
+        "en": "0.001 g"
+      },
+      {
+        "bn": "0.0001 g",
+        "en": "0.0001 g"
+      },
+      {
+        "bn": "0.1 g",
+        "en": "0.1 g"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "4-ডিজিট অ্যানালিটিক্যাল ব্যালেন্সে দশমিকের পর ৪ ঘর পর্যন্ত অর্থাৎ 0.0001 g (0.1 mg) ভর মাপা যায়।",
+      "en": "A 4-decimal-place analytical balance resolves down to 0.0001 g (0.1 mg)."
+    },
+    "boardTag": {
+      "bn": "যশোর ও রাজশাহী বোর্ড",
+      "en": "Jashore & Rajshahi Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-chem1-19",
+    "subjectKey": "chemistry1",
+    "chapter": {
+      "bn": "কর্মমুখী রসায়ন",
+      "en": "Vocational Chemistry"
+    },
+    "question": {
+      "bn": "খাদ্য সংরক্ষণে ব্যবহৃত ভিনেগার মূলত অ্যাসিটিক অ্যাসিডের (CH₃COOH) কত শতাংশ জলীয় দ্রবণ?",
+      "en": "Vinegar used in food preservation is an aqueous solution of acetic acid (CH₃COOH) of what concentration?"
+    },
+    "options": [
+      {
+        "bn": "1% – 2%",
+        "en": "1% – 2%"
+      },
+      {
+        "bn": "6% – 10%",
+        "en": "6% – 10%"
+      },
+      {
+        "bn": "25% – 30%",
+        "en": "25% – 30%"
+      },
+      {
+        "bn": "40% ফরমালিন",
+        "en": "40% formalin"
+      }
+    ],
+    "correctIndex": 1,
+    "explanation": {
+      "bn": "ইথানয়িক অ্যাসিডের (CH₃COOH) 6%–10% জলীয় দ্রবণকে ভিনেগার বলে, যা pH কমিয়ে ব্যাকটেরিয়ার বৃদ্ধি রোধ করে।",
+      "en": "Vinegar is a 6%–10% aqueous solution of ethanoic acid; its low pH inhibits microbial growth safely."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও ঢাকা বোর্ড",
+      "en": "Medical & Dhaka Board"
+    },
+    "difficulty": "easy"
+  },
+  {
+    "id": "q-chem1-20",
+    "subjectKey": "chemistry1",
+    "chapter": {
+      "bn": "কর্মমুখী রসায়ন",
+      "en": "Vocational Chemistry"
+    },
+    "question": {
+      "bn": "দুধে বিদ্যমান প্রধান ডাইস্যাকারাইড শর্করা কোনটি?",
+      "en": "Which disaccharide sugar is primarily present in milk?"
+    },
+    "options": [
+      {
+        "bn": "সুক্রোজ",
+        "en": "Sucrose"
+      },
+      {
+        "bn": "মল্টোজ",
+        "en": "Maltose"
+      },
+      {
+        "bn": "ল্যাকটোজ",
+        "en": "Lactose"
+      },
+      {
+        "bn": "ফ্রুক্টোজ",
+        "en": "Fructose"
+      }
+    ],
+    "correctIndex": 2,
+    "explanation": {
+      "bn": "দুধের প্রধান শর্করা হলো ল্যাকটোজ (গ্লুকোজ + গ্যালাকটোজ), এবং প্রধান প্রোটিন হলো কেসিন (Casein)।",
+      "en": "Milk's main carbohydrate is lactose (glucose + galactose), while its primary protein is casein."
+    },
+    "boardTag": {
+      "bn": "মেডিকেল ও সকল বোর্ড",
+      "en": "Medical & All Boards"
+    },
+    "difficulty": "easy"
+  }
 ];
 
 export default QUESTIONS;

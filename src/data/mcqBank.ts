@@ -29,16 +29,16 @@ export const ALL_SUBJECT_KEYS: SubjectKey[] = [
 
 export const MCQ_COUNTS: Record<SubjectKey, number> = {
   physics1: 30,
-  physics2: 16,
-  chemistry1: 16,
-  chemistry2: 17,
-  math1: 16,
-  math2: 15,
-  biology1: 16,
-  biology2: 14,
-  ict: 16,
-  bangla: 17,
-  english: 19,
+  physics2: 20,
+  chemistry1: 20,
+  chemistry2: 20,
+  math1: 20,
+  math2: 20,
+  biology1: 22,
+  biology2: 20,
+  ict: 20,
+  bangla: 20,
+  english: 22,
 };
 
 export const MCQ_TOTAL = Object.values(MCQ_COUNTS).reduce((sum, n) => sum + n, 0);

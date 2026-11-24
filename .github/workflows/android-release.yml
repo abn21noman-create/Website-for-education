@@ -96,12 +96,12 @@ jobs:
           VERSION_CODE: ${{ inputs.version_code }}
           VERSION_NAME: ${{ inputs.version_name }}
         run: |
-          gradle_version=$(gradle --version | awk '/^Gradle / { print $2 }')
+          gradle_version=$(./android/gradlew -p android --version | awk '/^Gradle / { print $2 }')
           if [[ "$gradle_version" != "9.8.2" ]]; then
-            echo "::error::Runner Gradle is $gradle_version; expected the repository-pinned 9.8.2"
+            echo "::error::Wrapper Gradle is $gradle_version; expected the repository-pinned 9.8.2"
             exit 1
           fi
-          gradle -p android --no-daemon \
+          ./android/gradlew -p android --no-daemon \
             -PVERSION_CODE="$VERSION_CODE" \
             -PVERSION_NAME="$VERSION_NAME" \
             testReleaseUnitTest lintRelease bundleRelease
